@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clean macOS</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg: #0f0f13;
+            --card: #1a1a24;
+            --border: #2a2a3a;
+            --text: #e4e4ef;
+            --text2: #8888a0;
+            --accent: #6c5ce7;
+            --accent2: #a29bfe;
+            --danger: #ff6b6b;
+            --success: #51cf66;
+            --warn: #ffd43b;
+            --orange: #ff9f43;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
+            background: var(--bg); color: var(--text); min-height: 100vh; padding-bottom: 60px;
+        }
+        .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+
+        .header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 20px 0; border-bottom: 1px solid var(--border); margin-bottom: 24px;
+        }
+        .header h1 { font-size: 24px; font-weight: 700; }
+        .header h1 span { color: var(--accent2); }
+
+        /* Stats */
+        .disk-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 16px; margin-bottom: 24px;
+        }
+        .stat-card {
+            background: var(--card); border: 1px solid var(--border);
+            border-radius: 12px; padding: 20px;
+        }
+        .stat-card .label { font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+        .stat-card .value { font-size: 26px; font-weight: 700; }
+        .stat-card .sub { font-size: 12px; color: var(--text2); margin-top: 4px; }
+
+        .disk-bar-wrap {
+            background: var(--card); border: 1px solid var(--border);
+            border-radius: 12px; padding: 20px; margin-bottom: 24px;
+        }
+        .disk-bar-label { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 14px; }
+        .disk-bar { height: 14px; background: #2a2a3a; border-radius: 7px; overflow: hidden; }
+        .disk-bar-fill {
+            height: 100%; border-radius: 7px; transition: width 0.6s ease;
+            background: linear-gradient(90deg, var(--accent), var(--accent2));
+        }
+        .disk-bar-fill.warn { background: linear-gradient(90deg, var(--warn), #ff922b); }
+        .disk-bar-fill.danger { background: linear-gradient(90deg, var(--danger), #e03131); }
+
+        /* Controls */
+        .controls { display: flex; gap: 12px; align-items: center; margin-bottom: 20px; flex-wrap: wrap; }
+        .btn {
+            padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer;
+            font-size: 14px; font-weight: 600; transition: all 0.2s; white-space: nowrap;
+        }
+        .btn-primary { background: var(--accent); color: #fff; }
+        .btn-primary:hover { background: var(--accent2); }
+        .btn-danger { background: var(--danger); color: #fff; }
+        .btn-danger:hover { background: #e03131; }
+        .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+        .btn-outline:hover { border-color: var(--accent); }
+        .btn-sm { padding: 6px 14px; font-size: 12px; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .path-input {
+            flex: 1; min-width: 200px; padding: 10px 16px; border-radius: 8px;
+            border: 1px solid var(--border); background: var(--card); color: var(--text); font-size: 14px;
+        }
+        .path-input:focus { outline: none; border-color: var(--accent); }
+
+        /* Filter tabs */
+        .filter-bar { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+        .filter-btn {
+            padding: 6px 14px; border-radius: 20px; border: 1px solid var(--border);
+            background: transparent; color: var(--text2); font-size: 12px; cursor: pointer;
+            transition: all 0.2s; font-weight: 500;
+        }
+        .filter-btn:hover { border-color: var(--accent); color: var(--text); }
+        .filter-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+        .filter-count { font-size: 10px; opacity: 0.7; margin-left: 4px; }
+
+        /* Table */
+        .table-wrap {
+            background: var(--card); border: 1px solid var(--border);
+            border-radius: 12px; overflow: hidden; margin-bottom: 24px;
+        }
+        .table-header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 16px 20px; border-bottom: 1px solid var(--border);
+        }
+        .table-header h3 { font-size: 16px; }
+        .table-stats { display: flex; gap: 16px; font-size: 13px; color: var(--text2); }
+        .table-stats strong { color: var(--accent2); }
+
+        table { width: 100%; border-collapse: collapse; }
+        thead th {
+            text-align: left; padding: 12px 16px; font-size: 11px;
+            color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px;
+            border-bottom: 1px solid var(--border); background: rgba(255,255,255,0.02);
+        }
+        tbody td { padding: 10px 16px; border-bottom: 1px solid var(--border); font-size: 13px; }
+        tbody tr:hover { background: rgba(108,92,231,0.05); }
+        tbody tr:last-child td { border-bottom: none; }
+        tbody tr.needs-sudo td { opacity: 0.7; }
+
+        .checkbox { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; }
+        .cat-badge {
+            display: inline-block; padding: 3px 10px; border-radius: 20px;
+            font-size: 10px; font-weight: 600; text-transform: uppercase;
+        }
+        .cat-dependencies { background: rgba(108,92,231,0.15); color: var(--accent2); }
+        .cat-build { background: rgba(81,207,102,0.15); color: var(--success); }
+        .cat-cache { background: rgba(255,212,59,0.15); color: var(--warn); }
+        .cat-coverage { background: rgba(255,107,107,0.15); color: var(--danger); }
+        .cat-infrastructure { background: rgba(162,155,254,0.15); color: #c4b5fd; }
+        .cat-logs { background: rgba(255,159,67,0.15); color: var(--orange); }
+        .cat-misc { background: rgba(136,136,160,0.15); color: var(--text2); }
+        .cat-system { background: rgba(255,107,107,0.2); color: #ffa8a8; }
+        .cat-xcode { background: rgba(0,122,255,0.15); color: #5ac8fa; }
+        .cat-docker { background: rgba(0,150,255,0.15); color: #2496ed; }
+        .cat-backup { background: rgba(255,69,58,0.2); color: #ff6961; }
+        .cat-mail { background: rgba(52,199,89,0.15); color: #34c759; }
+        .cat-media { background: rgba(175,82,222,0.15); color: #bf5af2; }
+        .cat-vm { background: rgba(255,55,95,0.2); color: #ff375f; }
+        .cat-downloads { background: rgba(90,200,250,0.15); color: #5ac8fa; }
+        .cat-crash { background: rgba(255,159,10,0.2); color: #ff9f0a; }
+
+        .size-col { font-family: 'SF Mono', monospace; font-weight: 600; text-align: right; white-space: nowrap; }
+        .path-col {
+            max-width: 350px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+            font-family: 'SF Mono', monospace; font-size: 11px; color: var(--text2);
+        }
+        .sudo-badge {
+            display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 9px;
+            background: rgba(255,107,107,0.2); color: var(--danger); margin-left: 6px; font-weight: 600;
+        }
+
+        /* Snapshots */
+        .snapshot-card {
+            background: var(--card); border: 1px solid var(--border);
+            border-radius: 12px; padding: 20px; margin-bottom: 24px;
+        }
+        .snapshot-card h3 { font-size: 16px; margin-bottom: 12px; }
+        .snapshot-item {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 13px;
+        }
+        .snapshot-item:last-child { border-bottom: none; }
+        .snapshot-date { color: var(--text2); font-family: 'SF Mono', monospace; font-size: 12px; }
+
+        /* Status bar */
+        .status-bar {
+            position: fixed; bottom: 0; left: 0; right: 0;
+            background: var(--card); border-top: 1px solid var(--border);
+            padding: 12px 24px; display: flex; justify-content: space-between;
+            align-items: center; font-size: 13px; z-index: 100;
+        }
+        .status-bar .selected-info { color: var(--accent2); font-weight: 600; }
+
+        .spinner {
+            display: inline-block; width: 18px; height: 18px;
+            border: 2px solid var(--border); border-top-color: var(--accent);
+            border-radius: 50%; animation: spin 0.8s linear infinite; vertical-align: middle;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .empty-state { text-align: center; padding: 60px 20px; color: var(--text2); }
+        .empty-state .icon { font-size: 48px; margin-bottom: 16px; }
+
+        .toast {
+            position: fixed; top: 20px; right: 20px; padding: 14px 20px;
+            border-radius: 8px; font-size: 14px; font-weight: 600;
+            z-index: 200; animation: slideIn 0.3s ease; max-width: 400px;
+        }
+        .toast-success { background: var(--success); color: #000; }
+        .toast-error { background: var(--danger); color: #fff; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity:0; } to { transform: translateX(0); opacity:1; } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+        .fade-in { animation: fadeIn 0.2s ease; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Clean <span>macOS</span></h1>
+            <span id="systemInfo" style="color: var(--text2); font-size: 13px;"></span>
+        </div>
+
+        <!-- Disk Stats -->
+        <div class="disk-grid" id="diskGrid">
+            <div class="stat-card">
+                <div class="label">Total Disk</div>
+                <div class="value" id="diskTotal">--</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Used</div>
+                <div class="value" id="diskUsed">--</div>
+                <div class="sub" id="diskPct">--</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Free</div>
+                <div class="value" id="diskFree">--</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Cleanable</div>
+                <div class="value" id="cleanable">--</div>
+                <div class="sub" id="cleanableCount">--</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Snapshots</div>
+                <div class="value" id="snapshotCount">--</div>
+                <div class="sub">Time Machine</div>
+            </div>
+        </div>
+
+        <!-- Disk Bar -->
+        <div class="disk-bar-wrap">
+            <div class="disk-bar-label">
+                <span>Disk Usage</span>
+                <span id="diskPctLabel">--</span>
+            </div>
+            <div class="disk-bar">
+                <div class="disk-bar-fill" id="diskBarFill" style="width: 0%"></div>
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="controls">
+            <input type="text" class="path-input" id="scanPath" placeholder="Scan path (e.g. /Users/you)" />
+            <button class="btn btn-primary" id="btnScan" onclick="startScan()">Scan</button>
+            <button class="btn btn-outline" id="btnSelectAll" onclick="toggleSelectAll()" disabled>Select All</button>
+            <button class="btn btn-danger" id="btnClean" onclick="startClean()" disabled>Clean Selected</button>
+        </div>
+
+        <!-- Filter -->
+        <div class="filter-bar" id="filterBar"></div>
+
+        <!-- Snapshots -->
+        <div class="snapshot-card" id="snapshotSection" style="display:none">
+            <h3>Time Machine Local Snapshots</h3>
+            <div id="snapshotList"></div>
+            <div style="margin-top:12px; font-size:12px; color:var(--text2)">
+                Deleting snapshots requires sudo. Run with: <code style="color:var(--accent2)">sudo ./clean-macos</code>
+            </div>
+        </div>
+
+        <!-- Results Table -->
+        <div class="table-wrap" id="tableWrap">
+            <div class="table-header">
+                <h3>Scan Results</h3>
+                <div class="table-stats">
+                    <span>Items: <strong id="itemCount">0</strong></span>
+                    <span>Total: <strong id="totalSize">0 B</strong></span>
+                    <span>Selected: <strong id="selectedSize">0 B</strong></span>
+                </div>
+            </div>
+            <div id="tableBody">
+                <div class="empty-state">
+                    <div class="icon">&#128269;</div>
+                    <p>Enter a path and click <strong>Scan</strong> to find cleanable items</p>
+                    <p style="margin-top:8px;font-size:13px">Scans dev artifacts + macOS system caches, Xcode, browsers, Docker, etc.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="status-bar">
+        <span id="statusText">Ready</span>
+        <span class="selected-info" id="selectedInfo">0 selected (0 B)</span>
+    </div>
+
+    <script>
+        let artifacts = [];
+        let snapshots = [];
+        let selected = new Set();
+        let allSelected = false;
+        let activeFilter = 'all';
+
+        async function loadDisk() {
+            try {
+                const res = await fetch('/api/disk');
+                const d = await res.json();
+                document.getElementById('diskTotal').textContent = d.totalStr;
+                document.getElementById('diskUsed').textContent = d.usedStr;
+                document.getElementById('diskFree').textContent = d.freeStr;
+                document.getElementById('diskPct').textContent = d.usedPct.toFixed(1) + '% used';
+                document.getElementById('diskPctLabel').textContent = d.usedPct.toFixed(1) + '%';
+                document.getElementById('systemInfo').textContent = d.hostname + ' | ' + d.os + '/' + d.arch;
+                const bar = document.getElementById('diskBarFill');
+                bar.style.width = d.usedPct + '%';
+                bar.className = 'disk-bar-fill' + (d.usedPct > 90 ? ' danger' : d.usedPct > 75 ? ' warn' : '');
+                const pathInput = document.getElementById('scanPath');
+                if (!pathInput.value) pathInput.value = '/Users';
+            } catch(e) { console.error(e); }
+        }
+
+        async function startScan() {
+            const path = document.getElementById('scanPath').value.trim();
+            if (!path) return;
+
+            selected.clear(); allSelected = false; activeFilter = 'all';
+            updateSelectedInfo();
+
+            const btn = document.getElementById('btnScan');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span> Scanning...';
+            document.getElementById('statusText').textContent = 'Scanning ' + path + ' + macOS system paths...';
+            document.getElementById('tableBody').innerHTML = '<div class="empty-state"><div class="spinner" style="width:32px;height:32px;border-width:3px;margin:0 auto 16px"></div><p>Scanning directories & macOS system paths...</p><p style="font-size:12px;color:var(--text2);margin-top:8px">This may take a moment for large directories</p></div>';
+
+            try {
+                const res = await fetch('/api/scan', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({path, maxDepth: 10})
+                });
+                const data = await res.json();
+                if (data.error) {
+                    showToast(data.error, 'error');
+                    document.getElementById('statusText').textContent = 'Scan failed';
+                    document.getElementById('tableBody').innerHTML = '<div class="empty-state"><p style="color:var(--danger)">' + esc(data.error) + '</p></div>';
+                    return;
+                }
+
+                artifacts = data.artifacts || [];
+                snapshots = data.snapshots || [];
+
+                document.getElementById('itemCount').textContent = data.itemCount;
+                document.getElementById('totalSize').textContent = data.totalStr;
+                document.getElementById('cleanable').textContent = data.totalStr;
+                document.getElementById('cleanableCount').textContent = data.itemCount + ' items';
+                document.getElementById('snapshotCount').textContent = snapshots.length;
+                document.getElementById('statusText').textContent = 'Found ' + data.itemCount + ' items (' + data.totalStr + ')';
+
+                renderFilters();
+                renderTable();
+                renderSnapshots();
+                document.getElementById('btnSelectAll').disabled = artifacts.length === 0;
+            } catch(e) {
+                showToast('Scan failed: ' + e.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Scan';
+            }
+        }
+
+        function renderFilters() {
+            const counts = {};
+            artifacts.forEach(a => { counts[a.category] = (counts[a.category] || 0) + 1; });
+            let html = '<button class="filter-btn active" onclick="setFilter(\'all\')">All<span class="filter-count">' + artifacts.length + '</span></button>';
+            const order = ['system','xcode','cache','docker','backup','vm','mail','media','downloads','crash','dependencies','build','coverage','logs','infrastructure','misc'];
+            order.forEach(cat => {
+                if (counts[cat]) {
+                    html += '<button class="filter-btn" data-cat="' + cat + '" onclick="setFilter(\'' + cat + '\')">' +
+                        catLabel(cat) + '<span class="filter-count">' + counts[cat] + '</span></button>';
+                }
+            });
+            document.getElementById('filterBar').innerHTML = html;
+        }
+
+        function catLabel(cat) {
+            const labels = {system:'System',xcode:'Xcode',cache:'Cache',docker:'Docker',
+                backup:'Backups',vm:'VMs',mail:'Mail',media:'Media',downloads:'Downloads',crash:'Crash Reports',
+                dependencies:'Dependencies',build:'Build',coverage:'Coverage',logs:'Logs',infrastructure:'Infra',misc:'Misc'};
+            return labels[cat] || cat;
+        }
+
+        function setFilter(cat) {
+            activeFilter = cat;
+            document.querySelectorAll('.filter-btn').forEach(b => {
+                b.classList.toggle('active', (cat === 'all' && !b.dataset.cat) || b.dataset.cat === cat);
+            });
+            renderTable();
+        }
+
+        function getFiltered() {
+            if (activeFilter === 'all') return artifacts;
+            return artifacts.filter(a => a.category === activeFilter);
+        }
+
+        function renderTable() {
+            const filtered = getFiltered();
+            if (filtered.length === 0) {
+                document.getElementById('tableBody').innerHTML = '<div class="empty-state"><div class="icon">&#10024;</div><p>No items in this category</p></div>';
+                return;
+            }
+
+            let html = '<table><thead><tr>';
+            html += '<th style="width:36px"><input type="checkbox" class="checkbox" onchange="toggleSelectAll()" ' + (allSelected ? 'checked' : '') + '></th>';
+            html += '<th>Name</th><th>Category</th><th>Path</th><th style="text-align:right">Size</th>';
+            html += '</tr></thead><tbody>';
+
+            filtered.forEach((a, i) => {
+                const checked = selected.has(a.path) ? 'checked' : '';
+                const sudoClass = a.needsSudo ? ' needs-sudo' : '';
+                html += '<tr class="fade-in' + sudoClass + '" style="animation-delay:' + (i * 15) + 'ms">';
+                html += '<td><input type="checkbox" class="checkbox" ' + checked + ' onchange="toggleItem(\'' + esc(a.path) + '\')"></td>';
+                html += '<td><strong>' + esc(a.name) + '</strong>';
+                if (a.needsSudo) html += '<span class="sudo-badge">SUDO</span>';
+                html += '<br><span style="font-size:11px;color:var(--text2)">' + esc(a.description) + '</span></td>';
+                html += '<td><span class="cat-badge cat-' + a.category + '">' + a.category + '</span></td>';
+                html += '<td class="path-col" title="' + esc(a.path) + '">' + esc(a.path) + '</td>';
+                html += '<td class="size-col">' + a.sizeHuman + '</td>';
+                html += '</tr>';
+            });
+            html += '</tbody></table>';
+            document.getElementById('tableBody').innerHTML = html;
+        }
+
+        function renderSnapshots() {
+            const section = document.getElementById('snapshotSection');
+            if (snapshots.length === 0) { section.style.display = 'none'; return; }
+            section.style.display = 'block';
+            let html = '';
+            snapshots.forEach(s => {
+                html += '<div class="snapshot-item">';
+                html += '<div><span class="snapshot-date">' + esc(s.date) + '</span>';
+                if (s.size) html += ' <span style="color:var(--text2);font-size:12px">~' + s.size + '</span>';
+                html += '</div>';
+                html += '<button class="btn btn-outline btn-sm" onclick="deleteSnapshot(\'' + esc(s.date) + '\', this)">Delete</button>';
+                html += '</div>';
+            });
+            document.getElementById('snapshotList').innerHTML = html;
+        }
+
+        async function deleteSnapshot(date, btn) {
+            if (!confirm('Delete Time Machine snapshot ' + date + '? (requires sudo)')) return;
+            btn.disabled = true; btn.textContent = '...';
+            try {
+                const res = await fetch('/api/snapshot/delete', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({date})
+                });
+                const data = await res.json();
+                if (data.error) { showToast(data.error, 'error'); btn.disabled = false; btn.textContent = 'Delete'; return; }
+                showToast('Snapshot ' + date + ' deleted', 'success');
+                snapshots = snapshots.filter(s => s.date !== date);
+                document.getElementById('snapshotCount').textContent = snapshots.length;
+                renderSnapshots();
+            } catch(e) { showToast(e.message, 'error'); btn.disabled = false; btn.textContent = 'Delete'; }
+        }
+
+        function toggleItem(path) {
+            if (selected.has(path)) selected.delete(path); else selected.add(path);
+            allSelected = selected.size === artifacts.length;
+            updateSelectedInfo();
+            document.getElementById('btnClean').disabled = selected.size === 0;
+            renderTable();
+        }
+
+        function toggleSelectAll() {
+            allSelected = !allSelected;
+            selected.clear();
+            if (allSelected) {
+                // Only select items that don't need sudo
+                artifacts.forEach(a => { if (!a.needsSudo) selected.add(a.path); });
+            }
+            renderTable();
+            updateSelectedInfo();
+            document.getElementById('btnClean').disabled = selected.size === 0;
+        }
+
+        function updateSelectedInfo() {
+            let totalBytes = 0;
+            artifacts.forEach(a => { if (selected.has(a.path)) totalBytes += a.size; });
+            const info = selected.size + ' selected (' + fmtBytes(totalBytes) + ')';
+            document.getElementById('selectedInfo').textContent = info;
+            document.getElementById('selectedSize').textContent = fmtBytes(totalBytes);
+        }
+
+        async function startClean() {
+            if (selected.size === 0) return;
+            const sudoPaths = [];
+            const normalPaths = [];
+            selected.forEach(p => {
+                const a = artifacts.find(x => x.path === p);
+                if (a && a.needsSudo) sudoPaths.push(p); else normalPaths.push(p);
+            });
+
+            let msg = 'Delete ' + selected.size + ' items?';
+            if (sudoPaths.length > 0) msg += '\n\n' + sudoPaths.length + ' items need sudo and may fail without root access.';
+            msg += '\n\nThis cannot be undone!';
+            if (!confirm(msg)) return;
+
+            const btn = document.getElementById('btnClean');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span> Cleaning...';
+            document.getElementById('statusText').textContent = 'Deleting ' + selected.size + ' items...';
+
+            try {
+                const res = await fetch('/api/clean', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({paths: Array.from(selected)})
+                });
+                const data = await res.json();
+                if (data.error) { showToast(data.error, 'error'); return; }
+
+                showToast('Cleaned ' + data.okCount + ' items, freed ' + data.freedStr, 'success');
+                document.getElementById('statusText').textContent = 'Cleaned ' + data.okCount + ' items (' + data.freedStr + ' freed)';
+                if (data.failCount > 0) {
+                    const fails = data.deleted.filter(d => !d.success).map(d => d.path.split('/').pop() + ': ' + d.error).join('\n');
+                    showToast(data.failCount + ' failed (likely needs sudo)', 'error');
+                    console.log('Failed items:\n' + fails);
+                }
+
+                selected.clear(); allSelected = false;
+                updateSelectedInfo();
+                loadDisk();
+                startScan();
+            } catch(e) {
+                showToast('Clean failed: ' + e.message, 'error');
+            } finally {
+                btn.disabled = false; btn.textContent = 'Clean Selected';
+            }
+        }
+
+        function fmtBytes(b) {
+            if (b === 0) return '0 B';
+            const k = 1024, s = ['B','KB','MB','GB','TB'];
+            const i = Math.floor(Math.log(b) / Math.log(k));
+            return parseFloat((b / Math.pow(k, i)).toFixed(1)) + ' ' + s[i];
+        }
+        function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;'); }
+        function showToast(msg, type) {
+            const t = document.createElement('div');
+            t.className = 'toast toast-' + type; t.textContent = msg;
+            document.body.appendChild(t);
+            setTimeout(() => t.remove(), 5000);
+        }
+
+        // Enter key to scan
+        document.getElementById('scanPath').addEventListener('keydown', e => { if (e.key === 'Enter') startScan(); });
+
+        loadDisk();
+    </script>
+</body>
+</html>
