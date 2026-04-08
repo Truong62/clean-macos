@@ -17,7 +17,15 @@ A native macOS app that scans your system for junk files, caches, build artifact
 
 ### Download
 
-Grab the latest `.zip` from [Releases](https://github.com/Truong62/clean-macos/releases), unzip, and drag `Clean macOS.app` to `/Applications`.
+1. Grab the latest `.dmg` from [Releases](https://github.com/Truong62/clean-macos/releases)
+2. Open the `.dmg` and drag `Clean macOS.app` to `/Applications`
+3. Run this command once to bypass macOS Gatekeeper (app is unsigned):
+
+```bash
+xattr -cr /Applications/CleanMacOS.app
+```
+
+4. Open the app normally
 
 ### Build from source
 
