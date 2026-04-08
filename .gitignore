@@ -1,0 +1,31 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Xcode
+CleanMacOS/CleanMacOS.xcodeproj/xcuserdata/
+CleanMacOS/CleanMacOS.xcodeproj/project.xcworkspace/xcuserdata/
+*.xcuserstate
+*.xcscmblueprint
+
+# Swift Package Manager
+CleanMacOS/.build/
+CleanMacOS/.swiftpm/
+
+# Build output
+*.o
+*.dSYM/
+
+# IDE
+.idea/
+*.swp
+*~
+.vscode/
+
+# Release artifacts
+CleanMacOS/.build/release-output/
+
+# Sparkle keys - NEVER commit
+sparkle_private_key
+*.pem

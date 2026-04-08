@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clean macOS — Reclaim Your Disk Space</title>
+    <style>
+        :root {
+            --bg: #0a0a0a;
+            --surface: #141414;
+            --border: #222;
+            --text: #e5e5e5;
+            --muted: #888;
+            --accent: #3b82f6;
+            --accent-glow: rgba(59, 130, 246, 0.15);
+            --green: #22c55e;
+            --purple: #a855f7;
+            --red: #ef4444;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Hero */
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 2rem;
+            background:
+                radial-gradient(ellipse 80% 50% at 50% -20%, var(--accent-glow), transparent),
+                radial-gradient(ellipse 60% 40% at 80% 60%, rgba(168, 85, 247, 0.08), transparent);
+        }
+
+        .hero-icon {
+            font-size: 4rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .hero h1 {
+            font-size: 3.5rem;
+            font-weight: 700;
+            letter-spacing: -0.03em;
+            line-height: 1.1;
+            margin-bottom: 1rem;
+        }
+
+        .hero h1 .gradient {
+            background: linear-gradient(135deg, var(--accent), var(--purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero p {
+            font-size: 1.25rem;
+            color: var(--muted);
+            max-width: 540px;
+            margin-bottom: 2.5rem;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.875rem 2rem;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: #fff;
+        }
+        .btn-primary:hover {
+            background: #2563eb;
+            transform: translateY(-1px);
+            box-shadow: 0 8px 30px rgba(59, 130, 246, 0.3);
+        }
+
+        .btn-secondary {
+            background: var(--surface);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+        .btn-secondary:hover {
+            border-color: #444;
+            transform: translateY(-1px);
+        }
+
+        /* Screenshot */
+        .screenshot-section {
+            padding: 0 2rem 6rem;
+            display: flex;
+            justify-content: center;
+        }
+
+        .screenshot-section img {
+            max-width: 960px;
+            width: 100%;
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Features */
+        .features {
+            padding: 6rem 2rem;
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        .features h2 {
+            text-align: center;
+            font-size: 2.25rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            margin-bottom: 3.5rem;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.5rem;
+        }
+
+        .feature-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 2rem;
+            transition: border-color 0.2s;
+        }
+        .feature-card:hover {
+            border-color: #333;
+        }
+
+        .feature-card .icon {
+            font-size: 1.75rem;
+            margin-bottom: 1rem;
+        }
+
+        .feature-card h3 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .feature-card p {
+            color: var(--muted);
+            font-size: 0.925rem;
+        }
+
+        /* Categories */
+        .categories {
+            padding: 4rem 2rem 6rem;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .categories h2 {
+            text-align: center;
+            font-size: 2.25rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            margin-bottom: 1rem;
+        }
+
+        .categories > p {
+            text-align: center;
+            color: var(--muted);
+            margin-bottom: 2.5rem;
+        }
+
+        .tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.625rem;
+            justify-content: center;
+        }
+
+        .tag {
+            padding: 0.5rem 1rem;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 100px;
+            font-size: 0.875rem;
+            color: var(--muted);
+            white-space: nowrap;
+        }
+
+        /* CTA */
+        .cta {
+            text-align: center;
+            padding: 6rem 2rem;
+            background:
+                radial-gradient(ellipse 60% 50% at 50% 100%, var(--accent-glow), transparent);
+        }
+
+        .cta h2 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+
+        .cta p {
+            color: var(--muted);
+            font-size: 1.125rem;
+            margin-bottom: 2rem;
+        }
+
+        /* Footer */
+        footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--muted);
+            font-size: 0.85rem;
+            border-top: 1px solid var(--border);
+        }
+
+        footer a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        /* Stats */
+        .stats {
+            display: flex;
+            gap: 3rem;
+            justify-content: center;
+            padding: 3rem 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat .value {
+            font-size: 2rem;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .stat .label {
+            font-size: 0.85rem;
+            color: var(--muted);
+            margin-top: 0.25rem;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .hero h1 { font-size: 2.25rem; }
+            .features-grid { grid-template-columns: 1fr; }
+            .stats { gap: 1.5rem; flex-wrap: wrap; }
+        }
+    </style>
+</head>
+<body>
+
+<section class="hero">
+    <div class="hero-icon">🧹</div>
+    <h1>Clean <span class="gradient">macOS</span></h1>
+    <p>Scan your Mac for junk files, caches, build artifacts, and forgotten data. Reclaim gigabytes of disk space in seconds.</p>
+    <div class="btn-group">
+        <a href="https://github.com/sarus/clean-macos/releases/latest" class="btn btn-primary">
+            ↓ Download
+        </a>
+        <a href="https://github.com/sarus/clean-macos" class="btn btn-secondary">
+            View on GitHub
+        </a>
+    </div>
+</section>
+
+<section class="screenshot-section">
+    <img src="https://cdn.shopify.com/s/files/1/0874/1643/9088/files/Screenshot_2026-03-10_at_15.14.35.png?v=1773130510" alt="Clean macOS Dashboard" loading="lazy">
+</section>
+
+<div class="stats">
+    <div class="stat">
+        <div class="value" style="color: var(--purple);">60+</div>
+        <div class="label">Artifact types detected</div>
+    </div>
+    <div class="stat">
+        <div class="value" style="color: var(--green);">0</div>
+        <div class="label">Backend required</div>
+    </div>
+    <div class="stat">
+        <div class="value" style="color: var(--accent);">100%</div>
+        <div class="label">Native Swift</div>
+    </div>
+</div>
+
+<section class="features">
+    <h2>Everything you need</h2>
+    <div class="features-grid">
+        <div class="feature-card">
+            <div class="icon">🔍</div>
+            <h3>Smart Scan</h3>
+            <p>Detects node_modules, build outputs, caches, Xcode DerivedData, Docker images, iOS backups, and much more.</p>
+        </div>
+        <div class="feature-card">
+            <div class="icon">📊</div>
+            <h3>Disk Overview</h3>
+            <p>Real-time disk usage visualization with cleanable space clearly highlighted.</p>
+        </div>
+        <div class="feature-card">
+            <div class="icon">🏷️</div>
+            <h3>Category Filtering</h3>
+            <p>Filter by Dependencies, Build, Cache, Xcode, Docker, System, Media, and more.</p>
+        </div>
+        <div class="feature-card">
+            <div class="icon">⏱️</div>
+            <h3>Time Machine Snapshots</h3>
+            <p>Detect and delete local APFS snapshots that silently eat your disk space.</p>
+        </div>
+        <div class="feature-card">
+            <div class="icon">🛡️</div>
+            <h3>Safe Delete</h3>
+            <p>Protected system paths, sudo items clearly marked. No accidental damage.</p>
+        </div>
+        <div class="feature-card">
+            <div class="icon">🔄</div>
+            <h3>Auto Updates</h3>
+            <p>Built-in Sparkle updater. Get notified when a new version is available.</p>
+        </div>
+    </div>
+</section>
+
+<section class="categories">
+    <h2>What it finds</h2>
+    <p>60+ artifact types across your entire system</p>
+    <div class="tags">
+        <span class="tag">node_modules</span>
+        <span class="tag">DerivedData</span>
+        <span class="tag">Docker Images</span>
+        <span class="tag">.next</span>
+        <span class="tag">dist</span>
+        <span class="tag">target</span>
+        <span class="tag">vendor</span>
+        <span class="tag">.venv</span>
+        <span class="tag">Pods</span>
+        <span class="tag">iOS Simulators</span>
+        <span class="tag">npm Cache</span>
+        <span class="tag">Cargo Registry</span>
+        <span class="tag">Gradle Caches</span>
+        <span class="tag">iPhone Backups</span>
+        <span class="tag">Spotify Cache</span>
+        <span class="tag">VS Code Cache</span>
+        <span class="tag">Slack Cache</span>
+        <span class="tag">System Logs</span>
+        <span class="tag">Crash Reports</span>
+        <span class="tag">Trash</span>
+        <span class="tag">__pycache__</span>
+        <span class="tag">Parallels VMs</span>
+        <span class="tag">Android AVDs</span>
+        <span class="tag">CocoaPods Repos</span>
+        <span class="tag">.DS_Store</span>
+    </div>
+</section>
+
+<section class="cta">
+    <h2>Free up space today</h2>
+    <p>Native. Fast. No account needed. No data leaves your Mac.</p>
+    <a href="https://github.com/sarus/clean-macos/releases/latest" class="btn btn-primary">
+        ↓ Download for macOS
+    </a>
+</section>
+
+<footer>
+    Built with Swift &amp; SwiftUI. Open source on <a href="https://github.com/sarus/clean-macos">GitHub</a>.
+</footer>
+
+</body>
+</html>
