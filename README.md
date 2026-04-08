@@ -17,7 +17,7 @@ A native macOS app that scans your system for junk files, caches, build artifact
 
 ### Download
 
-Grab the latest `.zip` from [Releases](https://github.com/sarus/clean-macos/releases), unzip, and drag `Clean macOS.app` to `/Applications`.
+Grab the latest `.zip` from [Releases](https://github.com/Truong62/clean-macos/releases), unzip, and drag `Clean macOS.app` to `/Applications`.
 
 ### Build from source
 

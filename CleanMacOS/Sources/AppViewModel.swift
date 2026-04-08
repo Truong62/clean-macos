@@ -13,14 +13,54 @@ final class AppViewModel: ObservableObject {
     @Published var statusMessage = "Ready"
     @Published var searchText = ""
     @Published var sortBySize = true
+    @Published var showCleanConfirmation = false
+
+    @AppStorage("minFileSize") var minFileSizeMB = 1
+    @AppStorage("skipHidden") var skipHidden = true
+    @AppStorage("confirmBeforeClean") var confirmBeforeClean = true
+    @AppStorage("showMenuBar") var showMenuBar = true
+    @AppStorage("menuBarShowCPU") var menuBarShowCPU = true
+    @Published var hasFullDiskAccess = false
+    @Published var skipPermissionCheck = false
 
     private let scanner = ScannerService()
     private let cleaner = CleanerService()
+
+    var needsPermission: Bool {
+        !hasFullDiskAccess && !skipPermissionCheck
+    }
 
     init() {
         let home = FileManager.default.homeDirectoryForCurrentUser.path
         scanPath = (home as NSString).deletingLastPathComponent
         refreshDiskInfo()
+        checkPermission()
+    }
+
+    func checkPermission() {
+        // Test Full Disk Access by trying to list a protected directory
+        let fm = FileManager.default
+        let testPaths = [
+            fm.homeDirectoryForCurrentUser.appendingPathComponent("Library/Safari").path,
+            fm.homeDirectoryForCurrentUser.appendingPathComponent("Library/Cookies").path,
+            fm.homeDirectoryForCurrentUser.appendingPathComponent("Library/Messages").path,
+        ]
+
+        for path in testPaths {
+            if fm.fileExists(atPath: path) {
+                // Path exists, try to read contents — if we can, we have FDA
+                if (try? fm.contentsOfDirectory(atPath: path)) != nil {
+                    hasFullDiskAccess = true
+                    return
+                } else {
+                    hasFullDiskAccess = false
+                    return
+                }
+            }
+        }
+
+        // None of the test paths exist — can't determine, assume OK
+        hasFullDiskAccess = true
     }
 
     // MARK: - Computed
@@ -73,8 +113,9 @@ final class AppViewModel: ObservableObject {
         selectedArtifacts.removeAll()
 
         do {
-            let (found, info, snaps) = try await scanner.scan(rootPath: scanPath)
-            artifacts = found
+            let (found, info, snaps) = try await scanner.scan(rootPath: scanPath, skipHidden: skipHidden)
+            let minBytes = Int64(minFileSizeMB) * 1_048_576
+            artifacts = found.filter { $0.size >= minBytes }
             diskInfo = info
             snapshots = snaps
             statusMessage = "Found \(artifacts.count) items (\(formatBytes(totalCleanableSize)) cleanable)"
@@ -83,6 +124,14 @@ final class AppViewModel: ObservableObject {
         }
 
         isScanning = false
+    }
+
+    func requestClean() {
+        if confirmBeforeClean {
+            showCleanConfirmation = true
+        } else {
+            Task { await clean() }
+        }
     }
 
     func clean() async {

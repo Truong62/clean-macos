@@ -28,7 +28,7 @@ BUILD_DIR=".build/release-output"
 ZIP_NAME="${APP_NAME}-${VERSION}.zip"
 
 # GitHub repo info - update this to your repo
-GITHUB_REPO="sarus/clean-macos"
+GITHUB_REPO="Truong62/clean-macos"
 DOWNLOAD_URL="https://github.com/${GITHUB_REPO}/releases/download/v${VERSION}/${ZIP_NAME}"
 
 echo "==> Building ${APP_NAME} v${VERSION}..."
@@ -81,7 +81,7 @@ cat > "${BUILD_DIR}/${APP_NAME}.app/Contents/Info.plist" << PLIST
     <key>CFBundleIconFile</key>
     <string>AppIcon</string>
     <key>SUFeedURL</key>
-    <string>https://sarus.github.io/clean-macos/appcast.xml</string>
+    <string>https://Truong62.github.io/clean-macos/appcast.xml</string>
     <key>SUPublicEDKey</key>
     <string>REPLACE_WITH_YOUR_PUBLIC_KEY</string>
 </dict>

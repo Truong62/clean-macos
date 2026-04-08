@@ -31,7 +31,7 @@ final class ScannerService: Sendable {
 
     // MARK: - Full Scan
 
-    func scan(rootPath: String, maxDepth: Int = 10) async throws -> ([Artifact], DiskInfo?, [Snapshot]) {
+    func scan(rootPath: String, maxDepth: Int = 10, skipHidden: Bool = true) async throws -> ([Artifact], DiskInfo?, [Snapshot]) {
         let absRoot = (rootPath as NSString).standardizingPath
 
         var isDir: ObjCBool = false
@@ -39,7 +39,7 @@ final class ScannerService: Sendable {
             throw NSError(domain: "Scanner", code: 1, userInfo: [NSLocalizedDescriptionKey: "Path is not a directory: \(absRoot)"])
         }
 
-        async let devArtifacts = scanDevArtifacts(root: absRoot, maxDepth: maxDepth)
+        async let devArtifacts = scanDevArtifacts(root: absRoot, maxDepth: maxDepth, skipHidden: skipHidden)
         async let fixedArtifacts = scanFixedPaths()
         async let snapshotList = detectSnapshots()
 
@@ -54,7 +54,7 @@ final class ScannerService: Sendable {
 
     // MARK: - Dev Artifacts
 
-    private func scanDevArtifacts(root: String, maxDepth: Int) async -> [Artifact] {
+    private func scanDevArtifacts(root: String, maxDepth: Int, skipHidden: Bool = true) async -> [Artifact] {
         let patterns = Self.patternMap()
 
         return await withCheckedContinuation { continuation in
@@ -120,7 +120,7 @@ final class ScannerService: Sendable {
                     continue
                 }
 
-                if name.hasPrefix(".") {
+                if skipHidden && name.hasPrefix(".") {
                     enumerator?.skipDescendants()
                     continue
                 }

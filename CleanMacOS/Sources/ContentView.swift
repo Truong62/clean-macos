@@ -2,24 +2,55 @@ import SwiftUI
 
 struct ContentView: View {
     @EnvironmentObject var vm: AppViewModel
+    @State private var currentPage: SidebarPage = .home
 
     var body: some View {
-        VStack(spacing: 0) {
-            DashboardView()
-
-            ToolbarRow()
-
-            Divider().opacity(0.5)
-
-            ArtifactTableView()
-
-            if !vm.snapshots.isEmpty {
-                SnapshotSection()
-            }
-
-            StatusBar()
+        if vm.needsPermission {
+            PermissionView()
+        } else {
+            mainContent
         }
-        .background(Color(nsColor: .windowBackgroundColor))
+    }
+
+    private var mainContent: some View {
+        NavigationSplitView {
+            SidebarView(currentPage: $currentPage)
+        } detail: {
+            switch currentPage {
+            case .home:
+                VStack(spacing: 0) {
+                    DashboardView()
+
+                    ToolbarRow()
+
+                    Divider().opacity(0.5)
+
+                    ArtifactTableView()
+
+                    if !vm.snapshots.isEmpty {
+                        SnapshotSection()
+                    }
+
+                    StatusBar()
+                }
+                .background(Color(nsColor: .windowBackgroundColor))
+
+            case .settings:
+                SettingsView()
+
+            case .about:
+                AboutView()
+            }
+        }
+        .navigationSplitViewStyle(.balanced)
+        .alert("Confirm Clean", isPresented: $vm.showCleanConfirmation) {
+            Button("Cancel", role: .cancel) { }
+            Button("Clean", role: .destructive) {
+                Task { await vm.clean() }
+            }
+        } message: {
+            Text("Delete \(vm.selectedArtifacts.count) items (\(formatBytes(vm.selectedSize)))? This cannot be undone.")
+        }
     }
 }
 
@@ -87,7 +118,7 @@ struct ToolbarRow: View {
                     .disabled(vm.selectedArtifacts.isEmpty)
 
                     Button {
-                        Task { await vm.clean() }
+                        vm.requestClean()
                     } label: {
                         HStack(spacing: 5) {
                             if vm.isCleaning {
@@ -108,54 +139,33 @@ struct ToolbarRow: View {
                 }
             }
 
-            // Bottom row: category chips + search
-            HStack(spacing: 8) {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 6) {
-                        CategoryChip(
-                            label: "All",
-                            icon: "square.grid.2x2",
-                            count: vm.artifacts.count,
-                            color: .primary,
-                            isSelected: vm.selectedCategory == nil
-                        ) {
-                            vm.selectedCategory = nil
-                        }
-
-                        ForEach(vm.categoryCounts, id: \.0) { cat, count, _ in
-                            CategoryChip(
-                                label: cat.displayName,
-                                icon: cat.icon,
-                                count: count,
-                                color: cat.color,
-                                isSelected: vm.selectedCategory == cat
-                            ) {
-                                vm.selectedCategory = cat
-                            }
-                        }
+            // Search bar
+            HStack(spacing: 6) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(.tertiary)
+                    .font(.caption)
+                TextField("Filter artifacts...", text: $vm.searchText)
+                    .textFieldStyle(.plain)
+                    .font(.callout)
+                if !vm.searchText.isEmpty {
+                    Button {
+                        vm.searchText = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.tertiary)
+                            .font(.caption)
                     }
+                    .buttonStyle(.plain)
                 }
-
-                Spacer()
-
-                HStack(spacing: 6) {
-                    Image(systemName: "magnifyingglass")
-                        .foregroundStyle(.tertiary)
-                        .font(.caption)
-                    TextField("Filter...", text: $vm.searchText)
-                        .textFieldStyle(.plain)
-                        .font(.callout)
-                }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background(.ultraThinMaterial)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .strokeBorder(.quaternary, lineWidth: 1)
-                )
-                .frame(width: 200)
             }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(.ultraThinMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .strokeBorder(.quaternary, lineWidth: 1)
+            )
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
