@@ -8,30 +8,58 @@
 
 /* Begin PBXBuildFile section */
 		10BB5BA2697E75F5C92A0868 /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A1479088579DC6E2A293A68 /* SidebarView.swift */; };
+		15251D9BC4DF543DCD8A403E /* PermissionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC661B5A58FE8B57EF1C939C /* PermissionView.swift */; };
 		179E822D590C3A03BCF4132C /* Cleaner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B132021AA2508B2000D6D63 /* Cleaner.swift */; };
+		1D6A04FACE24BC65DB42E6BE /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 4A0A95590228EC533FD37160 /* Assets.xcassets */; };
 		3869FF6969D2F5E7A44FDD87 /* ArtifactTableView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44805A604CACFED574E48F5C /* ArtifactTableView.swift */; };
 		4DE61E3589D07E845CBC2FF3 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA9E35C7D8B82601564C5468 /* Models.swift */; };
 		55D09845383469CB506D3E85 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13997B35568795BEA3BF3A64 /* ContentView.swift */; };
+		629F8B98ECF1850CAF10B28F /* AboutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F50E79083A48396AD0651E87 /* AboutView.swift */; };
+		7BA19101C45ED46BA88C75C2 /* MenuBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A993B1ADB912A796AE468D9 /* MenuBarController.swift */; };
 		82E93883DEBED57BE062E2C0 /* Scanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BB4842D79D5443DE4383C38 /* Scanner.swift */; };
+		879BF88DEA1C98DBB92D6264 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 84D76118D8D7A26DB9A6EDE1 /* Sparkle */; };
 		96742BBF577C2662A06127C9 /* AppViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0CE374CA5CC2E8CA8FE9BB73 /* AppViewModel.swift */; };
 		997224C7A3D07647C2EBC8C5 /* SnapshotSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3554E40130351545D52C837D /* SnapshotSection.swift */; };
 		9FB7AC07F1831FD94F649E30 /* CleanMacOSApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7CB583C51545CB2D5649473 /* CleanMacOSApp.swift */; };
+		BC3CC10E02C22920507972BB /* UpdaterViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6961B68D8844C43ABA231FF8 /* UpdaterViewModel.swift */; };
 		D27E79EC1251B3A7506D22C4 /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F65E738A5F0EF1106FF98BA1 /* DashboardView.swift */; };
+		EB2804A3FF935E9CF1A4AE3F /* SystemMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 146D7CD67B5D337110ABE8C9 /* SystemMonitor.swift */; };
+		F25497E5A5FCBDEB50858F3C /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 185CCDDE3D43CD6FEF6FDA72 /* SettingsView.swift */; };
+		FABD8B68B191996B3BAEB7E5 /* MenuBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAAA08ABC4C4FD3834BA928F /* MenuBarView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		0BB4842D79D5443DE4383C38 /* Scanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Scanner.swift; sourceTree = "<group>"; };
 		0CE374CA5CC2E8CA8FE9BB73 /* AppViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppViewModel.swift; sourceTree = "<group>"; };
 		13997B35568795BEA3BF3A64 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		146D7CD67B5D337110ABE8C9 /* SystemMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemMonitor.swift; sourceTree = "<group>"; };
+		185CCDDE3D43CD6FEF6FDA72 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		3554E40130351545D52C837D /* SnapshotSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnapshotSection.swift; sourceTree = "<group>"; };
 		3A1479088579DC6E2A293A68 /* SidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarView.swift; sourceTree = "<group>"; };
 		44805A604CACFED574E48F5C /* ArtifactTableView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtifactTableView.swift; sourceTree = "<group>"; };
+		4A0A95590228EC533FD37160 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		5A993B1ADB912A796AE468D9 /* MenuBarController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarController.swift; sourceTree = "<group>"; };
+		6961B68D8844C43ABA231FF8 /* UpdaterViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdaterViewModel.swift; sourceTree = "<group>"; };
 		8B132021AA2508B2000D6D63 /* Cleaner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Cleaner.swift; sourceTree = "<group>"; };
 		AEF83F7B546B77C747BCA698 /* CleanMacOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CleanMacOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		BC661B5A58FE8B57EF1C939C /* PermissionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionView.swift; sourceTree = "<group>"; };
 		CA9E35C7D8B82601564C5468 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
 		E7CB583C51545CB2D5649473 /* CleanMacOSApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CleanMacOSApp.swift; sourceTree = "<group>"; };
+		F50E79083A48396AD0651E87 /* AboutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutView.swift; sourceTree = "<group>"; };
 		F65E738A5F0EF1106FF98BA1 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
+		FAAA08ABC4C4FD3834BA928F /* MenuBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		10380C73B4BE56517D84B9DC /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				879BF88DEA1C98DBB92D6264 /* Sparkle in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		51F124002EDB5F5950CF26E4 /* Products */ = {
@@ -45,16 +73,24 @@
 		5B2F1140177E01602353B9C0 /* Sources */ = {
 			isa = PBXGroup;
 			children = (
+				F50E79083A48396AD0651E87 /* AboutView.swift */,
 				0CE374CA5CC2E8CA8FE9BB73 /* AppViewModel.swift */,
 				44805A604CACFED574E48F5C /* ArtifactTableView.swift */,
+				4A0A95590228EC533FD37160 /* Assets.xcassets */,
 				8B132021AA2508B2000D6D63 /* Cleaner.swift */,
 				E7CB583C51545CB2D5649473 /* CleanMacOSApp.swift */,
 				13997B35568795BEA3BF3A64 /* ContentView.swift */,
 				F65E738A5F0EF1106FF98BA1 /* DashboardView.swift */,
+				5A993B1ADB912A796AE468D9 /* MenuBarController.swift */,
+				FAAA08ABC4C4FD3834BA928F /* MenuBarView.swift */,
 				CA9E35C7D8B82601564C5468 /* Models.swift */,
+				BC661B5A58FE8B57EF1C939C /* PermissionView.swift */,
 				0BB4842D79D5443DE4383C38 /* Scanner.swift */,
+				185CCDDE3D43CD6FEF6FDA72 /* SettingsView.swift */,
 				3A1479088579DC6E2A293A68 /* SidebarView.swift */,
 				3554E40130351545D52C837D /* SnapshotSection.swift */,
+				146D7CD67B5D337110ABE8C9 /* SystemMonitor.swift */,
+				6961B68D8844C43ABA231FF8 /* UpdaterViewModel.swift */,
 			);
 			path = Sources;
 			sourceTree = "<group>";
@@ -75,6 +111,8 @@
 			buildConfigurationList = E1956FF384BAE6D2E383CC5E /* Build configuration list for PBXNativeTarget "CleanMacOS" */;
 			buildPhases = (
 				A5E98FCFB08CD558FDDA15D9 /* Sources */,
+				882D271F9709A70C7C10B79D /* Resources */,
+				10380C73B4BE56517D84B9DC /* Frameworks */,
 			);
 			buildRules = (
 			);
@@ -82,6 +120,7 @@
 			);
 			name = CleanMacOS;
 			packageProductDependencies = (
+				84D76118D8D7A26DB9A6EDE1 /* Sparkle */,
 			);
 			productName = CleanMacOS;
 			productReference = AEF83F7B546B77C747BCA698 /* CleanMacOS.app */;
@@ -107,6 +146,9 @@
 			);
 			mainGroup = 6D596C009A804A5132EDB6C8;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				1CD51A1BAE8AEE831B8ED243 /* XCRemoteSwiftPackageReference "Sparkle" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 51F124002EDB5F5950CF26E4 /* Products */;
 			projectDirPath = "";
@@ -117,21 +159,39 @@
 		};
 /* End PBXProject section */
 
+/* Begin PBXResourcesBuildPhase section */
+		882D271F9709A70C7C10B79D /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1D6A04FACE24BC65DB42E6BE /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
 		A5E98FCFB08CD558FDDA15D9 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				629F8B98ECF1850CAF10B28F /* AboutView.swift in Sources */,
 				96742BBF577C2662A06127C9 /* AppViewModel.swift in Sources */,
 				3869FF6969D2F5E7A44FDD87 /* ArtifactTableView.swift in Sources */,
 				9FB7AC07F1831FD94F649E30 /* CleanMacOSApp.swift in Sources */,
 				179E822D590C3A03BCF4132C /* Cleaner.swift in Sources */,
 				55D09845383469CB506D3E85 /* ContentView.swift in Sources */,
 				D27E79EC1251B3A7506D22C4 /* DashboardView.swift in Sources */,
+				7BA19101C45ED46BA88C75C2 /* MenuBarController.swift in Sources */,
+				FABD8B68B191996B3BAEB7E5 /* MenuBarView.swift in Sources */,
 				4DE61E3589D07E845CBC2FF3 /* Models.swift in Sources */,
+				15251D9BC4DF543DCD8A403E /* PermissionView.swift in Sources */,
 				82E93883DEBED57BE062E2C0 /* Scanner.swift in Sources */,
+				F25497E5A5FCBDEB50858F3C /* SettingsView.swift in Sources */,
 				10BB5BA2697E75F5C92A0868 /* SidebarView.swift in Sources */,
 				997224C7A3D07647C2EBC8C5 /* SnapshotSection.swift in Sources */,
+				EB2804A3FF935E9CF1A4AE3F /* SystemMonitor.swift in Sources */,
+				BC3CC10E02C22920507972BB /* UpdaterViewModel.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -151,7 +211,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MARKETING_VERSION = 1.0.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.sarus.CleanMacOS;
+				PRODUCT_BUNDLE_IDENTIFIER = click.ngoctruong.CleanMacOS;
 				SDKROOT = macosx;
 				SWIFT_VERSION = 5.9;
 			};
@@ -226,7 +286,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MARKETING_VERSION = 1.0.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.sarus.CleanMacOS;
+				PRODUCT_BUNDLE_IDENTIFIER = click.ngoctruong.CleanMacOS;
 				SDKROOT = macosx;
 				SWIFT_VERSION = 5.9;
 			};
@@ -317,6 +377,25 @@
 			defaultConfigurationName = Debug;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		1CD51A1BAE8AEE831B8ED243 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.6.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		84D76118D8D7A26DB9A6EDE1 /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 1CD51A1BAE8AEE831B8ED243 /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = D0DBB501438342C875F7BEC0 /* Project object */;
 }

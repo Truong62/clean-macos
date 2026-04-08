@@ -1,19 +1,26 @@
 name: CleanMacOS
 options:
-  bundleIdPrefix: com.sarus
+  bundleIdPrefix: click.ngoctruong
   deploymentTarget:
     macOS: "14.0"
   xcodeVersion: "16.0"
+packages:
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle
+    from: "2.6.0"
 targets:
   CleanMacOS:
     type: application
     platform: macOS
     sources:
       - Sources
+    dependencies:
+      - package: Sparkle
     settings:
-      PRODUCT_BUNDLE_IDENTIFIER: com.sarus.CleanMacOS
+      PRODUCT_BUNDLE_IDENTIFIER: click.ngoctruong.CleanMacOS
       MARKETING_VERSION: "1.0.0"
       CURRENT_PROJECT_VERSION: "1"
       SWIFT_VERSION: "5.9"
       GENERATE_INFOPLIST_FILE: YES
+      ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
       INFOPLIST_KEY_LSApplicationCategoryType: "public.app-category.utilities"

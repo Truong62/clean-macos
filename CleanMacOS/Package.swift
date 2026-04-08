@@ -14,6 +14,9 @@ let package = Package(
                 .product(name: "Sparkle", package: "Sparkle"),
             ],
             path: "Sources",
+            resources: [
+                .process("Assets.xcassets")
+            ],
             swiftSettings: [
                 .unsafeFlags(["-parse-as-library"])
             ]
