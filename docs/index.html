@@ -4,28 +4,157 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Clean macOS — Reclaim Your Disk Space</title>
+    <meta name="description" content="A free, native macOS app to scan and clean junk files, caches, build artifacts. Reclaim gigabytes of disk space.">
+    <meta property="og:title" content="Clean macOS">
+    <meta property="og:description" content="Scan your Mac for junk files, caches, build artifacts. 100% native Swift, no backend.">
+    <meta property="og:url" content="https://Truong62.github.io/clean-macos/">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✨</text></svg>">
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
         :root {
-            --bg: #0a0a0a;
-            --surface: #141414;
-            --border: #222;
-            --text: #e5e5e5;
-            --muted: #888;
-            --accent: #3b82f6;
-            --accent-glow: rgba(59, 130, 246, 0.15);
+            --bg: #050507;
+            --surface: #111113;
+            --surface-2: #1a1a1f;
+            --border: #222228;
+            --border-hover: #33333a;
+            --text: #fafafa;
+            --muted: #71717a;
+            --muted-light: #a1a1aa;
+            --blue: #3b82f6;
+            --blue-dark: #2563eb;
+            --purple: #8b5cf6;
+            --pink: #ec4899;
             --green: #22c55e;
-            --purple: #a855f7;
+            --orange: #f97316;
+            --cyan: #06b6d4;
             --red: #ef4444;
+            --radius: 16px;
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
+            font-family: 'Inter', -apple-system, system-ui, sans-serif;
             background: var(--bg);
             color: var(--text);
             line-height: 1.6;
             -webkit-font-smoothing: antialiased;
+            overflow-x: hidden;
+        }
+
+        /* Animations */
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-12px); }
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% { opacity: 0.4; }
+            50% { opacity: 0.8; }
+        }
+
+        @keyframes slide-up {
+            from { opacity: 0; transform: translateY(40px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes slide-in-left {
+            from { opacity: 0; transform: translateX(-30px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        @keyframes fade-in {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes gradient-shift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        @keyframes orbit {
+            from { transform: rotate(0deg) translateX(120px) rotate(0deg); }
+            to { transform: rotate(360deg) translateX(120px) rotate(-360deg); }
+        }
+
+        @keyframes typewriter {
+            from { width: 0; }
+            to { width: 100%; }
+        }
+
+        .animate-on-scroll {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: all 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .animate-on-scroll.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Nav */
+        nav {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            z-index: 100;
+            backdrop-filter: blur(24px) saturate(200%);
+            -webkit-backdrop-filter: blur(24px) saturate(200%);
+            background: rgba(5, 5, 7, 0.75);
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .nav-inner {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 0.7rem 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .nav-brand {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 800;
+            font-size: 0.95rem;
+            color: var(--text);
+            text-decoration: none;
+            letter-spacing: -0.02em;
+        }
+
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 1.75rem;
+        }
+
+        .nav-links a {
+            color: var(--muted);
+            text-decoration: none;
+            font-size: 0.82rem;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+        .nav-links a:hover { color: var(--text); }
+
+        .nav-cta {
+            padding: 0.4rem 1.1rem !important;
+            background: var(--blue) !important;
+            color: #fff !important;
+            border-radius: 8px;
+            font-weight: 600 !important;
+            font-size: 0.8rem !important;
+            transition: all 0.2s;
+        }
+        .nav-cta:hover {
+            background: var(--blue-dark) !important;
+            box-shadow: 0 4px 16px rgba(59, 130, 246, 0.3);
         }
 
         /* Hero */
@@ -36,75 +165,146 @@
             align-items: center;
             justify-content: center;
             text-align: center;
-            padding: 2rem;
-            background:
-                radial-gradient(ellipse 80% 50% at 50% -20%, var(--accent-glow), transparent),
-                radial-gradient(ellipse 60% 40% at 80% 60%, rgba(168, 85, 247, 0.08), transparent);
+            padding: 7rem 2rem 4rem;
+            position: relative;
         }
 
-        .hero-icon {
-            font-size: 4rem;
-            margin-bottom: 1.5rem;
+        .hero-bg {
+            position: absolute;
+            inset: 0;
+            overflow: hidden;
+            pointer-events: none;
+        }
+
+        .hero-bg .orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(80px);
+        }
+
+        .hero-bg .orb-1 {
+            width: 500px;
+            height: 500px;
+            background: rgba(59, 130, 246, 0.12);
+            top: -10%;
+            left: 20%;
+            animation: pulse-glow 6s ease-in-out infinite;
+        }
+
+        .hero-bg .orb-2 {
+            width: 400px;
+            height: 400px;
+            background: rgba(139, 92, 246, 0.08);
+            top: 20%;
+            right: 10%;
+            animation: pulse-glow 8s ease-in-out infinite 2s;
+        }
+
+        .hero-bg .orb-3 {
+            width: 300px;
+            height: 300px;
+            background: rgba(236, 72, 153, 0.06);
+            bottom: 10%;
+            left: 40%;
+            animation: pulse-glow 7s ease-in-out infinite 4s;
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 1;
+            animation: slide-up 1s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.4rem 1rem;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 100px;
+            font-size: 0.78rem;
+            font-weight: 500;
+            color: var(--muted-light);
+            margin-bottom: 2rem;
+            backdrop-filter: blur(10px);
+        }
+        .badge .dot {
+            width: 6px;
+            height: 6px;
+            background: var(--green);
+            border-radius: 50%;
+            box-shadow: 0 0 8px rgba(34, 197, 94, 0.5);
         }
 
         .hero h1 {
-            font-size: 3.5rem;
-            font-weight: 700;
-            letter-spacing: -0.03em;
-            line-height: 1.1;
-            margin-bottom: 1rem;
+            font-size: 4.5rem;
+            font-weight: 900;
+            letter-spacing: -0.05em;
+            line-height: 1;
+            margin-bottom: 1.5rem;
         }
 
         .hero h1 .gradient {
-            background: linear-gradient(135deg, var(--accent), var(--purple));
+            background: linear-gradient(135deg, var(--blue), var(--purple), var(--pink));
+            background-size: 200% 200%;
+            animation: gradient-shift 4s ease infinite;
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
 
-        .hero p {
-            font-size: 1.25rem;
-            color: var(--muted);
-            max-width: 540px;
-            margin-bottom: 2.5rem;
+        .hero > .hero-content > p {
+            font-size: 1.15rem;
+            color: var(--muted-light);
+            max-width: 500px;
+            margin: 0 auto 2.5rem;
+            line-height: 1.7;
         }
 
         .btn-group {
             display: flex;
-            gap: 1rem;
+            gap: 0.75rem;
             flex-wrap: wrap;
             justify-content: center;
+            margin-bottom: 3rem;
         }
 
         .btn {
             display: inline-flex;
             align-items: center;
             gap: 0.5rem;
-            padding: 0.875rem 2rem;
+            padding: 0.9rem 1.75rem;
             border-radius: 12px;
-            font-size: 1rem;
+            font-size: 0.95rem;
             font-weight: 600;
             text-decoration: none;
-            transition: all 0.2s;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            border: none;
+            cursor: pointer;
+            position: relative;
         }
 
         .btn-primary {
-            background: var(--accent);
+            background: linear-gradient(135deg, var(--blue), var(--purple));
             color: #fff;
+            box-shadow: 0 4px 20px rgba(59, 130, 246, 0.3);
         }
         .btn-primary:hover {
-            background: #2563eb;
-            transform: translateY(-1px);
-            box-shadow: 0 8px 30px rgba(59, 130, 246, 0.3);
+            transform: translateY(-3px);
+            box-shadow: 0 12px 40px rgba(59, 130, 246, 0.4);
         }
 
         .btn-secondary {
-            background: var(--surface);
+            background: rgba(255,255,255,0.05);
             color: var(--text);
-            border: 1px solid var(--border);
+            border: 1px solid rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
         }
         .btn-secondary:hover {
-            border-color: #444;
-            transform: translateY(-1px);
+            background: rgba(255,255,255,0.08);
+            border-color: rgba(255,255,255,0.15);
+            transform: translateY(-3px);
         }
 
         /* Screenshot */
@@ -112,243 +312,489 @@
             padding: 0 2rem 6rem;
             display: flex;
             justify-content: center;
+            animation: slide-up 1.2s cubic-bezier(0.16, 1, 0.3, 1) 0.3s both;
         }
 
-        .screenshot-section img {
-            max-width: 960px;
+        .screenshot-wrapper {
+            position: relative;
+            max-width: 980px;
+            width: 100%;
+        }
+
+        .screenshot-wrapper img {
             width: 100%;
             border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.08);
+            box-shadow:
+                0 32px 80px rgba(0, 0, 0, 0.6),
+                0 0 0 1px rgba(255,255,255,0.03) inset;
+        }
+
+        .screenshot-glow {
+            position: absolute;
+            bottom: -20%;
+            left: 10%;
+            right: 10%;
+            height: 60%;
+            background: radial-gradient(ellipse, rgba(59, 130, 246, 0.1), transparent);
+            filter: blur(60px);
+            pointer-events: none;
+        }
+
+        /* Tech Stack */
+        .tech-stack {
+            padding: 5rem 2rem;
+            max-width: 1100px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        .tech-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+        }
+
+        .tech-card {
+            background: var(--surface);
             border: 1px solid var(--border);
-            box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5);
+            border-radius: var(--radius);
+            padding: 2rem 1.5rem;
+            text-align: center;
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .tech-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at 50% 0%, var(--glow-color, rgba(59,130,246,0.08)), transparent 70%);
+            opacity: 0;
+            transition: opacity 0.4s;
+        }
+
+        .tech-card:hover {
+            border-color: var(--border-hover);
+            transform: translateY(-6px);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+        }
+
+        .tech-card:hover::before {
+            opacity: 1;
+        }
+
+        .tech-card .tech-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            display: block;
+            position: relative;
+        }
+
+        .tech-card h3 {
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-bottom: 0.3rem;
+            position: relative;
+        }
+
+        .tech-card p {
+            font-size: 0.8rem;
+            color: var(--muted);
+            position: relative;
+            line-height: 1.5;
+        }
+
+        /* Stats */
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 3rem 2rem;
+        }
+
+        .stat {
+            text-align: center;
+            padding: 1.75rem 1rem;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            transition: all 0.3s;
+        }
+
+        .stat:hover {
+            border-color: var(--border-hover);
+            transform: scale(1.03);
+        }
+
+        .stat .value {
+            font-size: 2.25rem;
+            font-weight: 900;
+            letter-spacing: -0.03em;
+            background: linear-gradient(135deg, var(--c1), var(--c2));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .stat .label {
+            font-size: 0.78rem;
+            color: var(--muted);
+            margin-top: 0.25rem;
+            font-weight: 500;
         }
 
         /* Features */
         .features {
-            padding: 6rem 2rem;
+            padding: 5rem 2rem;
             max-width: 1100px;
             margin: 0 auto;
         }
 
-        .features h2 {
+        .section-header {
             text-align: center;
-            font-size: 2.25rem;
-            font-weight: 700;
-            letter-spacing: -0.02em;
-            margin-bottom: 3.5rem;
+            margin-bottom: 4rem;
+        }
+
+        .section-header h2 {
+            font-size: 2.75rem;
+            font-weight: 900;
+            letter-spacing: -0.04em;
+            margin-bottom: 0.75rem;
+        }
+
+        .section-header p {
+            color: var(--muted-light);
+            font-size: 1.05rem;
         }
 
         .features-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 1.5rem;
+            gap: 1.25rem;
         }
 
         .feature-card {
             background: var(--surface);
             border: 1px solid var(--border);
-            border-radius: 16px;
+            border-radius: var(--radius);
             padding: 2rem;
-            transition: border-color 0.2s;
-        }
-        .feature-card:hover {
-            border-color: #333;
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+            overflow: hidden;
         }
 
-        .feature-card .icon {
-            font-size: 1.75rem;
-            margin-bottom: 1rem;
+        .feature-card::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--accent-line, var(--blue)), transparent);
+            opacity: 0;
+            transition: opacity 0.4s;
+        }
+
+        .feature-card:hover {
+            border-color: var(--border-hover);
+            transform: translateY(-5px);
+            box-shadow: 0 16px 48px rgba(0, 0, 0, 0.35);
+        }
+
+        .feature-card:hover::after {
+            opacity: 1;
+        }
+
+        .feature-card .icon-box {
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 12px;
+            font-size: 1.3rem;
+            margin-bottom: 1.25rem;
         }
 
         .feature-card h3 {
-            font-size: 1.1rem;
-            font-weight: 600;
+            font-size: 1.05rem;
+            font-weight: 700;
             margin-bottom: 0.5rem;
         }
 
         .feature-card p {
             color: var(--muted);
-            font-size: 0.925rem;
+            font-size: 0.85rem;
+            line-height: 1.65;
         }
 
         /* Categories */
         .categories {
-            padding: 4rem 2rem 6rem;
-            max-width: 800px;
+            padding: 4rem 2rem 5rem;
+            max-width: 850px;
             margin: 0 auto;
-        }
-
-        .categories h2 {
-            text-align: center;
-            font-size: 2.25rem;
-            font-weight: 700;
-            letter-spacing: -0.02em;
-            margin-bottom: 1rem;
-        }
-
-        .categories > p {
-            text-align: center;
-            color: var(--muted);
-            margin-bottom: 2.5rem;
         }
 
         .tags {
             display: flex;
             flex-wrap: wrap;
-            gap: 0.625rem;
+            gap: 0.5rem;
             justify-content: center;
         }
 
         .tag {
-            padding: 0.5rem 1rem;
+            padding: 0.45rem 0.9rem;
             background: var(--surface);
             border: 1px solid var(--border);
             border-radius: 100px;
-            font-size: 0.875rem;
+            font-size: 0.78rem;
             color: var(--muted);
             white-space: nowrap;
+            font-family: 'SF Mono', 'JetBrains Mono', monospace;
+            transition: all 0.3s;
+            cursor: default;
+        }
+        .tag:hover {
+            border-color: var(--blue);
+            color: var(--blue);
+            background: rgba(59, 130, 246, 0.05);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(59, 130, 246, 0.1);
         }
 
         /* CTA */
         .cta {
             text-align: center;
-            padding: 6rem 2rem;
-            background:
-                radial-gradient(ellipse 60% 50% at 50% 100%, var(--accent-glow), transparent);
+            padding: 7rem 2rem;
+            position: relative;
+        }
+
+        .cta-bg {
+            position: absolute;
+            inset: 0;
+            overflow: hidden;
+            pointer-events: none;
+        }
+
+        .cta-bg .glow {
+            position: absolute;
+            bottom: -30%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 600px;
+            height: 400px;
+            background: radial-gradient(ellipse, rgba(59, 130, 246, 0.15), rgba(139, 92, 246, 0.08), transparent);
+            filter: blur(80px);
         }
 
         .cta h2 {
-            font-size: 2.5rem;
-            font-weight: 700;
-            margin-bottom: 1rem;
+            font-size: 3rem;
+            font-weight: 900;
+            letter-spacing: -0.04em;
+            margin-bottom: 0.75rem;
+            position: relative;
         }
 
         .cta p {
-            color: var(--muted);
-            font-size: 1.125rem;
+            color: var(--muted-light);
+            font-size: 1.1rem;
             margin-bottom: 2rem;
+            position: relative;
+        }
+
+        .cta .btn { position: relative; }
+
+        .cta .note {
+            margin-top: 1.5rem;
+            font-size: 0.78rem;
+            color: #3f3f46;
+            position: relative;
         }
 
         /* Footer */
         footer {
             text-align: center;
-            padding: 2rem;
-            color: var(--muted);
-            font-size: 0.85rem;
-            border-top: 1px solid var(--border);
+            padding: 3rem 2rem;
+            color: #3f3f46;
+            font-size: 0.8rem;
+            border-top: 1px solid rgba(255,255,255,0.04);
         }
 
         footer a {
-            color: var(--accent);
-            text-decoration: none;
-        }
-
-        /* Stats */
-        .stats {
-            display: flex;
-            gap: 3rem;
-            justify-content: center;
-            padding: 3rem 2rem;
-            margin-bottom: 2rem;
-        }
-
-        .stat {
-            text-align: center;
-        }
-
-        .stat .value {
-            font-size: 2rem;
-            font-weight: 700;
-            font-variant-numeric: tabular-nums;
-        }
-
-        .stat .label {
-            font-size: 0.85rem;
             color: var(--muted);
-            margin-top: 0.25rem;
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+        footer a:hover { color: var(--blue); }
+
+        .footer-links {
+            display: flex;
+            gap: 2rem;
+            justify-content: center;
+            margin-bottom: 1rem;
+            font-size: 0.82rem;
         }
 
         /* Responsive */
         @media (max-width: 768px) {
-            .hero h1 { font-size: 2.25rem; }
+            .hero h1 { font-size: 2.75rem; }
             .features-grid { grid-template-columns: 1fr; }
-            .stats { gap: 1.5rem; flex-wrap: wrap; }
+            .tech-grid { grid-template-columns: repeat(2, 1fr); }
+            .stats { grid-template-columns: repeat(2, 1fr); }
+            .cta h2 { font-size: 2rem; }
+            nav .nav-links a:not(.nav-cta) { display: none; }
         }
     </style>
 </head>
 <body>
 
+<nav>
+    <div class="nav-inner">
+        <a href="#" class="nav-brand">✨ Clean macOS</a>
+        <div class="nav-links">
+            <a href="#tech">Tech Stack</a>
+            <a href="#features">Features</a>
+            <a href="#detects">Detects</a>
+            <a href="https://github.com/Truong62/clean-macos">GitHub</a>
+            <a href="https://ngoctruong.click">Author</a>
+            <a href="https://github.com/Truong62/clean-macos/releases/latest" class="nav-cta">Download</a>
+        </div>
+    </div>
+</nav>
+
+<!-- Hero -->
 <section class="hero">
-    <div class="hero-icon">🧹</div>
-    <h1>Clean <span class="gradient">macOS</span></h1>
-    <p>Scan your Mac for junk files, caches, build artifacts, and forgotten data. Reclaim gigabytes of disk space in seconds.</p>
-    <div class="btn-group">
-        <a href="https://github.com/Truong62/clean-macos/releases/latest" class="btn btn-primary">
-            ↓ Download
-        </a>
-        <a href="https://github.com/Truong62/clean-macos" class="btn btn-secondary">
-            View on GitHub
-        </a>
+    <div class="hero-bg">
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <div class="orb orb-3"></div>
+    </div>
+    <div class="hero-content">
+        <div class="badge">
+            <span class="dot"></span>
+            Free &amp; Open Source — Personal learning project
+        </div>
+        <h1>Clean <span class="gradient">macOS</span></h1>
+        <p>Scan your Mac for junk files, caches, build artifacts, and forgotten data. Reclaim gigabytes of disk space in seconds.</p>
+        <div class="btn-group">
+            <a href="https://github.com/Truong62/clean-macos/releases/latest" class="btn btn-primary">
+                ↓ Download for macOS
+            </a>
+            <a href="https://github.com/Truong62/clean-macos" class="btn btn-secondary">
+                ★ Star on GitHub
+            </a>
+        </div>
     </div>
 </section>
 
+<!-- Screenshot -->
 <section class="screenshot-section">
-    <img src="https://cdn.shopify.com/s/files/1/0874/1643/9088/files/Screenshot_2026-03-10_at_15.14.35.png?v=1773130510" alt="Clean macOS Dashboard" loading="lazy">
+    <div class="screenshot-wrapper">
+        <div class="screenshot-glow"></div>
+        <img src="https://cdn.shopify.com/s/files/1/0874/1643/9088/files/Screenshot_2026-03-10_at_15.14.35.png?v=1773130510" alt="Clean macOS Dashboard" loading="lazy">
+    </div>
 </section>
 
-<div class="stats">
+<!-- Tech Stack -->
+<section class="tech-stack animate-on-scroll" id="tech">
+    <div class="section-header">
+        <h2>Built with modern tech</h2>
+        <p>100% native, zero compromises</p>
+    </div>
+    <div class="tech-grid">
+        <div class="tech-card" style="--glow-color: rgba(249,115,22,0.1);">
+            <span class="tech-icon">🦅</span>
+            <h3>Swift 6</h3>
+            <p>Latest Swift with strict concurrency, async/await, and modern language features</p>
+        </div>
+        <div class="tech-card" style="--glow-color: rgba(59,130,246,0.1);">
+            <span class="tech-icon">🎨</span>
+            <h3>SwiftUI</h3>
+            <p>Declarative UI framework for native macOS look and feel with smooth animations</p>
+        </div>
+        <div class="tech-card" style="--glow-color: rgba(139,92,246,0.1);">
+            <span class="tech-icon">🔄</span>
+            <h3>Sparkle 2</h3>
+            <p>Industry-standard auto-update framework. Users get notified of new versions instantly</p>
+        </div>
+        <div class="tech-card" style="--glow-color: rgba(34,197,94,0.1);">
+            <span class="tech-icon">⚡</span>
+            <h3>Native APIs</h3>
+            <p>FileManager, statfs, AppKit, CoreGraphics — direct system access, no Electron overhead</p>
+        </div>
+    </div>
+</section>
+
+<!-- Stats -->
+<div class="stats animate-on-scroll">
     <div class="stat">
-        <div class="value" style="color: var(--purple);">60+</div>
-        <div class="label">Artifact types detected</div>
+        <div class="value" style="--c1: var(--purple); --c2: var(--pink);">60+</div>
+        <div class="label">Artifact types</div>
     </div>
     <div class="stat">
-        <div class="value" style="color: var(--green);">0</div>
-        <div class="label">Backend required</div>
+        <div class="value" style="--c1: var(--blue); --c2: var(--cyan);">~2s</div>
+        <div class="label">Full scan</div>
     </div>
     <div class="stat">
-        <div class="value" style="color: var(--accent);">100%</div>
-        <div class="label">Native Swift</div>
+        <div class="value" style="--c1: var(--green); --c2: var(--cyan);">0 MB</div>
+        <div class="label">Network usage</div>
+    </div>
+    <div class="stat">
+        <div class="value" style="--c1: var(--orange); --c2: var(--red);">∞</div>
+        <div class="label">Free forever</div>
     </div>
 </div>
 
-<section class="features">
-    <h2>Everything you need</h2>
+<!-- Features -->
+<section class="features animate-on-scroll" id="features">
+    <div class="section-header">
+        <h2>Everything you need</h2>
+        <p>Built for developers who care about their disk space</p>
+    </div>
     <div class="features-grid">
-        <div class="feature-card">
-            <div class="icon">🔍</div>
+        <div class="feature-card" style="--accent-line: var(--blue);">
+            <div class="icon-box" style="background: rgba(59,130,246,0.1);">🔍</div>
             <h3>Smart Scan</h3>
-            <p>Detects node_modules, build outputs, caches, Xcode DerivedData, Docker images, iOS backups, and much more.</p>
+            <p>Concurrent filesystem scanner with pattern matching. Finds node_modules, build outputs, caches, and 60+ more artifact types.</p>
         </div>
-        <div class="feature-card">
-            <div class="icon">📊</div>
+        <div class="feature-card" style="--accent-line: var(--green);">
+            <div class="icon-box" style="background: rgba(34,197,94,0.1);">📊</div>
             <h3>Disk Overview</h3>
-            <p>Real-time disk usage visualization with cleanable space clearly highlighted.</p>
+            <p>Real-time disk usage visualization with cleanable space overlay. Stat cards for total, used, free, and reclaimable space.</p>
         </div>
-        <div class="feature-card">
-            <div class="icon">🏷️</div>
+        <div class="feature-card" style="--accent-line: var(--purple);">
+            <div class="icon-box" style="background: rgba(139,92,246,0.1);">🏷️</div>
             <h3>Category Filtering</h3>
-            <p>Filter by Dependencies, Build, Cache, Xcode, Docker, System, Media, and more.</p>
+            <p>Sidebar with clickable categories — Dependencies, Build, Cache, Xcode, Docker, System, Media, VMs, and more.</p>
         </div>
-        <div class="feature-card">
-            <div class="icon">⏱️</div>
-            <h3>Time Machine Snapshots</h3>
-            <p>Detect and delete local APFS snapshots that silently eat your disk space.</p>
+        <div class="feature-card" style="--accent-line: var(--orange);">
+            <div class="icon-box" style="background: rgba(249,115,22,0.1);">📡</div>
+            <h3>Menu Bar Monitor</h3>
+            <p>Live CPU percentage on your menu bar. Click for detailed CPU, RAM, and disk stats in a sleek popover.</p>
         </div>
-        <div class="feature-card">
-            <div class="icon">🛡️</div>
+        <div class="feature-card" style="--accent-line: var(--red);">
+            <div class="icon-box" style="background: rgba(239,68,68,0.1);">🛡️</div>
             <h3>Safe Delete</h3>
-            <p>Protected system paths, sudo items clearly marked. No accidental damage.</p>
+            <p>Protected system paths, sudo items marked, confirmation dialogs. Configurable safety settings to prevent accidents.</p>
         </div>
-        <div class="feature-card">
-            <div class="icon">🔄</div>
-            <h3>Auto Updates</h3>
-            <p>Built-in Sparkle updater. Get notified when a new version is available.</p>
+        <div class="feature-card" style="--accent-line: var(--cyan);">
+            <div class="icon-box" style="background: rgba(6,182,212,0.1);">⏱️</div>
+            <h3>Time Machine</h3>
+            <p>Detect and manage local APFS snapshots that silently consume disk space. Delete with one click.</p>
         </div>
     </div>
 </section>
 
-<section class="categories">
-    <h2>What it finds</h2>
-    <p>60+ artifact types across your entire system</p>
+<!-- What it finds -->
+<section class="categories animate-on-scroll" id="detects">
+    <div class="section-header">
+        <h2>What it finds</h2>
+        <p>60+ artifact types across your entire system</p>
+    </div>
     <div class="tags">
         <span class="tag">node_modules</span>
         <span class="tag">DerivedData</span>
@@ -369,26 +815,95 @@
         <span class="tag">Slack Cache</span>
         <span class="tag">System Logs</span>
         <span class="tag">Crash Reports</span>
-        <span class="tag">Trash</span>
         <span class="tag">__pycache__</span>
         <span class="tag">Parallels VMs</span>
         <span class="tag">Android AVDs</span>
         <span class="tag">CocoaPods Repos</span>
         <span class="tag">.DS_Store</span>
+        <span class="tag">Trash</span>
+        <span class="tag">pnpm Store</span>
+        <span class="tag">Go Modules</span>
+        <span class="tag">Maven Cache</span>
     </div>
 </section>
 
-<section class="cta">
+<!-- CTA -->
+<section class="cta animate-on-scroll">
+    <div class="cta-bg"><div class="glow"></div></div>
     <h2>Free up space today</h2>
-    <p>Native. Fast. No account needed. No data leaves your Mac.</p>
+    <p>Native. Fast. No account. No tracking. No data leaves your Mac.</p>
     <a href="https://github.com/Truong62/clean-macos/releases/latest" class="btn btn-primary">
-        ↓ Download for macOS
+        ↓ Download for macOS 14+
     </a>
+    <div class="note">Requires macOS Sonoma or later &middot; Apple Silicon &amp; Intel &middot; ~5 MB</div>
 </section>
 
+<!-- Footer -->
 <footer>
-    Built with Swift &amp; SwiftUI. Open source on <a href="https://github.com/Truong62/clean-macos">GitHub</a>.
+    <div class="footer-links">
+        <a href="https://github.com/Truong62/clean-macos">GitHub</a>
+        <a href="https://github.com/Truong62/clean-macos/releases">Releases</a>
+        <a href="https://github.com/Truong62/clean-macos/issues">Report Bug</a>
+        <a href="https://ngoctruong.click">ngoctruong.click</a>
+    </div>
+    Built with Swift &amp; SwiftUI by <a href="https://ngoctruong.click">Ngoc Truong</a>. A personal learning project, completely free.
 </footer>
+
+<script>
+// Scroll animations
+const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+        if (entry.isIntersecting) {
+            entry.target.classList.add('visible');
+        }
+    });
+}, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
+
+document.querySelectorAll('.animate-on-scroll').forEach(el => observer.observe(el));
+
+// Stagger children animation
+document.querySelectorAll('.animate-on-scroll').forEach(parent => {
+    const children = parent.querySelectorAll('.tech-card, .feature-card, .stat, .tag');
+    children.forEach((child, i) => {
+        child.style.opacity = '0';
+        child.style.transform = 'translateY(20px)';
+        child.style.transition = `all 0.5s cubic-bezier(0.16, 1, 0.3, 1) ${i * 0.08}s`;
+    });
+
+    const childObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                const items = entry.target.querySelectorAll('.tech-card, .feature-card, .stat, .tag');
+                items.forEach(item => {
+                    item.style.opacity = '1';
+                    item.style.transform = 'translateY(0)';
+                });
+            }
+        });
+    }, { threshold: 0.1 });
+
+    childObserver.observe(parent);
+});
+
+// Smooth scroll
+document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+    anchor.addEventListener('click', function(e) {
+        e.preventDefault();
+        const target = document.querySelector(this.getAttribute('href'));
+        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+});
+
+// Parallax orbs on mouse move
+document.addEventListener('mousemove', (e) => {
+    const x = e.clientX / window.innerWidth - 0.5;
+    const y = e.clientY / window.innerHeight - 0.5;
+    document.querySelectorAll('.orb').forEach((orb, i) => {
+        const speed = (i + 1) * 15;
+        orb.style.transform = `translate(${x * speed}px, ${y * speed}px)`;
+    });
+});
+</script>
 
 </body>
 </html>
