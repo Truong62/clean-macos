@@ -35,6 +35,9 @@ struct ContentView: View {
                 }
                 .background(Color(nsColor: .windowBackgroundColor))
 
+            case .uninstall:
+                UninstallView()
+
             case .settings:
                 SettingsView()
 
@@ -49,7 +52,7 @@ struct ContentView: View {
                 Task { await vm.clean() }
             }
         } message: {
-            Text("Delete \(vm.selectedArtifacts.count) items (\(formatBytes(vm.selectedSize)))? This cannot be undone.")
+            Text(vm.cleanConfirmationMessage)
         }
     }
 }

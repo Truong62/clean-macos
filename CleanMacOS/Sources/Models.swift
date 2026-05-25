@@ -2,79 +2,73 @@ import SwiftUI
 
 // MARK: - Category
 
-enum ArtifactCategory: String, CaseIterable, Identifiable, Hashable {
-    case dependencies, build, cache, coverage, infrastructure, logs, misc
-    case system, xcode, docker, backup, mail, media, vm, downloads, crash
+/// Consolidated, intentionally small taxonomy. Safety (whether an item is risky to delete) is
+/// tracked separately via `Artifact.isPersonalData`, not by category.
+enum ArtifactCategory: String, CaseIterable, Identifiable, Hashable, Sendable {
+    case developer   // deps, build, coverage, infra, Xcode, Docker, VMs
+    case caches      // app + package-manager caches
+    case system      // system caches, logs, crashes, temp, misc
+    case media       // re-downloadable media caches (Podcasts, Spotify, Apple Music)
+    case personal    // user data — backups, mail, photos, browser profiles (flagged risky)
 
     var id: String { rawValue }
 
     var displayName: String {
         switch self {
-        case .dependencies: "Dependencies"
-        case .build: "Build"
-        case .cache: "Cache"
-        case .coverage: "Coverage"
-        case .infrastructure: "Infrastructure"
-        case .logs: "Logs"
-        case .misc: "Misc"
+        case .developer: "Developer"
+        case .caches: "Caches"
         case .system: "System"
-        case .xcode: "Xcode"
-        case .docker: "Docker"
-        case .backup: "Backup"
-        case .mail: "Mail"
         case .media: "Media"
-        case .vm: "VMs"
-        case .downloads: "Downloads"
-        case .crash: "Crash Reports"
+        case .personal: "Personal"
         }
     }
 
     var icon: String {
         switch self {
-        case .dependencies: "shippingbox"
-        case .build: "hammer"
-        case .cache: "internaldrive"
-        case .coverage: "chart.bar"
-        case .infrastructure: "server.rack"
-        case .logs: "doc.text"
-        case .misc: "ellipsis.circle"
+        case .developer: "hammer"
+        case .caches: "internaldrive"
         case .system: "gearshape"
-        case .xcode: "wrench.and.screwdriver"
-        case .docker: "cube"
-        case .backup: "externaldrive"
-        case .mail: "envelope"
         case .media: "play.circle"
-        case .vm: "desktopcomputer"
-        case .downloads: "arrow.down.circle"
-        case .crash: "exclamationmark.triangle"
+        case .personal: "person.crop.circle"
         }
     }
 
     var color: Color {
         switch self {
-        case .dependencies: .blue
-        case .build: .orange
-        case .cache: .purple
-        case .coverage: .green
-        case .infrastructure: .gray
-        case .logs: .yellow
-        case .misc: .secondary
-        case .system: .red
-        case .xcode: .cyan
-        case .docker: .blue
-        case .backup: .indigo
-        case .mail: .pink
+        case .developer: .blue
+        case .caches: .purple
+        case .system: .gray
         case .media: .mint
-        case .vm: .brown
-        case .downloads: .teal
-        case .crash: .red
+        case .personal: .pink
         }
+    }
+}
+
+// MARK: - ReclaimStrategy
+
+/// How an artifact's space is actually reclaimed.
+enum ReclaimStrategy: Hashable, Sendable {
+    /// Delete the item at `Artifact.path` via FileManager (default, original behavior).
+    case deletePath
+    /// Run a command instead of deleting a path, e.g. `docker system prune -af`.
+    case command(tool: String, args: [String])
+
+    var isCommand: Bool {
+        if case .command = self { return true }
+        return false
+    }
+
+    /// Human-readable command line for display, e.g. "docker system prune -af".
+    var commandString: String? {
+        guard case let .command(tool, args) = self else { return nil }
+        let name = (tool as NSString).lastPathComponent
+        return ([name] + args).joined(separator: " ")
     }
 }
 
 // MARK: - Artifact
 
-struct Artifact: Identifiable, Hashable {
+struct Artifact: Identifiable, Hashable, Sendable {
     let id = UUID()
     let path: String
     let name: String
@@ -82,6 +76,12 @@ struct Artifact: Identifiable, Hashable {
     let category: ArtifactCategory
     let description: String
     let needsSudo: Bool
+    /// How this item is reclaimed. Defaults to deleting `path`.
+    var reclaim: ReclaimStrategy = .deletePath
+    /// Optional destructive-action warning shown before cleaning (e.g. "deletes ALL Docker data").
+    var warning: String? = nil
+    /// User data (photos, mail, browser profiles…). Excluded from "Select All" and warned before delete.
+    var isPersonalData: Bool = false
 
     var sizeHuman: String { formatBytes(size) }
 
@@ -133,6 +133,7 @@ struct FixedPath {
     let category: ArtifactCategory
     let description: String
     let needsSudo: Bool
+    var isPersonalData: Bool = false
 }
 
 // MARK: - CleanResult
