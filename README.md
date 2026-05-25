@@ -72,17 +72,53 @@ Or open `CleanMacOS.xcodeproj` in Xcode and hit `Cmd + R`.
 - **System items** are removed via one `osascript ... with administrator privileges` prompt — paths are shell-quoted and gated by a safe-path check.
 - **Uninstaller and Large Files** move items to the **Trash**, so you can restore them if needed.
 
-## Releasing
+## Releasing a new version
 
-Releases are signed for Sparkle and published to GitHub by hand. In short:
+Releases are signed for Sparkle and published to GitHub by hand. `scripts/package.sh` handles the build and signing; you do the version bump, the appcast paste, and the upload. The steps below release `1.0.3` as an example.
+
+### 1. Bump the version
+
+In `CleanMacOS/project.yml`, raise **both** values:
+
+```yaml
+      MARKETING_VERSION: "1.0.3"      # user-facing version
+      CURRENT_PROJECT_VERSION: "4"    # build number — MUST increase every release
+```
+
+Sparkle compares the build number to decide "newer". If `CURRENT_PROJECT_VERSION` doesn't go up, no update is offered — even if the marketing version changed.
+
+### 2. Build + sign (one command)
 
 ```bash
 cd CleanMacOS
-# bump MARKETING_VERSION + CURRENT_PROJECT_VERSION in project.yml, then:
 ./scripts/package.sh 1.0.3
 ```
 
-`package.sh` builds the app, makes the DMG, **signs it with the EdDSA key**, and prints the `<item>` to paste into `docs/appcast.xml`. Then upload that exact DMG to a GitHub Release and push the updated feed. Full steps and gotchas are in [`docs/RELEASING.md`](docs/RELEASING.md).
+This builds the app, creates `dist/CleanMacOS-1.0.3.dmg`, **EdDSA-signs it** (there is no separate signing step — the script does it), and prints an `<item>` block containing the signature and file size.
+
+### 3. Add the item to the feed
+
+Copy the printed `<item>…</item>` and paste it at the **top** of the item list in `docs/appcast.xml` (newest first, above the previous version). Replace the `TODO` line with real release notes.
+
+### 4. Commit + push the feed
+
+```bash
+git add CleanMacOS/project.yml docs/appcast.xml
+git commit -m "release v1.0.3"
+git push
+```
+
+### 5. Publish the DMG on GitHub
+
+```bash
+open -R CleanMacOS/dist/CleanMacOS-1.0.3.dmg   # reveals the exact file in Finder
+```
+
+Open `https://github.com/Truong62/clean-macos/releases/new?tag=v1.0.3`, drag **that file** into the release's assets, set the title to `v1.0.3`, and **Publish**.
+
+> ⚠️ **Upload the DMG that `package.sh` produced — do not rebuild, rename, or re-zip it.** The appcast signature is tied to those exact bytes; changing a single byte makes installed apps reject the update. The filename must stay `CleanMacOS-1.0.3.dmg` to match the `url` in the appcast item.
+
+Installed apps (v1.0.2+) pick up the update on their next check. The one-time v1.0.1 migration and signing-key handling are documented in [`docs/RELEASING.md`](docs/RELEASING.md).
 
 ## Tech stack
 
