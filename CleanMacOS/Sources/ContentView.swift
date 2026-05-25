@@ -35,6 +35,9 @@ struct ContentView: View {
                 }
                 .background(Color(nsColor: .windowBackgroundColor))
 
+            case .largeFiles:
+                LargeFilesView()
+
             case .uninstall:
                 UninstallView()
 
