@@ -50,43 +50,57 @@ struct CleanMacOSApp: App {
             NSApp.applicationIconImage = image
             return
         }
-        // Fallback: render icon programmatically
-        do {
-            let size: CGFloat = 512
-            let image = NSImage(size: NSSize(width: size, height: size))
-            image.lockFocus()
-            if let ctx = NSGraphicsContext.current?.cgContext {
-                let rect = CGRect(x: size * 0.02, y: size * 0.02, width: size * 0.96, height: size * 0.96)
-                let path = CGPath(roundedRect: rect, cornerWidth: size * 0.22, cornerHeight: size * 0.22, transform: nil)
-                ctx.addPath(path)
-                ctx.clip()
+        // Fallback: render icon programmatically — "Fresh" style (green→teal squircle + sparkles).
+        let size: CGFloat = 512
+        let image = NSImage(size: NSSize(width: size, height: size))
+        image.lockFocus()
+        if let ctx = NSGraphicsContext.current?.cgContext {
+            let r = CGRect(x: 0, y: 0, width: size, height: size).insetBy(dx: size * 0.06, dy: size * 0.06)
+            let corner = r.width * 0.2237
+            let cs = CGColorSpaceCreateDeviceRGB()
 
-                let colors = [
-                    CGColor(red: 0.2, green: 0.45, blue: 1.0, alpha: 1.0),
-                    CGColor(red: 0.35, green: 0.3, blue: 0.95, alpha: 1.0),
-                ]
-                if let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: colors as CFArray, locations: [0, 1]) {
-                    ctx.drawLinearGradient(gradient, start: CGPoint(x: 0, y: size), end: CGPoint(x: size, y: 0), options: [])
-                }
-
-                let config = NSImage.SymbolConfiguration(pointSize: size * 0.4, weight: .medium)
-                if let symbol = NSImage(systemSymbolName: "sparkles", accessibilityDescription: nil)?
-                    .withSymbolConfiguration(config) {
-                    let symSize = symbol.size
-                    let x = (size - symSize.width) / 2
-                    let y = (size - symSize.height) / 2
-                    let tinted = NSImage(size: symSize)
-                    tinted.lockFocus()
-                    NSColor.white.set()
-                    symbol.draw(in: NSRect(origin: .zero, size: symSize), from: .zero, operation: .sourceOver, fraction: 1.0)
-                    NSRect(origin: .zero, size: symSize).fill(using: .sourceAtop)
-                    tinted.unlockFocus()
-                    tinted.draw(in: NSRect(x: x, y: y, width: symSize.width, height: symSize.height), from: .zero, operation: .sourceOver, fraction: 0.95)
-                }
+            // Squircle + diagonal green→teal gradient
+            ctx.saveGState()
+            ctx.addPath(CGPath(roundedRect: r, cornerWidth: corner, cornerHeight: corner, transform: nil))
+            ctx.clip()
+            if let gradient = CGGradient(colorsSpace: cs, colors: [
+                CGColor(red: 0.20, green: 0.82, blue: 0.55, alpha: 1),
+                CGColor(red: 0.06, green: 0.62, blue: 0.74, alpha: 1),
+            ] as CFArray, locations: [0, 1]) {
+                ctx.drawLinearGradient(gradient, start: CGPoint(x: r.minX, y: r.maxY), end: CGPoint(x: r.maxX, y: r.minY), options: [])
             }
-            image.unlockFocus()
-            NSApp.applicationIconImage = image
+            // Soft top highlight for depth
+            if let hl = CGGradient(colorsSpace: cs, colors: [
+                CGColor(red: 1, green: 1, blue: 1, alpha: 0.30),
+                CGColor(red: 1, green: 1, blue: 1, alpha: 0),
+            ] as CFArray, locations: [0, 1]) {
+                let c = CGPoint(x: r.midX, y: r.maxY - r.height * 0.12)
+                ctx.drawRadialGradient(hl, startCenter: c, startRadius: 0, endCenter: c, endRadius: r.width * 0.75, options: [])
+            }
+            ctx.restoreGState()
+
+            // Smaller white sparkles glyph with a soft shadow
+            let config = NSImage.SymbolConfiguration(pointSize: size * 0.34, weight: .semibold)
+            if let symbol = NSImage(systemSymbolName: "sparkles", accessibilityDescription: nil)?
+                .withSymbolConfiguration(config) {
+                let symSize = symbol.size
+                let tinted = NSImage(size: symSize)
+                tinted.lockFocus()
+                symbol.draw(in: NSRect(origin: .zero, size: symSize), from: .zero, operation: .sourceOver, fraction: 1.0)
+                NSColor.white.set()
+                NSRect(origin: .zero, size: symSize).fill(using: .sourceAtop)
+                tinted.unlockFocus()
+
+                ctx.saveGState()
+                ctx.setShadow(offset: CGSize(width: 0, height: -size * 0.012), blur: size * 0.03,
+                              color: CGColor(red: 0, green: 0, blue: 0, alpha: 0.22))
+                tinted.draw(in: NSRect(x: (size - symSize.width) / 2, y: (size - symSize.height) / 2,
+                                       width: symSize.width, height: symSize.height))
+                ctx.restoreGState()
+            }
         }
+        image.unlockFocus()
+        NSApp.applicationIconImage = image
     }
 }
 
