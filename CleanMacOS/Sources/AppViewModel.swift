@@ -105,6 +105,30 @@ final class AppViewModel: ObservableObject {
         !selectedArtifacts.isEmpty && !isCleaning && !isScanning
     }
 
+    /// Detailed confirmation text that calls out any commands to be run and destructive warnings.
+    var cleanConfirmationMessage: String {
+        let selected = artifacts.filter { selectedArtifacts.contains($0.id) }
+        var lines = ["Reclaim \(selected.count) item(s) — about \(formatBytes(selectedSize))."]
+
+        let commands = selected.compactMap { $0.reclaim.commandString }
+        if !commands.isEmpty {
+            lines.append("Will run: " + commands.joined(separator: ", "))
+        }
+
+        let personal = selected.filter(\.isPersonalData)
+        if !personal.isEmpty {
+            lines.append("⚠️ Includes PERSONAL DATA: \(personal.map(\.name).joined(separator: ", ")). This is your own data, not junk.")
+        }
+
+        let warnings = selected.compactMap(\.warning)
+        for warning in warnings {
+            lines.append("⚠️ " + warning)
+        }
+
+        lines.append("This cannot be undone.")
+        return lines.joined(separator: "\n\n")
+    }
+
     // MARK: - Actions
 
     func scan() async {
@@ -135,20 +159,18 @@ final class AppViewModel: ObservableObject {
     }
 
     func clean() async {
-        let pathsToClean = artifacts
-            .filter { selectedArtifacts.contains($0.id) && !$0.needsSudo }
-            .map(\.path)
+        let toClean = artifacts.filter { selectedArtifacts.contains($0.id) && !$0.needsSudo }
 
-        guard !pathsToClean.isEmpty else {
+        guard !toClean.isEmpty else {
             statusMessage = "No items selected (sudo items excluded)"
             return
         }
 
         isCleaning = true
-        statusMessage = "Cleaning \(pathsToClean.count) items..."
+        statusMessage = "Cleaning \(toClean.count) items..."
 
         let result = await Task.detached { [cleaner] in
-            cleaner.deletePaths(pathsToClean)
+            cleaner.reclaim(toClean)
         }.value
 
         // Remove cleaned artifacts
@@ -180,7 +202,8 @@ final class AppViewModel: ObservableObject {
     }
 
     func selectAll() {
-        let ids = filteredArtifacts.filter { !$0.needsSudo }.map(\.id)
+        // Skip sudo items (can't delete) and personal data (must be opted in deliberately).
+        let ids = filteredArtifacts.filter { !$0.needsSudo && !$0.isPersonalData }.map(\.id)
         selectedArtifacts.formUnion(ids)
     }
 

@@ -41,9 +41,11 @@ final class ScannerService: Sendable {
 
         async let devArtifacts = scanDevArtifacts(root: absRoot, maxDepth: maxDepth, skipHidden: skipHidden)
         async let fixedArtifacts = scanFixedPaths()
+        async let dockerArtifacts = scanDocker()
+        async let brewArtifacts = scanHomebrew()
         async let snapshotList = detectSnapshots()
 
-        let allArtifacts = await deduplicateArtifacts(devArtifacts + fixedArtifacts)
+        let allArtifacts = await deduplicateArtifacts(devArtifacts + fixedArtifacts + dockerArtifacts + brewArtifacts)
             .sorted { $0.size > $1.size }
 
         let diskInfo = getDiskInfo()
@@ -165,7 +167,8 @@ final class ScannerService: Sendable {
                     let artifact = Artifact(
                         path: fp.path, name: fp.name, size: size,
                         category: fp.category, description: fp.description,
-                        needsSudo: fp.needsSudo
+                        needsSudo: fp.needsSudo,
+                        isPersonalData: fp.isPersonalData
                     )
                     lock.lock()
                     results.append(artifact)
@@ -176,6 +179,97 @@ final class ScannerService: Sendable {
             group.wait()
             continuation.resume(returning: results)
         }
+    }
+
+    // MARK: - Docker
+
+    /// Docker on macOS stores everything in a single sparse VM disk image. Deleting that whole
+    /// folder nukes all images/containers/volumes. When the daemon is up we instead surface a
+    /// `docker system prune` action sized from `docker system df`. Otherwise we fall back to the
+    /// (now accurately measured) folder, clearly marked as destructive.
+    private func scanDocker() async -> [Artifact] {
+        let docker = DockerService()
+
+        if let usage = docker.usage(),
+           usage.safeReclaimable >= 1_048_576,
+           let strategy = docker.pruneStrategy() {
+            return [Artifact(
+                path: strategy.commandString ?? "docker system prune",
+                name: "Docker — unused images & cache",
+                size: usage.safeReclaimable,
+                category: .developer,
+                description: "Prunes unused images, build cache & stopped containers (keeps volumes)",
+                needsSudo: false,
+                reclaim: strategy
+            )]
+        }
+
+        return dockerFolderFallback()
+    }
+
+    /// Daemon unreachable (or nothing to prune): show the Docker data folder at its real on-disk
+    /// size, flagged as a destructive full delete.
+    private func dockerFolderFallback() -> [Artifact] {
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        let dataDir = (home as NSString).appendingPathComponent("Library/Containers/com.docker.docker/Data")
+
+        var isDir: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: dataDir, isDirectory: &isDir), isDir.boolValue else {
+            return []
+        }
+
+        let size = Self.calculateDirSize(path: dataDir)
+        guard size >= 1_048_576 else { return [] }
+
+        return [Artifact(
+            path: dataDir,
+            name: "Docker Data (entire VM)",
+            size: size,
+            category: .developer,
+            description: "All Docker data. Start Docker Desktop to reclaim space safely via prune.",
+            needsSudo: false,
+            reclaim: .deletePath,
+            warning: "Deletes ALL Docker images, containers and volumes — cannot be undone."
+        )]
+    }
+
+    // MARK: - Homebrew
+
+    /// Deleting Homebrew's Cellar/Caskroom outright breaks every installed formula. The correct
+    /// reclaim is `brew cleanup`, which removes only outdated versions and stale downloads.
+    /// Size is taken from `brew cleanup --dry-run`.
+    private func scanHomebrew() async -> [Artifact] {
+        let fm = FileManager.default
+        let candidates = ["/opt/homebrew/bin/brew", "/usr/local/bin/brew"]
+        guard let brew = candidates.first(where: { fm.isExecutableFile(atPath: $0) }),
+              let out = DockerService.run(brew, ["cleanup", "--dry-run"])
+        else { return [] }
+
+        let size = Self.parseHomebrewFreeable(out)
+        guard size >= 1_048_576 else { return [] }
+
+        return [Artifact(
+            path: "brew cleanup",
+            name: "Homebrew cleanup",
+            size: size,
+            category: .caches,
+            description: "Removes outdated formula versions & stale download cache (keeps installed apps)",
+            needsSudo: false,
+            reclaim: .command(tool: brew, args: ["cleanup"])
+        )]
+    }
+
+    /// Parses brew's "This operation would free approximately 120MB of disk space." line into bytes.
+    static func parseHomebrewFreeable(_ output: String) -> Int64 {
+        guard let line = output.split(separator: "\n").first(where: { $0.contains("would free approximately") })
+        else { return 0 }
+        let pattern = #"approximately\s+([0-9]*\.?[0-9]+\s*[A-Za-z]+)"#
+        let s = String(line)
+        guard let re = try? NSRegularExpression(pattern: pattern),
+              let m = re.firstMatch(in: s, range: NSRange(s.startIndex..., in: s)),
+              let r = Range(m.range(at: 1), in: s)
+        else { return 0 }
+        return DockerService.parseSize(String(s[r]))
     }
 
     // MARK: - Snapshots
@@ -254,47 +348,53 @@ final class ScannerService: Sendable {
 
     // MARK: - Helpers
 
-    static func calculateDirSize(path: String, timeout: TimeInterval = 10, maxDepth: Int = 50) -> Int64 {
-        let deadline = Date().addingTimeInterval(timeout)
-        return calcDirSizeRecursive(path: path, depth: 0, maxDepth: maxDepth, deadline: deadline)
+    /// Actual on-disk allocated size of a single item, in bytes.
+    /// Uses allocated blocks (like `du`) instead of logical size, so sparse files —
+    /// Docker.raw, VM disk images, sparse bundles — are not wildly over-reported.
+    static func allocatedSize(of url: URL) -> Int64 {
+        let keys: Set<URLResourceKey> = [.totalFileAllocatedSizeKey, .fileAllocatedSizeKey, .fileSizeKey]
+        guard let v = try? url.resourceValues(forKeys: keys) else { return 0 }
+        return Int64(v.totalFileAllocatedSize ?? v.fileAllocatedSize ?? v.fileSize ?? 0)
     }
 
-    private static func calcDirSizeRecursive(path: String, depth: Int, maxDepth: Int, deadline: Date) -> Int64 {
-        guard Date() < deadline, depth <= maxDepth else { return 0 }
-
+    static func calculateDirSize(path: String, timeout: TimeInterval = 10, maxDepth: Int = 50) -> Int64 {
+        let deadline = Date().addingTimeInterval(timeout)
+        let rootURL = URL(fileURLWithPath: path)
         let fm = FileManager.default
-        guard let entries = try? fm.contentsOfDirectory(atPath: path) else { return 0 }
+
+        var isDir: ObjCBool = false
+        guard fm.fileExists(atPath: path, isDirectory: &isDir) else { return 0 }
+        if !isDir.boolValue {
+            return allocatedSize(of: rootURL)
+        }
+
+        let keys: [URLResourceKey] = [
+            .isRegularFileKey, .isSymbolicLinkKey,
+            .totalFileAllocatedSizeKey, .fileAllocatedSizeKey, .fileSizeKey,
+        ]
+        guard let enumerator = fm.enumerator(
+            at: rootURL,
+            includingPropertiesForKeys: keys,
+            options: [],
+            errorHandler: { _, _ in true }
+        ) else { return 0 }
 
         var total: Int64 = 0
-        for entry in entries {
-            guard Date() < deadline else { break }
-            let full = (path as NSString).appendingPathComponent(entry)
+        while let url = enumerator.nextObject() as? URL {
+            if Date() >= deadline { break }
+            if enumerator.level > maxDepth { enumerator.skipDescendants(); continue }
 
-            guard let attrs = try? fm.attributesOfItem(atPath: full) else { continue }
-            let type = attrs[.type] as? FileAttributeType
-
-            if type == .typeSymbolicLink { continue }
-
-            if type == .typeDirectory {
-                total += calcDirSizeRecursive(path: full, depth: depth + 1, maxDepth: maxDepth, deadline: deadline)
-            } else {
-                total += physicalSize(attrs: attrs)
+            guard let v = try? url.resourceValues(forKeys: Set(keys)) else { continue }
+            if v.isSymbolicLink == true { continue }
+            if v.isRegularFile == true {
+                total += Int64(v.totalFileAllocatedSize ?? v.fileAllocatedSize ?? v.fileSize ?? 0)
             }
         }
         return total
     }
 
     static func physicalSize(path: String) -> Int64 {
-        guard let attrs = try? FileManager.default.attributesOfItem(atPath: path) else { return 0 }
-        return physicalSize(attrs: attrs)
-    }
-
-    private static func physicalSize(attrs: [FileAttributeKey: Any]) -> Int64 {
-        // Try to get actual allocated size via stat
-        if let size = attrs[.size] as? Int64 {
-            return size
-        }
-        return (attrs[.size] as? Int) .map { Int64($0) } ?? 0
+        allocatedSize(of: URL(fileURLWithPath: path))
     }
 
     private func runCommand(_ args: String...) -> String? {
@@ -338,48 +438,48 @@ final class ScannerService: Sendable {
 
     static func defaultPatterns() -> [ArtifactPattern] {
         [
-            // Dependencies
-            ArtifactPattern(name: "node_modules", category: .dependencies, description: "npm/yarn/pnpm dependencies"),
-            ArtifactPattern(name: ".pnpm", category: .dependencies, description: "pnpm store"),
-            ArtifactPattern(name: "bower_components", category: .dependencies, description: "Bower dependencies"),
-            ArtifactPattern(name: "vendor", category: .dependencies, description: "Vendored dependencies (Go/PHP/Ruby)"),
-            ArtifactPattern(name: ".venv", category: .dependencies, description: "Python virtual environment"),
-            ArtifactPattern(name: "venv", category: .dependencies, description: "Python virtual environment"),
-            ArtifactPattern(name: ".bundle", category: .dependencies, description: "Ruby bundler"),
-            ArtifactPattern(name: "Pods", category: .dependencies, description: "CocoaPods dependencies"),
+            // Dependencies → Developer
+            ArtifactPattern(name: "node_modules", category: .developer, description: "npm/yarn/pnpm dependencies"),
+            ArtifactPattern(name: ".pnpm", category: .developer, description: "pnpm store"),
+            ArtifactPattern(name: "bower_components", category: .developer, description: "Bower dependencies"),
+            ArtifactPattern(name: "vendor", category: .developer, description: "Vendored dependencies (Go/PHP/Ruby)"),
+            ArtifactPattern(name: ".venv", category: .developer, description: "Python virtual environment"),
+            ArtifactPattern(name: "venv", category: .developer, description: "Python virtual environment"),
+            ArtifactPattern(name: ".bundle", category: .developer, description: "Ruby bundler"),
+            ArtifactPattern(name: "Pods", category: .developer, description: "CocoaPods dependencies"),
 
-            // Build
-            ArtifactPattern(name: "dist", category: .build, description: "Distribution build output"),
-            ArtifactPattern(name: "build", category: .build, description: "Build output directory"),
-            ArtifactPattern(name: ".next", category: .build, description: "Next.js build output"),
-            ArtifactPattern(name: ".nuxt", category: .build, description: "Nuxt.js build output"),
-            ArtifactPattern(name: ".output", category: .build, description: "Nuxt 3 build output"),
-            ArtifactPattern(name: "target", category: .build, description: "Rust/Java/Scala build output"),
-            ArtifactPattern(name: ".svelte-kit", category: .build, description: "SvelteKit build output"),
-            ArtifactPattern(name: ".angular", category: .build, description: "Angular cache/build"),
-            ArtifactPattern(name: "storybook-static", category: .build, description: "Storybook build output"),
+            // Build → Developer
+            ArtifactPattern(name: "dist", category: .developer, description: "Distribution build output"),
+            ArtifactPattern(name: "build", category: .developer, description: "Build output directory"),
+            ArtifactPattern(name: ".next", category: .developer, description: "Next.js build output"),
+            ArtifactPattern(name: ".nuxt", category: .developer, description: "Nuxt.js build output"),
+            ArtifactPattern(name: ".output", category: .developer, description: "Nuxt 3 build output"),
+            ArtifactPattern(name: "target", category: .developer, description: "Rust/Java/Scala build output"),
+            ArtifactPattern(name: ".svelte-kit", category: .developer, description: "SvelteKit build output"),
+            ArtifactPattern(name: ".angular", category: .developer, description: "Angular cache/build"),
+            ArtifactPattern(name: "storybook-static", category: .developer, description: "Storybook build output"),
 
-            // Cache
-            ArtifactPattern(name: ".parcel-cache", category: .cache, description: "Parcel bundler cache"),
-            ArtifactPattern(name: ".turbo", category: .cache, description: "Turborepo cache"),
-            ArtifactPattern(name: ".pytest_cache", category: .cache, description: "Pytest cache"),
-            ArtifactPattern(name: "__pycache__", category: .cache, description: "Python bytecode cache"),
-            ArtifactPattern(name: ".eslintcache", category: .cache, description: "ESLint cache"),
-            ArtifactPattern(name: ".sass-cache", category: .cache, description: "Sass preprocessor cache"),
-            ArtifactPattern(name: ".webpack", category: .cache, description: "Webpack cache"),
-            ArtifactPattern(name: ".gradle", category: .cache, description: "Gradle cache"),
-            ArtifactPattern(name: ".dart_tool", category: .cache, description: "Dart tool cache"),
+            // Project caches → Caches
+            ArtifactPattern(name: ".parcel-cache", category: .caches, description: "Parcel bundler cache"),
+            ArtifactPattern(name: ".turbo", category: .caches, description: "Turborepo cache"),
+            ArtifactPattern(name: ".pytest_cache", category: .caches, description: "Pytest cache"),
+            ArtifactPattern(name: "__pycache__", category: .caches, description: "Python bytecode cache"),
+            ArtifactPattern(name: ".eslintcache", category: .caches, description: "ESLint cache"),
+            ArtifactPattern(name: ".sass-cache", category: .caches, description: "Sass preprocessor cache"),
+            ArtifactPattern(name: ".webpack", category: .caches, description: "Webpack cache"),
+            ArtifactPattern(name: ".gradle", category: .caches, description: "Gradle cache"),
+            ArtifactPattern(name: ".dart_tool", category: .caches, description: "Dart tool cache"),
 
-            // Coverage
-            ArtifactPattern(name: "coverage", category: .coverage, description: "Code coverage reports"),
-            ArtifactPattern(name: ".nyc_output", category: .coverage, description: "NYC coverage output"),
-            ArtifactPattern(name: "htmlcov", category: .coverage, description: "Python HTML coverage reports"),
+            // Coverage → Developer
+            ArtifactPattern(name: "coverage", category: .developer, description: "Code coverage reports"),
+            ArtifactPattern(name: ".nyc_output", category: .developer, description: "NYC coverage output"),
+            ArtifactPattern(name: "htmlcov", category: .developer, description: "Python HTML coverage reports"),
 
-            // Infrastructure
-            ArtifactPattern(name: ".terraform", category: .infrastructure, description: "Terraform provider cache"),
+            // Infrastructure → Developer
+            ArtifactPattern(name: ".terraform", category: .developer, description: "Terraform provider cache"),
 
-            // Misc
-            ArtifactPattern(name: ".DS_Store", category: .misc, description: "macOS directory metadata"),
+            // Misc → System
+            ArtifactPattern(name: ".DS_Store", category: .system, description: "macOS directory metadata"),
         ]
     }
 
@@ -392,192 +492,174 @@ final class ScannerService: Sendable {
         }
 
         return [
-            FixedPath(path: hp("Library", "Caches"), name: "User Caches", category: .system,
-                      description: "All application caches (Safari, Chrome, Spotify, Homebrew, pip, etc.)", needsSudo: false),
-            FixedPath(path: hp("Library", "Logs"), name: "User Logs", category: .logs,
+            // ---- Caches (safe to delete; apps regenerate them) ----
+            FixedPath(path: hp("Library", "Caches"), name: "User Caches", category: .caches,
+                      description: "All application caches (Safari, Chrome, Spotify, pip, etc.)", needsSudo: false),
+            FixedPath(path: "/Library/Caches", name: "System Caches", category: .caches,
+                      description: "System-level application caches", needsSudo: true),
+            FixedPath(path: hp("Library", "Containers", "com.apple.Safari", "Data", "Library", "Caches"), name: "Safari Container Cache", category: .caches,
+                      description: "Safari sandboxed cache", needsSudo: false),
+
+            // Package-manager caches → Caches
+            FixedPath(path: hp(".npm", "_cacache"), name: "npm Cache", category: .caches,
+                      description: "npm content-addressable cache", needsSudo: false),
+            FixedPath(path: hp(".cache", "pnpm"), name: "pnpm Cache", category: .caches,
+                      description: "pnpm global store cache", needsSudo: false),
+            FixedPath(path: hp(".pnpm-store"), name: "pnpm Store", category: .caches,
+                      description: "pnpm global content-addressable store", needsSudo: false),
+            FixedPath(path: hp("go", "pkg", "mod", "cache"), name: "Go Module Cache", category: .caches,
+                      description: "Go module download cache", needsSudo: false),
+            FixedPath(path: hp(".cargo", "registry"), name: "Cargo Registry", category: .caches,
+                      description: "Rust cargo crate registry cache", needsSudo: false),
+            FixedPath(path: hp(".cargo", "git"), name: "Cargo Git Cache", category: .caches,
+                      description: "Rust cargo git dependency cache", needsSudo: false),
+            FixedPath(path: hp(".m2", "repository"), name: "Maven Cache", category: .caches,
+                      description: "Maven local repository cache", needsSudo: false),
+            FixedPath(path: hp(".gradle", "caches"), name: "Gradle Caches", category: .caches,
+                      description: "Gradle build caches", needsSudo: false),
+            FixedPath(path: hp(".gradle", "wrapper", "dists"), name: "Gradle Wrapper Dists", category: .caches,
+                      description: "Downloaded Gradle wrapper distributions", needsSudo: false),
+            FixedPath(path: hp(".composer", "cache"), name: "Composer Cache", category: .caches,
+                      description: "PHP Composer cache", needsSudo: false),
+            FixedPath(path: hp(".gem", "cache"), name: "RubyGems Cache", category: .caches,
+                      description: "RubyGems download cache", needsSudo: false),
+            FixedPath(path: hp(".cocoapods", "repos"), name: "CocoaPods Repos", category: .caches,
+                      description: "CocoaPods spec repositories (~1-3GB)", needsSudo: false),
+            FixedPath(path: hp(".pub-cache"), name: "Dart/Flutter Cache", category: .caches,
+                      description: "Dart pub package cache", needsSudo: false),
+            FixedPath(path: hp(".nuget", "packages"), name: "NuGet Cache", category: .caches,
+                      description: ".NET NuGet package cache", needsSudo: false),
+
+            // App caches → Caches
+            FixedPath(path: hp("Library", "Application Support", "Code", "Cache"), name: "VS Code Cache", category: .caches,
+                      description: "Visual Studio Code cache", needsSudo: false),
+            FixedPath(path: hp("Library", "Application Support", "Code", "CachedData"), name: "VS Code CachedData", category: .caches,
+                      description: "VS Code cached bytecode", needsSudo: false),
+            FixedPath(path: hp("Library", "Application Support", "Code", "CachedExtensionVSIXs"), name: "VS Code Extension Cache", category: .caches,
+                      description: "VS Code cached extension downloads", needsSudo: false),
+            FixedPath(path: hp("Library", "Application Support", "Code", "User", "workspaceStorage"), name: "VS Code Workspace Storage", category: .caches,
+                      description: "VS Code per-workspace data (search index, etc.)", needsSudo: false),
+            FixedPath(path: hp("Library", "Application Support", "Slack", "Cache"), name: "Slack Cache", category: .caches,
+                      description: "Slack app cache", needsSudo: false),
+            FixedPath(path: hp("Library", "Application Support", "Slack", "Service Worker", "CacheStorage"), name: "Slack Service Worker", category: .caches,
+                      description: "Slack service worker cache", needsSudo: false),
+            FixedPath(path: hp("Library", "Application Support", "discord", "Cache"), name: "Discord Cache", category: .caches,
+                      description: "Discord app cache", needsSudo: false),
+            FixedPath(path: hp("Library", "Application Support", "Microsoft Teams", "Cache"), name: "Teams Cache", category: .caches,
+                      description: "Microsoft Teams cache", needsSudo: false),
+            FixedPath(path: hp("Library", "Application Support", "Figma", "Cache"), name: "Figma Cache", category: .caches,
+                      description: "Figma desktop app cache", needsSudo: false),
+            FixedPath(path: hp("Library", "Application Support", "Zoom", "data"), name: "Zoom Data", category: .caches,
+                      description: "Zoom recordings, cache and data", needsSudo: false),
+            FixedPath(path: hp("Library", "Application Support", "Telegram Desktop", "tdata", "user_data"), name: "Telegram Cache", category: .caches,
+                      description: "Telegram media & message cache", needsSudo: false),
+
+            // ---- System (logs, crashes, temp, indexes) ----
+            FixedPath(path: hp("Library", "Logs"), name: "User Logs", category: .system,
                       description: "Application log files", needsSudo: false),
             FixedPath(path: hp(".Trash"), name: "Trash", category: .system,
                       description: "Files in Trash (not yet permanently deleted)", needsSudo: false),
-            FixedPath(path: "/Library/Caches", name: "System Caches", category: .system,
-                      description: "System-level application caches", needsSudo: true),
-            FixedPath(path: "/var/log", name: "System Logs", category: .logs,
+            FixedPath(path: "/var/log", name: "System Logs", category: .system,
                       description: "System log files (asl, install, wifi, etc.)", needsSudo: true),
             FixedPath(path: "/private/var/folders", name: "Temporary Items", category: .system,
                       description: "Per-user temporary files & caches (managed by macOS)", needsSudo: true),
-            FixedPath(path: hp("Library", "Logs", "DiagnosticReports"), name: "User Crash Reports", category: .crash,
+            FixedPath(path: hp("Library", "Logs", "DiagnosticReports"), name: "User Crash Reports", category: .system,
                       description: "Application crash logs (.ips, .crash files)", needsSudo: false),
-            FixedPath(path: "/Library/Logs/DiagnosticReports", name: "System Crash Reports", category: .crash,
+            FixedPath(path: "/Library/Logs/DiagnosticReports", name: "System Crash Reports", category: .system,
                       description: "System-level crash & hang reports", needsSudo: true),
-            FixedPath(path: "/cores", name: "Core Dumps", category: .crash,
+            FixedPath(path: "/cores", name: "Core Dumps", category: .system,
                       description: "Process core dump files (can be 1-10GB each)", needsSudo: true),
-            FixedPath(path: hp("Library", "Logs", "JetBrains"), name: "JetBrains Logs", category: .crash,
+            FixedPath(path: hp("Library", "Logs", "JetBrains"), name: "JetBrains Logs", category: .system,
                       description: "IntelliJ/WebStorm/PyCharm IDE logs", needsSudo: false),
+            FixedPath(path: hp("Library", "Saved Application State"), name: "Saved App State", category: .system,
+                      description: "Window positions & states of closed apps", needsSudo: false),
+            FixedPath(path: hp("Library", "Application Support", "CrashReporter"), name: "App Crash Reporter", category: .system,
+                      description: "Application crash report data", needsSudo: false),
+            FixedPath(path: "/tmp", name: "System Temp", category: .system,
+                      description: "System temporary files", needsSudo: true),
+            FixedPath(path: "/private/var/tmp", name: "Private Temp", category: .system,
+                      description: "Persistent temporary files (survive reboot)", needsSudo: true),
+            FixedPath(path: hp("Library", "Metadata", "CoreSpotlight"), name: "Spotlight Index", category: .system,
+                      description: "Spotlight search index data (rebuilds automatically)", needsSudo: false),
 
-            // Xcode
-            FixedPath(path: hp("Library", "Developer", "Xcode", "DerivedData"), name: "Xcode DerivedData", category: .xcode,
+            // ---- Developer (Xcode, Docker, VMs, SDKs) ----
+            FixedPath(path: hp("Library", "Developer", "Xcode", "DerivedData"), name: "Xcode DerivedData", category: .developer,
                       description: "Build intermediates & indexes (often 10-50GB+)", needsSudo: false),
-            FixedPath(path: hp("Library", "Developer", "Xcode", "Archives"), name: "Xcode Archives", category: .xcode,
+            FixedPath(path: hp("Library", "Developer", "Xcode", "Archives"), name: "Xcode Archives", category: .developer,
                       description: "Archived app builds (.xcarchive)", needsSudo: false),
-            FixedPath(path: hp("Library", "Developer", "Xcode", "iOS DeviceSupport"), name: "iOS DeviceSupport", category: .xcode,
+            FixedPath(path: hp("Library", "Developer", "Xcode", "iOS DeviceSupport"), name: "iOS DeviceSupport", category: .developer,
                       description: "Debug symbols for connected iOS devices (2-5GB per iOS version)", needsSudo: false),
-            FixedPath(path: hp("Library", "Developer", "Xcode", "watchOS DeviceSupport"), name: "watchOS DeviceSupport", category: .xcode,
+            FixedPath(path: hp("Library", "Developer", "Xcode", "watchOS DeviceSupport"), name: "watchOS DeviceSupport", category: .developer,
                       description: "Debug symbols for connected Apple Watch", needsSudo: false),
-            FixedPath(path: hp("Library", "Developer", "Xcode", "tvOS DeviceSupport"), name: "tvOS DeviceSupport", category: .xcode,
+            FixedPath(path: hp("Library", "Developer", "Xcode", "tvOS DeviceSupport"), name: "tvOS DeviceSupport", category: .developer,
                       description: "Debug symbols for Apple TV", needsSudo: false),
-            FixedPath(path: hp("Library", "Developer", "CoreSimulator", "Devices"), name: "iOS Simulators", category: .xcode,
+            FixedPath(path: hp("Library", "Developer", "CoreSimulator", "Devices"), name: "iOS Simulators", category: .developer,
                       description: "iOS/watchOS/tvOS simulator data (can be 20GB+)", needsSudo: false),
-            FixedPath(path: hp("Library", "Developer", "CoreSimulator", "Caches"), name: "Simulator Caches", category: .xcode,
+            FixedPath(path: hp("Library", "Developer", "CoreSimulator", "Caches"), name: "Simulator Caches", category: .developer,
                       description: "Simulator runtime caches", needsSudo: false),
-            FixedPath(path: hp("Library", "Developer", "Xcode", "UserData", "IB Support"), name: "Xcode IB Support", category: .xcode,
+            FixedPath(path: hp("Library", "Developer", "Xcode", "UserData", "IB Support"), name: "Xcode IB Support", category: .developer,
                       description: "Interface Builder support cache", needsSudo: false),
-            FixedPath(path: hp("Library", "Developer", "Xcode", "Products"), name: "Xcode Products", category: .xcode,
+            FixedPath(path: hp("Library", "Developer", "Xcode", "Products"), name: "Xcode Products", category: .developer,
                       description: "Built products from Xcode", needsSudo: false),
+            FixedPath(path: "/Library/Developer/CommandLineTools", name: "Xcode CLI Tools", category: .developer,
+                      description: "Command Line Tools for Xcode (~1-2GB)", needsSudo: true),
+            FixedPath(path: "/Library/Developer/CoreSimulator", name: "Simulator Runtimes", category: .developer,
+                      description: "Downloaded iOS/watchOS/tvOS simulator runtimes (5-10GB each)", needsSudo: true),
 
-            // Docker
-            FixedPath(path: hp("Library", "Containers", "com.docker.docker", "Data"), name: "Docker Data", category: .docker,
-                      description: "Docker images, containers, volumes", needsSudo: false),
-            FixedPath(path: hp(".docker"), name: "Docker Config & Cache", category: .docker,
+            // Docker — the VM data image is handled by scanDocker() (prune when daemon is up,
+            // accurate folder size as fallback). Only the lightweight CLI config is a fixed path here.
+            FixedPath(path: hp(".docker"), name: "Docker Config & Cache", category: .developer,
                       description: "Docker CLI config, buildx cache", needsSudo: false),
 
-            // Backup
-            FixedPath(path: hp("Library", "Application Support", "MobileSync", "Backup"), name: "iPhone/iPad Backups", category: .backup,
-                      description: "Local iOS device backups (10-50GB each!)", needsSudo: false),
-
-            // VMs
-            FixedPath(path: hp(".android", "avd"), name: "Android Emulator AVDs", category: .vm,
+            // VMs & SDKs
+            FixedPath(path: hp(".android", "avd"), name: "Android Emulator AVDs", category: .developer,
                       description: "Android emulator virtual device images (2-10GB each)", needsSudo: false),
-            FixedPath(path: hp("Library", "Android", "sdk"), name: "Android SDK", category: .infrastructure,
+            FixedPath(path: hp("Library", "Android", "sdk"), name: "Android SDK", category: .developer,
                       description: "Android SDK, build tools, platform images", needsSudo: false),
-            FixedPath(path: hp("Parallels"), name: "Parallels VMs", category: .vm,
+            FixedPath(path: hp("Parallels"), name: "Parallels VMs", category: .developer,
                       description: "Parallels Desktop virtual machine images (20-60GB each)", needsSudo: false),
-            FixedPath(path: hp("Virtual Machines.localized"), name: "VMware VMs", category: .vm,
+            FixedPath(path: hp("Virtual Machines.localized"), name: "VMware VMs", category: .developer,
                       description: "VMware Fusion virtual machine images", needsSudo: false),
-            FixedPath(path: hp("VirtualBox VMs"), name: "VirtualBox VMs", category: .vm,
+            FixedPath(path: hp("VirtualBox VMs"), name: "VirtualBox VMs", category: .developer,
                       description: "VirtualBox virtual machine images", needsSudo: false),
 
-            // Mail
-            FixedPath(path: hp("Library", "Mail"), name: "Apple Mail Data", category: .mail,
-                      description: "Mail messages & attachments (can grow to many GB over years)", needsSudo: false),
-            FixedPath(path: hp("Library", "Mail Downloads"), name: "Mail Downloads", category: .mail,
-                      description: "Opened mail attachment files", needsSudo: false),
-
-            // Media
+            // ---- Media (re-downloadable media caches) ----
             FixedPath(path: hp("Library", "Group Containers", "243LU875E5.groups.com.apple.podcasts"), name: "Apple Podcasts", category: .media,
                       description: "Downloaded podcast episodes", needsSudo: false),
             FixedPath(path: hp("Library", "Group Containers", "group.com.apple.music"), name: "Apple Music Cache", category: .media,
                       description: "Offline Apple Music downloads & cache", needsSudo: false),
             FixedPath(path: hp("Library", "Application Support", "Spotify", "PersistentCache"), name: "Spotify Cache", category: .media,
                       description: "Spotify offline/streaming cache", needsSudo: false),
-            FixedPath(path: hp("Downloads"), name: "Downloads", category: .downloads,
-                      description: "Your Downloads folder (review before deleting!)", needsSudo: false),
 
-            // Package manager caches
-            FixedPath(path: hp(".npm", "_cacache"), name: "npm Cache", category: .cache,
-                      description: "npm content-addressable cache", needsSudo: false),
-            FixedPath(path: hp(".cache", "pnpm"), name: "pnpm Cache", category: .cache,
-                      description: "pnpm global store cache", needsSudo: false),
-            FixedPath(path: hp(".pnpm-store"), name: "pnpm Store", category: .cache,
-                      description: "pnpm global content-addressable store", needsSudo: false),
-            FixedPath(path: hp("go", "pkg", "mod", "cache"), name: "Go Module Cache", category: .cache,
-                      description: "Go module download cache", needsSudo: false),
-            FixedPath(path: hp(".cargo", "registry"), name: "Cargo Registry", category: .cache,
-                      description: "Rust cargo crate registry cache", needsSudo: false),
-            FixedPath(path: hp(".cargo", "git"), name: "Cargo Git Cache", category: .cache,
-                      description: "Rust cargo git dependency cache", needsSudo: false),
-            FixedPath(path: hp(".m2", "repository"), name: "Maven Cache", category: .cache,
-                      description: "Maven local repository cache", needsSudo: false),
-            FixedPath(path: hp(".gradle", "caches"), name: "Gradle Caches", category: .cache,
-                      description: "Gradle build caches", needsSudo: false),
-            FixedPath(path: hp(".gradle", "wrapper", "dists"), name: "Gradle Wrapper Dists", category: .cache,
-                      description: "Downloaded Gradle wrapper distributions", needsSudo: false),
-            FixedPath(path: hp(".composer", "cache"), name: "Composer Cache", category: .cache,
-                      description: "PHP Composer cache", needsSudo: false),
-            FixedPath(path: hp(".gem", "cache"), name: "RubyGems Cache", category: .cache,
-                      description: "RubyGems download cache", needsSudo: false),
-            FixedPath(path: hp(".cocoapods", "repos"), name: "CocoaPods Repos", category: .cache,
-                      description: "CocoaPods spec repositories (~1-3GB)", needsSudo: false),
-            FixedPath(path: hp(".pub-cache"), name: "Dart/Flutter Cache", category: .cache,
-                      description: "Dart pub package cache", needsSudo: false),
-            FixedPath(path: hp(".nuget", "packages"), name: "NuGet Cache", category: .cache,
-                      description: ".NET NuGet package cache", needsSudo: false),
-
-            // App caches
-            FixedPath(path: hp("Library", "Application Support", "Code", "Cache"), name: "VS Code Cache", category: .cache,
-                      description: "Visual Studio Code cache", needsSudo: false),
-            FixedPath(path: hp("Library", "Application Support", "Code", "CachedData"), name: "VS Code CachedData", category: .cache,
-                      description: "VS Code cached bytecode", needsSudo: false),
-            FixedPath(path: hp("Library", "Application Support", "Code", "CachedExtensionVSIXs"), name: "VS Code Extension Cache", category: .cache,
-                      description: "VS Code cached extension downloads", needsSudo: false),
-            FixedPath(path: hp("Library", "Application Support", "Code", "User", "workspaceStorage"), name: "VS Code Workspace Storage", category: .cache,
-                      description: "VS Code per-workspace data (search index, etc.)", needsSudo: false),
-            FixedPath(path: hp("Library", "Application Support", "Slack", "Cache"), name: "Slack Cache", category: .cache,
-                      description: "Slack app cache", needsSudo: false),
-            FixedPath(path: hp("Library", "Application Support", "Slack", "Service Worker", "CacheStorage"), name: "Slack Service Worker", category: .cache,
-                      description: "Slack service worker cache", needsSudo: false),
-            FixedPath(path: hp("Library", "Application Support", "discord", "Cache"), name: "Discord Cache", category: .cache,
-                      description: "Discord app cache", needsSudo: false),
-            FixedPath(path: hp("Library", "Application Support", "Microsoft Teams", "Cache"), name: "Teams Cache", category: .cache,
-                      description: "Microsoft Teams cache", needsSudo: false),
-            FixedPath(path: hp("Library", "Application Support", "Figma", "Cache"), name: "Figma Cache", category: .cache,
-                      description: "Figma desktop app cache", needsSudo: false),
-            FixedPath(path: hp("Library", "Application Support", "Zoom", "data"), name: "Zoom Data", category: .cache,
-                      description: "Zoom recordings, cache and data", needsSudo: false),
-            FixedPath(path: hp("Library", "Application Support", "Telegram Desktop", "tdata", "user_data"), name: "Telegram Cache", category: .cache,
-                      description: "Telegram media & message cache", needsSudo: false),
-
-            // System
-            FixedPath(path: hp("Library", "Containers", "com.apple.Safari", "Data", "Library", "Caches"), name: "Safari Container Cache", category: .system,
-                      description: "Safari sandboxed cache", needsSudo: false),
-            FixedPath(path: hp("Library", "Saved Application State"), name: "Saved App State", category: .misc,
-                      description: "Window positions & states of closed apps", needsSudo: false),
-            FixedPath(path: hp("Library", "Application Support", "CrashReporter"), name: "App Crash Reporter", category: .crash,
-                      description: "Application crash report data", needsSudo: false),
-            FixedPath(path: "/tmp", name: "System Temp", category: .system,
-                      description: "System temporary files", needsSudo: true),
-            FixedPath(path: "/private/var/tmp", name: "Private Temp", category: .system,
-                      description: "Persistent temporary files (survive reboot)", needsSudo: true),
-
-            FixedPath(path: hp("Library", "Messages", "Attachments"), name: "iMessage Attachments", category: .system,
-                      description: "Photos/videos/files received via iMessage", needsSudo: false),
-            FixedPath(path: hp("Movies"), name: "Movies", category: .media,
-                      description: "Movie files, screen recordings, Final Cut projects", needsSudo: false),
-            FixedPath(path: hp("Music"), name: "Music Library", category: .media,
-                      description: "Music files, GarageBand projects, Logic Pro data", needsSudo: false),
-            FixedPath(path: hp("Pictures", "Photos Library.photoslibrary"), name: "Photos Library", category: .media,
-                      description: "Apple Photos library (originals + thumbnails)", needsSudo: false),
-            FixedPath(path: hp("Library", "Application Support", "Steam"), name: "Steam Games", category: .media,
-                      description: "Steam game installations and data", needsSudo: false),
-
-            FixedPath(path: hp("Library", "Metadata", "CoreSpotlight"), name: "Spotlight Index", category: .system,
-                      description: "Spotlight search index data", needsSudo: false),
-            FixedPath(path: hp("Library", "Safari"), name: "Safari Data", category: .system,
-                      description: "Safari history, bookmarks, local storage, databases", needsSudo: false),
-            FixedPath(path: hp("Library", "WebKit"), name: "WebKit Data", category: .system,
-                      description: "WebKit local storage, databases, service workers", needsSudo: false),
-            FixedPath(path: hp("Library", "Cookies"), name: "Cookies", category: .system,
-                      description: "Browser and app cookies", needsSudo: false),
-
-            // Homebrew
-            FixedPath(path: "/usr/local/Cellar", name: "Homebrew Cellar", category: .infrastructure,
-                      description: "Installed Homebrew formula versions", needsSudo: false),
-            FixedPath(path: "/usr/local/Caskroom", name: "Homebrew Caskroom", category: .infrastructure,
-                      description: "Installed Homebrew cask app versions", needsSudo: false),
-            FixedPath(path: "/opt/homebrew/Cellar", name: "Homebrew Cellar (ARM)", category: .infrastructure,
-                      description: "Installed Homebrew formula versions (Apple Silicon)", needsSudo: false),
-            FixedPath(path: "/opt/homebrew/Caskroom", name: "Homebrew Caskroom (ARM)", category: .infrastructure,
-                      description: "Installed Homebrew cask versions (Apple Silicon)", needsSudo: false),
-
-            // Browsers
-            FixedPath(path: hp("Library", "Application Support", "Google", "Chrome"), name: "Chrome Profile Data", category: .system,
-                      description: "Chrome profiles, extensions, local storage", needsSudo: false),
-            FixedPath(path: hp("Library", "Application Support", "Firefox"), name: "Firefox Profile Data", category: .system,
-                      description: "Firefox profiles, extensions, local storage", needsSudo: false),
-
-            // System (sudo)
-            FixedPath(path: "/Library/Developer/CommandLineTools", name: "Xcode CLI Tools", category: .xcode,
-                      description: "Command Line Tools for Xcode (~1-2GB)", needsSudo: true),
-            FixedPath(path: "/Library/Developer/CoreSimulator", name: "Simulator Runtimes", category: .xcode,
-                      description: "Downloaded iOS/watchOS/tvOS simulator runtimes (5-10GB each)", needsSudo: true),
+            // ---- Personal data (flagged; excluded from Select All; warned before delete) ----
+            FixedPath(path: hp("Downloads"), name: "Downloads", category: .personal,
+                      description: "Your Downloads folder — review before deleting!", needsSudo: false, isPersonalData: true),
+            FixedPath(path: hp("Library", "Application Support", "MobileSync", "Backup"), name: "iPhone/iPad Backups", category: .personal,
+                      description: "Local iOS device backups (10-50GB each!)", needsSudo: false, isPersonalData: true),
+            FixedPath(path: hp("Library", "Mail"), name: "Apple Mail Data", category: .personal,
+                      description: "Mail messages & attachments (years of email)", needsSudo: false, isPersonalData: true),
+            FixedPath(path: hp("Library", "Mail Downloads"), name: "Mail Downloads", category: .personal,
+                      description: "Opened mail attachment files", needsSudo: false, isPersonalData: true),
+            FixedPath(path: hp("Library", "Messages", "Attachments"), name: "iMessage Attachments", category: .personal,
+                      description: "Photos/videos/files received via iMessage", needsSudo: false, isPersonalData: true),
+            FixedPath(path: hp("Movies"), name: "Movies", category: .personal,
+                      description: "Movie files, screen recordings, Final Cut projects", needsSudo: false, isPersonalData: true),
+            FixedPath(path: hp("Music"), name: "Music Library", category: .personal,
+                      description: "Music files, GarageBand projects, Logic Pro data", needsSudo: false, isPersonalData: true),
+            FixedPath(path: hp("Pictures", "Photos Library.photoslibrary"), name: "Photos Library", category: .personal,
+                      description: "Apple Photos library (originals + thumbnails)", needsSudo: false, isPersonalData: true),
+            FixedPath(path: hp("Library", "Application Support", "Steam"), name: "Steam Games", category: .personal,
+                      description: "Steam game installations and data", needsSudo: false, isPersonalData: true),
+            FixedPath(path: hp("Library", "Safari"), name: "Safari Data", category: .personal,
+                      description: "Safari history, bookmarks, local storage, databases", needsSudo: false, isPersonalData: true),
+            FixedPath(path: hp("Library", "WebKit"), name: "WebKit Data", category: .personal,
+                      description: "WebKit local storage, databases, service workers", needsSudo: false, isPersonalData: true),
+            FixedPath(path: hp("Library", "Cookies"), name: "Cookies", category: .personal,
+                      description: "Browser and app cookies (logs you out)", needsSudo: false, isPersonalData: true),
+            FixedPath(path: hp("Library", "Application Support", "Google", "Chrome"), name: "Chrome Profile Data", category: .personal,
+                      description: "Chrome profiles, extensions, local storage", needsSudo: false, isPersonalData: true),
+            FixedPath(path: hp("Library", "Application Support", "Firefox"), name: "Firefox Profile Data", category: .personal,
+                      description: "Firefox profiles, extensions, local storage", needsSudo: false, isPersonalData: true),
         ]
     }
 }

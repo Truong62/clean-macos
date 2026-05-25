@@ -83,6 +83,28 @@ struct ArtifactTableView: View {
                                         .foregroundStyle(.red)
                                         .clipShape(RoundedRectangle(cornerRadius: 4))
                                 }
+                                if artifact.isPersonalData {
+                                    Text("DATA")
+                                        .font(.system(size: 8, weight: .bold, design: .rounded))
+                                        .padding(.horizontal, 5)
+                                        .padding(.vertical, 1)
+                                        .background(.pink.opacity(0.15))
+                                        .foregroundStyle(.pink)
+                                        .clipShape(RoundedRectangle(cornerRadius: 4))
+                                        .help("Personal data — not auto-selected")
+                                }
+                                if artifact.reclaim.isCommand {
+                                    Image(systemName: "terminal")
+                                        .font(.system(size: 9))
+                                        .foregroundStyle(.secondary)
+                                        .help("Runs a command to reclaim space")
+                                }
+                                if let warning = artifact.warning {
+                                    Image(systemName: "exclamationmark.triangle.fill")
+                                        .font(.system(size: 9))
+                                        .foregroundStyle(.orange)
+                                        .help(warning)
+                                }
                             }
                             Text(artifact.description)
                                 .font(.caption2)
