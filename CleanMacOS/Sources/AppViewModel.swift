@@ -120,6 +120,10 @@ final class AppViewModel: ObservableObject {
             lines.append("⚠️ Includes PERSONAL DATA: \(personal.map(\.name).joined(separator: ", ")). This is your own data, not junk.")
         }
 
+        if selected.contains(where: \.needsSudo) {
+            lines.append("🔑 System items selected — macOS will ask for your administrator password.")
+        }
+
         let warnings = selected.compactMap(\.warning)
         for warning in warnings {
             lines.append("⚠️ " + warning)
@@ -159,31 +163,45 @@ final class AppViewModel: ObservableObject {
     }
 
     func clean() async {
-        let toClean = artifacts.filter { selectedArtifacts.contains($0.id) && !$0.needsSudo }
+        let selected = artifacts.filter { selectedArtifacts.contains($0.id) }
+        let nonSudo = selected.filter { !$0.needsSudo }
+        let sudo = selected.filter { $0.needsSudo }
 
-        guard !toClean.isEmpty else {
-            statusMessage = "No items selected (sudo items excluded)"
+        guard !nonSudo.isEmpty || !sudo.isEmpty else {
+            statusMessage = "No items selected"
             return
         }
 
         isCleaning = true
-        statusMessage = "Cleaning \(toClean.count) items..."
+        statusMessage = "Cleaning \(selected.count) items..."
 
-        let result = await Task.detached { [cleaner] in
-            cleaner.reclaim(toClean)
-        }.value
+        var allDeleted: [DeleteResult] = []
+        var totalFreed: Int64 = 0
+        var okCount = 0
+        var failCount = 0
 
-        // Remove cleaned artifacts
-        let cleanedPaths = Set(result.deleted.filter(\.success).map(\.path))
+        if !nonSudo.isEmpty {
+            let r = await Task.detached { [cleaner] in cleaner.reclaim(nonSudo) }.value
+            allDeleted += r.deleted; totalFreed += r.totalFreed; okCount += r.okCount; failCount += r.failCount
+        }
+        if !sudo.isEmpty {
+            statusMessage = "Authorizing system cleanup..."
+            let r = await Task.detached { [cleaner] in cleaner.deletePrivileged(sudo) }.value
+            allDeleted += r.deleted; totalFreed += r.totalFreed; okCount += r.okCount; failCount += r.failCount
+        }
+
+        // Remove successfully cleaned artifacts.
+        let cleanedPaths = Set(allDeleted.filter(\.success).map(\.path))
         artifacts.removeAll { cleanedPaths.contains($0.path) }
         selectedArtifacts.removeAll()
 
         refreshDiskInfo()
 
-        if result.failCount > 0 {
-            statusMessage = "Cleaned \(result.okCount) items (\(result.freedStr) freed), \(result.failCount) failed"
+        let freedStr = formatBytes(totalFreed)
+        if failCount > 0 {
+            statusMessage = "Cleaned \(okCount) items (\(freedStr) freed), \(failCount) failed"
         } else {
-            statusMessage = "Cleaned \(result.okCount) items — \(result.freedStr) freed!"
+            statusMessage = "Cleaned \(okCount) items — \(freedStr) freed!"
         }
 
         isCleaning = false

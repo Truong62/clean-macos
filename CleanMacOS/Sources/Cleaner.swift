@@ -66,6 +66,88 @@ final class CleanerService: Sendable {
         return CleanResult(deleted: deleted, totalFreed: totalFreed, failCount: failCount, okCount: okCount)
     }
 
+    /// Deletes root-owned (sudo) items in one batch via an admin-authorized shell script.
+    /// The app is unsigned, so a privileged helper isn't an option; macOS shows a single
+    /// password prompt and runs `rm -rf` as root. Paths are shell-quoted to prevent injection,
+    /// re-checked afterwards for accurate per-item results, and still gated by `isSafeToDelete`.
+    func deletePrivileged(_ artifacts: [Artifact]) -> CleanResult {
+        var deleted: [DeleteResult] = []
+        var failCount = 0
+        var safe: [Artifact] = []
+
+        for artifact in artifacts {
+            if ScannerService.isSafeToDelete(path: artifact.path) {
+                safe.append(artifact)
+            } else {
+                deleted.append(DeleteResult(path: artifact.path, name: artifact.name, size: 0,
+                                            success: false, error: "Path is not safe to delete"))
+                failCount += 1
+            }
+        }
+
+        guard !safe.isEmpty else {
+            return CleanResult(deleted: deleted, totalFreed: 0, failCount: failCount, okCount: 0)
+        }
+
+        let script = "#!/bin/sh\n"
+            + safe.map { "/bin/rm -rf \(Self.shellQuote($0.path))" }.joined(separator: "\n")
+            + "\n"
+        let scriptPath = (NSTemporaryDirectory() as NSString)
+            .appendingPathComponent("cleanmacos-\(UUID().uuidString).sh")
+
+        guard (try? script.write(toFile: scriptPath, atomically: true, encoding: .utf8)) != nil else {
+            for a in safe {
+                deleted.append(DeleteResult(path: a.path, name: a.name, size: 0, success: false, error: "Could not stage delete script"))
+                failCount += 1
+            }
+            return CleanResult(deleted: deleted, totalFreed: 0, failCount: failCount, okCount: 0)
+        }
+        defer { try? FileManager.default.removeItem(atPath: scriptPath) }
+
+        // One admin prompt for the whole batch.
+        let osa = Process()
+        osa.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+        osa.arguments = ["-e", "do shell script \"/bin/sh '\(scriptPath)'\" with administrator privileges"]
+        let errPipe = Pipe()
+        osa.standardOutput = Pipe()
+        osa.standardError = errPipe
+
+        var runError: String?
+        do {
+            try osa.run()
+            osa.waitUntilExit()
+            if osa.terminationStatus != 0 {
+                let data = errPipe.fileHandleForReading.readDataToEndOfFile()
+                runError = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+        } catch {
+            runError = error.localizedDescription
+        }
+
+        // Source of truth: did the path actually disappear?
+        let fm = FileManager.default
+        var totalFreed: Int64 = 0
+        var okCount = 0
+        for a in safe {
+            if !fm.fileExists(atPath: a.path) {
+                deleted.append(DeleteResult(path: a.path, name: a.name, size: a.size, success: true, error: nil))
+                totalFreed += a.size
+                okCount += 1
+            } else {
+                deleted.append(DeleteResult(path: a.path, name: a.name, size: a.size, success: false,
+                                            error: runError ?? "Not deleted (authorization cancelled?)"))
+                failCount += 1
+            }
+        }
+
+        return CleanResult(deleted: deleted, totalFreed: totalFreed, failCount: failCount, okCount: okCount)
+    }
+
+    /// Wraps a path in single quotes, escaping embedded single quotes, for safe shell use.
+    static func shellQuote(_ s: String) -> String {
+        "'" + s.replacingOccurrences(of: "'", with: "'\\''") + "'"
+    }
+
     // MARK: - Strategies
 
     private func deletePath(_ artifact: Artifact) -> DeleteResult {
