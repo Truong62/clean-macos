@@ -16,6 +16,11 @@ CleanMacOS/.swiftpm/
 # Build output
 *.o
 *.dSYM/
+*.d
+*.swiftdeps
+CleanMacOS/Clean macOS.app/
+# Prebuilt Go binary (build output, not source)
+/clean-macos
 
 # IDE
 .idea/
