@@ -16,7 +16,7 @@ A native macOS app that scans your system for junk files, caches, build artifact
 - **System cleanup** — root-owned items (system caches, logs, simulator runtimes) are removed via a single macOS admin-password prompt
 - **Time Machine snapshots** — detect and delete local APFS snapshots
 - **Menu bar + monitoring** — quick access and live system stats from the menu bar
-- **Auto updates** — built-in Sparkle updater
+- **Automatic updates** — Sparkle keeps the app up to date and installs new versions **in place**, no reinstall needed
 
 ## Categories
 
@@ -32,32 +32,37 @@ Everything found is grouped into five clear buckets:
 
 ## Install
 
-### Download
-
-1. Grab the latest `.dmg` from [Releases](https://github.com/Truong62/clean-macos/releases)
-2. Open the `.dmg` and drag `Clean macOS.app` to `/Applications`
-3. Run this command once to bypass macOS Gatekeeper (the app is unsigned):
-
-```bash
-xattr -cr "/Applications/Clean macOS.app"
-```
-
-4. Open the app normally
+1. Grab the latest `.dmg` from [Releases](https://github.com/Truong62/clean-macos/releases).
+2. Open the `.dmg` and drag **Clean macOS** onto the **Applications** folder.
+3. The app isn't notarized, so the first launch is blocked by Gatekeeper. Clear it **once**, either way:
+   - **Right-click** the app → **Open** → **Open** in the dialog, **or**
+   - run:
+     ```bash
+     xattr -cr "/Applications/CleanMacOS.app"
+     ```
+4. Open the app normally from then on.
 
 For best results, grant **Full Disk Access** in System Settings → Privacy & Security so the app can measure and clean protected locations.
 
-### Build from source
+## Updates
+
+From **v1.0.2 onward** the app updates itself: Sparkle checks the release feed, verifies each update with an EdDSA signature, and installs it **in place** — no download-and-reinstall. You can also trigger a check manually in **Settings → Updates**.
+
+> **Already on v1.0.1?** That build shipped before the updater was wired in, so it can't update itself. Install **v1.0.2 by hand once** (download the DMG, clear Gatekeeper as above). Every version after that updates automatically.
+
+## Build from source
 
 Requires Xcode 16+ / Swift 6.0+ on macOS 14+.
 
 ```bash
 cd CleanMacOS
-swift build -c release
+swift build -c release      # quick local build
+swift run                   # build and run
 ```
 
 Or open `CleanMacOS.xcodeproj` in Xcode and hit `Cmd + R`.
 
-> The Xcode project is generated with [xcodegen](https://github.com/yonaskolb/XcodeGen). After adding or removing source files, run `xcodegen generate` so Xcode picks them up. (`swift build` scans the `Sources/` folder automatically and needs no regeneration.)
+> The Xcode project is generated with [xcodegen](https://github.com/yonaskolb/XcodeGen) from `project.yml`. After adding or removing source files, run `xcodegen generate` so Xcode picks them up. (`swift build` scans `Sources/` automatically and needs no regeneration.)
 
 ## How cleaning works
 
@@ -67,37 +72,22 @@ Or open `CleanMacOS.xcodeproj` in Xcode and hit `Cmd + R`.
 - **System items** are removed via one `osascript ... with administrator privileges` prompt — paths are shell-quoted and gated by a safe-path check.
 - **Uninstaller and Large Files** move items to the **Trash**, so you can restore them if needed.
 
-## Release a new version
+## Releasing
+
+Releases are signed for Sparkle and published to GitHub by hand. In short:
 
 ```bash
 cd CleanMacOS
-
-# One-time: generate the EdDSA signing key (stored in your Keychain), then
-# paste the printed public key into project.yml → SUPublicEDKey.
-./scripts/generate-keys.sh
-
-# Each release: bump MARKETING_VERSION + CURRENT_PROJECT_VERSION in project.yml,
-# then build + sign the DMG and print the appcast item:
-./scripts/package.sh 1.0.2
-
-# Upload the signed DMG to GitHub
-gh release create v1.0.2 dist/CleanMacOS-1.0.2.dmg --title "v1.0.2"
-
-# Paste the printed <item> into docs/appcast.xml, then push
-git add docs/appcast.xml project.yml && git commit -m "release v1.0.2" && git push
+# bump MARKETING_VERSION + CURRENT_PROJECT_VERSION in project.yml, then:
+./scripts/package.sh 1.0.3
 ```
 
-Installed apps (v1.0.2 and later) update **in place** via Sparkle — no reinstall.
-See [`docs/RELEASING.md`](docs/RELEASING.md) for the full checklist.
+`package.sh` builds the app, makes the DMG, **signs it with the EdDSA key**, and prints the `<item>` to paste into `docs/appcast.xml`. Then upload that exact DMG to a GitHub Release and push the updated feed. Full steps and gotchas are in [`docs/RELEASING.md`](docs/RELEASING.md).
 
 ## Tech stack
 
 - **Swift 6 + SwiftUI** — native macOS app, no Electron, no web views
-- **Sparkle 2** — auto-update framework
+- **Sparkle 2** — EdDSA-signed auto-update framework
 - **FileManager + statfs** — direct filesystem access, no backend
 - **Docker / Homebrew CLIs** — for safe, tool-native space reclamation
 - **xcodegen** — project generation from `project.yml`
-
-## License
-
-MIT
