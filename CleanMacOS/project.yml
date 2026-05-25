@@ -16,11 +16,23 @@ targets:
       - Sources
     dependencies:
       - package: Sparkle
+    info:
+      path: Info.plist
+      properties:
+        CFBundleName: Clean macOS
+        CFBundleDisplayName: Clean macOS
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSMinimumSystemVersion: "14.0"
+        NSPrincipalClass: NSApplication
+        NSHighResolutionCapable: true
+        LSApplicationCategoryType: public.app-category.utilities
+        SUFeedURL: https://truong62.github.io/clean-macos/appcast.xml
+        SUPublicEDKey: aSo25KstkpaOi/z97B2XUDWXSv/R7TxPpHbLJ0RpOa8=
+        SUEnableAutomaticChecks: true
     settings:
       PRODUCT_BUNDLE_IDENTIFIER: click.ngoctruong.CleanMacOS
       MARKETING_VERSION: "1.0.1"
       CURRENT_PROJECT_VERSION: "2"
       SWIFT_VERSION: "5.9"
-      GENERATE_INFOPLIST_FILE: YES
       ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
-      INFOPLIST_KEY_LSApplicationCategoryType: "public.app-category.utilities"
