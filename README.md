@@ -70,21 +70,25 @@ Or open `CleanMacOS.xcodeproj` in Xcode and hit `Cmd + R`.
 ## Release a new version
 
 ```bash
-# One-time: generate signing keys
 cd CleanMacOS
+
+# One-time: generate the EdDSA signing key (stored in your Keychain), then
+# paste the printed public key into project.yml → SUPublicEDKey.
 ./scripts/generate-keys.sh
 
-# Build + package
-./scripts/release.sh 1.1.0
+# Each release: bump MARKETING_VERSION + CURRENT_PROJECT_VERSION in project.yml,
+# then build + sign the DMG and print the appcast item:
+./scripts/package.sh 1.0.2
 
-# Upload to GitHub
-gh release create v1.1.0 .build/release-output/CleanMacOS-1.1.0.zip --title "v1.1.0"
+# Upload the signed DMG to GitHub
+gh release create v1.0.2 dist/CleanMacOS-1.0.2.dmg --title "v1.0.2"
 
-# Update appcast and push
-git add appcast.xml && git commit -m "release v1.1.0" && git push
+# Paste the printed <item> into docs/appcast.xml, then push
+git add docs/appcast.xml project.yml && git commit -m "release v1.0.2" && git push
 ```
 
-Existing users will be notified automatically via Sparkle.
+Installed apps (v1.0.2 and later) update **in place** via Sparkle — no reinstall.
+See [`docs/RELEASING.md`](docs/RELEASING.md) for the full checklist.
 
 ## Tech stack
 
