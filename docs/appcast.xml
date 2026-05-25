@@ -9,6 +9,23 @@
     <!-- Paste new <item> blocks here when releasing (newest first) -->
 
     <item>
+      <title>Version 1.0.3</title>
+      <pubDate>Mon, 25 May 2026 16:31:24 +0700</pubDate>
+      <sparkle:version>4</sparkle:version>
+      <sparkle:shortVersionString>1.0.3</sparkle:shortVersionString>
+      <description><![CDATA[
+        <h2>What's new in 1.0.3</h2>
+        <ul>
+          <li>Bug fixes and improvements.</li>
+        </ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/Truong62/clean-macos/releases/download/v1.0.3/CleanMacOS-1.0.3.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="Lh9s1wM2EO0h103GO4kqBKVuKabig4JFNZoyf90LwDceh3Uh4sTF3lBHvyLOkoj/g/qC9ah7ACktetzMYMryAQ==" length="2673965" />
+    </item>
+
+    <item>
       <title>Version 1.0.2</title>
       <pubDate>Mon, 25 May 2026 15:09:01 +0700</pubDate>
       <sparkle:version>3</sparkle:version>
