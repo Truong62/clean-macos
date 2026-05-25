@@ -120,6 +120,46 @@ Open `https://github.com/Truong62/clean-macos/releases/new?tag=v1.0.3`, drag **t
 
 Installed apps (v1.0.2+) pick up the update on their next check. The one-time v1.0.1 migration and signing-key handling are documented in [`docs/RELEASING.md`](docs/RELEASING.md).
 
+### Hướng dẫn release (tiếng Việt)
+
+Các bước đưa một phiên bản mới lên GitHub (ví dụ lên **v1.0.3**):
+
+1. **Sửa version** trong `CleanMacOS/project.yml` — tăng **cả hai** dòng:
+   ```yaml
+         MARKETING_VERSION: "1.0.3"      # bản người dùng nhìn thấy
+         CURRENT_PROJECT_VERSION: "4"    # số build — LẦN NÀO CŨNG PHẢI +1
+   ```
+   Sparkle so `CURRENT_PROJECT_VERSION` để biết bản nào mới hơn; quên tăng là không ai được mời update.
+
+2. **Build + ký** (1 lệnh, script tự ký — không phải bấm gì thêm):
+   ```bash
+   cd CleanMacOS
+   ./scripts/package.sh 1.0.3
+   ```
+   Script tạo `dist/CleanMacOS-1.0.3.dmg`, ký bằng khoá EdDSA, và **in ra một khối `<item>`** (có sẵn chữ ký + dung lượng).
+
+3. **Dán khối `<item>`** vừa in vào **trên cùng** danh sách trong `docs/appcast.xml` (mới nhất ở trên, phía trên item của bản trước), rồi sửa dòng `TODO` thành ghi chú thật.
+
+4. **Đưa lên git:**
+   ```bash
+   cd ..
+   git add CleanMacOS/project.yml docs/appcast.xml
+   git commit -m "release v1.0.3"
+   git push
+   ```
+   > Nếu push báo `Permission denied (publickey)`: SSH key chưa nạp vào agent. Chạy
+   > `ssh-add ~/.ssh/id_ed25519_ngoctruong` (nhập passphrase) rồi `git push` lại.
+
+5. **Tạo Release trên GitHub + upload DMG:**
+   ```bash
+   open -R CleanMacOS/dist/CleanMacOS-1.0.3.dmg   # mở Finder, chọn sẵn đúng file
+   ```
+   Mở `https://github.com/Truong62/clean-macos/releases/new?tag=v1.0.3`, kéo **đúng file đó** vào phần assets, đặt title `v1.0.3`, bấm **Publish**.
+
+   > ⚠️ Upload **đúng file `package.sh` vừa tạo** — đừng build lại, đừng đổi tên, đừng nén lại. Chữ ký gắn với từng byte của file; sai 1 byte là app từ chối update. Tên file phải giữ nguyên `CleanMacOS-1.0.3.dmg` để khớp URL trong appcast.
+
+Xong. App của bạn bè (v1.0.2 trở lên) lần kiểm tra kế tiếp sẽ tự tải và cài v1.0.3 tại chỗ.
+
 ## Tech stack
 
 - **Swift 6 + SwiftUI** — native macOS app, no Electron, no web views
