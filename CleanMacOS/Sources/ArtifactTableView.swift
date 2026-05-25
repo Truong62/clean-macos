@@ -59,7 +59,6 @@ struct ArtifactTableView: View {
                         }
                     )) { }
                     .toggleStyle(.checkbox)
-                    .disabled(artifact.needsSudo)
                 }
                 .width(30)
 
