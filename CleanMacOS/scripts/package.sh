@@ -42,6 +42,7 @@ APP=$(find .build/dd/Build/Products/Release -maxdepth 1 -name "*.app" | head -1)
 
 echo "==> Verifying embedded version matches ${VERSION}..."
 PLIST_V=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APP/Contents/Info.plist")
+BUILD_V=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$APP/Contents/Info.plist")
 [ "$PLIST_V" = "$VERSION" ] || {
   echo "ERROR: app version is $PLIST_V but you asked for $VERSION."
   echo "       Bump MARKETING_VERSION (and CURRENT_PROJECT_VERSION) in project.yml first."
@@ -76,6 +77,7 @@ cat <<XML
     <item>
       <title>Version ${VERSION}</title>
       <pubDate>${PUBDATE}</pubDate>
+      <sparkle:version>${BUILD_V}</sparkle:version>
       <sparkle:shortVersionString>${VERSION}</sparkle:shortVersionString>
       <description><![CDATA[
         <ul><li>TODO: release notes for ${VERSION}</li></ul>

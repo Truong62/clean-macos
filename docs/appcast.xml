@@ -6,7 +6,24 @@
     <description>Most recent updates for Clean macOS</description>
     <language>en</language>
 
-    <!-- Paste new <item> blocks here when releasing -->
+    <!-- Paste new <item> blocks here when releasing (newest first) -->
+
+    <item>
+      <title>Version 1.0.2</title>
+      <pubDate>Mon, 25 May 2026 15:09:01 +0700</pubDate>
+      <sparkle:version>3</sparkle:version>
+      <sparkle:shortVersionString>1.0.2</sparkle:shortVersionString>
+      <description><![CDATA[
+        <h2>What's new in 1.0.2</h2>
+        <ul>
+          <li>Enables automatic in-place updates via Sparkle — future versions install themselves, no reinstall needed.</li>
+        </ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/Truong62/clean-macos/releases/download/v1.0.2/CleanMacOS-1.0.2.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="Bh4XD69KlFHkHvjZd1FMCD6aCYqwpTjPIsipr326Xqn5U7nV5lBd1N7l2eCzCcs+byWw7WvvfDLKwENOTBwbAA==" length="2673893" />
+    </item>
 
   </channel>
 </rss>
