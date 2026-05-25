@@ -29,6 +29,11 @@ automatically — no more reinstalls.
 
 ## Each release
 
+> ⚠️ **A GitHub Release alone does not trigger updates.** Sparkle reads the
+> appcast feed (`docs/appcast.xml`), not the Releases page. Steps 3 and 5 (update
+> the feed) are not optional — skip them and installed apps keep reporting "up to
+> date" even though the DMG is published.
+
 1. **Bump the version** in `CleanMacOS/project.yml`:
    - `MARKETING_VERSION` — the user-facing version, e.g. `1.0.3`.
    - `CURRENT_PROJECT_VERSION` — a **monotonically increasing** build number,

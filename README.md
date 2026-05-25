@@ -76,6 +76,8 @@ Or open `CleanMacOS.xcodeproj` in Xcode and hit `Cmd + R`.
 
 Releases are signed for Sparkle and published to GitHub by hand. `scripts/package.sh` handles the build and signing; you do the version bump, the appcast paste, and the upload. The steps below release `1.0.3` as an example.
 
+> ⚠️ **Creating a GitHub Release is not enough on its own.** The app reads the **appcast feed** (`docs/appcast.xml`), not the Releases page. If you upload a new DMG but skip steps 3–4 below, installed apps will keep reporting *"you're up to date."* Every release must add an `<item>` to the feed.
+
 ### 1. Bump the version
 
 In `CleanMacOS/project.yml`, raise **both** values:
@@ -123,6 +125,8 @@ Installed apps (v1.0.2+) pick up the update on their next check. The one-time v1
 ### Hướng dẫn release (tiếng Việt)
 
 Các bước đưa một phiên bản mới lên GitHub (ví dụ lên **v1.0.3**):
+
+> ⚠️ **Chỉ tạo Release trên GitHub là CHƯA ĐỦ.** App đọc **feed `docs/appcast.xml`**, không đọc trang Releases. Nếu upload DMG mới mà bỏ qua bước 3–4 dưới đây, app sẽ vẫn báo *"bản mới nhất"*. Lần nào release cũng PHẢI thêm `<item>` vào feed.
 
 1. **Sửa version** trong `CleanMacOS/project.yml` — tăng **cả hai** dòng:
    ```yaml
