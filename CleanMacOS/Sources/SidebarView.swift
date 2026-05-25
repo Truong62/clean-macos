@@ -2,6 +2,7 @@ import SwiftUI
 
 enum SidebarPage: Hashable {
     case home
+    case largeFiles
     case uninstall
     case settings
     case about
@@ -17,6 +18,9 @@ struct SidebarView: View {
             VStack(spacing: 4) {
                 SidebarItem(icon: "house.fill", label: "Home", color: .blue, isSelected: currentPage == .home) {
                     currentPage = .home
+                }
+                SidebarItem(icon: "doc.text.magnifyingglass", label: "Large Files", color: .orange, isSelected: currentPage == .largeFiles) {
+                    currentPage = .largeFiles
                 }
                 SidebarItem(icon: "trash.fill", label: "Uninstall Apps", color: .red, isSelected: currentPage == .uninstall) {
                     currentPage = .uninstall
