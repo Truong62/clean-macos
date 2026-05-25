@@ -25,7 +25,9 @@ CleanMacOS/.swiftpm/
 
 # Release artifacts
 CleanMacOS/.build/release-output/
+CleanMacOS/dist/
 
 # Sparkle keys - NEVER commit
 sparkle_private_key
+sparkle_private_key*.txt
 *.pem
