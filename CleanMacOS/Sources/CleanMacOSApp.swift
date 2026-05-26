@@ -1,10 +1,12 @@
 import SwiftUI
+import KeyboardShortcuts
 
 @main
 struct CleanMacOSApp: App {
     @StateObject private var vm = AppViewModel()
     @StateObject private var updater = UpdaterViewModel()
     @StateObject private var clipboard = ClipboardViewModel()
+    @State private var panelController: ClipboardPanelController?
     private let menuBar = MenuBarController.shared
 
     var body: some Scene {
@@ -18,6 +20,13 @@ struct CleanMacOSApp: App {
                     setAppIcon()
                     menuBar.setup(showMenuBar: vm.showMenuBar)
                     clipboard.startMonitoring()
+                    if panelController == nil {
+                        let controller = ClipboardPanelController(clipboard: clipboard)
+                        panelController = controller
+                        KeyboardShortcuts.onKeyUp(for: .showClipboardHistory) {
+                            controller.toggle()
+                        }
+                    }
                 }
                 .onChange(of: vm.showMenuBar) {
                     menuBar.setup(showMenuBar: vm.showMenuBar)
