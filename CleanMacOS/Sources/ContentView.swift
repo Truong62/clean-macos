@@ -38,6 +38,9 @@ struct ContentView: View {
             case .largeFiles:
                 LargeFilesView()
 
+            case .cleanDisk:
+                CleanDiskView()
+
             case .uninstall:
                 UninstallView()
 
