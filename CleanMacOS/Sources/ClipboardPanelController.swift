@@ -36,7 +36,7 @@ final class ClipboardPanelController: NSObject, NSWindowDelegate {
 
         let p = KeyablePanel(
             contentRect: NSRect(x: 0, y: 0, width: 480, height: 420),
-            styleMask: [.titled, .closable, .fullSizeContentView],
+            styleMask: [.titled, .closable, .fullSizeContentView, .nonactivatingPanel],
             backing: .buffered, defer: false
         )
         p.titleVisibility = .hidden
@@ -45,13 +45,18 @@ final class ClipboardPanelController: NSObject, NSWindowDelegate {
         p.isFloatingPanel = true
         p.level = .floating
         p.hidesOnDeactivate = false
+        // Appear over other Spaces and full-screen apps (Spotlight-style overlay).
+        p.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         p.contentViewController = NSHostingController(rootView: content)
         p.delegate = self
         positionAtCursor(p)
         panel = p
 
-        NSApp.activate(ignoringOtherApps: true)
+        // A nonactivating panel can become key (and accept typing/arrows) without
+        // activating the whole app — so it works over a full-screen app and grabs
+        // focus immediately, no click needed.
         p.makeKeyAndOrderFront(nil)
+        p.orderFrontRegardless()
     }
 
     /// Place the panel near the mouse cursor, clamped to the screen under it.
