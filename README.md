@@ -16,6 +16,7 @@ A native macOS app that scans your system for junk files, caches, build artifact
 - **System cleanup** — root-owned items (system caches, logs, simulator runtimes) are removed via a single macOS admin-password prompt
 - **Time Machine snapshots** — detect and delete local APFS snapshots
 - **Menu bar + monitoring** — quick access and live system stats from the menu bar
+- **Clipboard history** — keeps the text you copy so you can reuse earlier copies; browse them in the **Clipboard** tab or press **⌘⇧V** anywhere to pick one (auto-pastes when Accessibility is granted). History is captured **only while the app is running**; images and files are coming soon.
 - **Automatic updates** — Sparkle keeps the app up to date and installs new versions **in place**, no reinstall needed
 
 ## Categories
@@ -64,6 +65,12 @@ Or open `CleanMacOS.xcodeproj` in Xcode and hit `Cmd + R`.
 
 > The Xcode project is generated with [xcodegen](https://github.com/yonaskolb/XcodeGen) from `project.yml`. After adding or removing source files, run `xcodegen generate` so Xcode picks them up. (`swift build` scans `Sources/` automatically and needs no regeneration.)
 
+> **`swift build`/`swift test` need Xcode's toolchain.** The `KeyboardShortcuts` dependency uses the `#Preview` macro, whose plugin ships only inside Xcode — so a CLI build fails if the active developer dir is the Command Line Tools. Either point it at Xcode for the command:
+> ```bash
+> DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test
+> ```
+> or switch globally once with `sudo xcode-select -s /Applications/Xcode.app`. Building in Xcode itself is unaffected.
+
 ## How cleaning works
 
 - **Most items** are deleted directly (caches, build artifacts).
@@ -71,6 +78,17 @@ Or open `CleanMacOS.xcodeproj` in Xcode and hit `Cmd + R`.
 - **Personal data** is flagged and requires deliberate selection.
 - **System items** are removed via one `osascript ... with administrator privileges` prompt — paths are shell-quoted and gated by a safe-path check.
 - **Uninstaller and Large Files** move items to the **Trash**, so you can restore them if needed.
+
+## Clipboard history
+
+Clean macOS records the text you copy (while it's running) so a new copy no
+longer discards the previous one.
+
+- **Clipboard tab** — browse, search, re-copy, or delete past items; **Clear All** wipes the list.
+- **Global shortcut** — press **⌘⇧V** (changeable in Settings) anywhere to open a picker; ↑/↓ + Enter selects.
+- **Auto-paste** — grant **Accessibility** (System Settings → Privacy & Security → Accessibility) and the picked item is pasted into the frontmost app automatically. Without it, the item is copied and you press ⌘V yourself.
+- **Persistence** — on by default; turn off "Keep history after quitting" in Settings to keep history in memory only.
+- Only **text** is captured for now (images & files later). It is stored unencrypted at `~/Library/Application Support/CleanMacOS/clipboard-history.json`; enable "Skip passwords" in Settings to ignore clipboard marked private by password managers.
 
 ## Releasing a new version
 
