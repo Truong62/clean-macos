@@ -55,7 +55,11 @@ struct ClipboardPanelView: View {
             }
         }
         .frame(width: 480, height: 420)
-        .onAppear { searchFocused = true; selection = 0 }
+        .onAppear {
+            selection = 0
+            // Defer focus until the panel is key, otherwise it doesn't take.
+            DispatchQueue.main.async { searchFocused = true }
+        }
         .onChange(of: search) { _, _ in selection = 0 }
         .onKeyPress(.upArrow) { move(-1); return .handled }
         .onKeyPress(.downArrow) { move(1); return .handled }
