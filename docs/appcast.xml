@@ -9,6 +9,23 @@
     <!-- Paste new <item> blocks here when releasing (newest first) -->
 
     <item>
+      <title>Version 1.0.5</title>
+      <pubDate>Tue, 26 May 2026 15:45:58 +0700</pubDate>
+      <sparkle:version>6</sparkle:version>
+      <sparkle:shortVersionString>1.0.5</sparkle:shortVersionString>
+      <description><![CDATA[
+        <h2>What's new in 1.0.5</h2>
+        <ul>
+          <li>The clipboard picker (⌘⇧V) now opens <b>over full-screen apps</b> and is ready to type into immediately — no extra click needed.</li>
+        </ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/Truong62/clean-macos/releases/download/v1.0.5/CleanMacOS-1.0.5.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="RGGAHdXb24fwxey2zQnF4/hJLctxndx08V0i2VcJ3sjUmGbwZs/HTTDibZv0cBhvdUw29NaifSD08CTiASbKBQ==" length="3018061" />
+    </item>
+
+    <item>
       <title>Version 1.0.4</title>
       <pubDate>Tue, 26 May 2026 15:16:21 +0700</pubDate>
       <sparkle:version>5</sparkle:version>
