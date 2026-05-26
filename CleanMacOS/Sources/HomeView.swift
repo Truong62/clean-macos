@@ -6,13 +6,23 @@ struct HomeView: View {
     let navigate: (SidebarPage) -> Void
 
     @State private var shownCleanable: Double = 0
+    @State private var breathing = false
 
     private var hasResults: Bool { !vm.artifacts.isEmpty }
 
+    private var greeting: String {
+        switch Calendar.current.component(.hour, from: Date()) {
+        case 5..<12: return "Good morning"
+        case 12..<18: return "Good afternoon"
+        default: return "Good evening"
+        }
+    }
+
     var body: some View {
         ScrollView {
-            VStack(spacing: 16) {
-                hero
+            VStack(spacing: 18) {
+                greetingHeader
+                heroPanel
                 statsRow
                 featureCards
                 breakdownCard
@@ -24,74 +34,102 @@ struct HomeView: View {
         .background(Color(nsColor: .windowBackgroundColor))
     }
 
-    // MARK: - Hero
+    // MARK: - Greeting
 
-    private var hero: some View {
-        VStack(spacing: 18) {
+    private var greetingHeader: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(greeting)
+                    .font(.title2).fontWeight(.bold)
+                Text(vm.diskInfo.map { "\($0.hostname) · \(Int($0.usedPercent.rounded()))% full" } ?? "Keep your Mac calm and clean")
+                    .font(.subheadline).foregroundStyle(.secondary)
+            }
+            Spacer()
+        }
+        .padding(.horizontal, 4)
+    }
+
+    // MARK: - Hero panel (dark, breathing glow, orb, pill)
+
+    private var heroPanel: some View {
+        ZStack {
             if let info = vm.diskInfo {
-                DiskRing(usedPercent: info.usedPercent,
-                         freeText: "\(info.freeStr) free",
-                         color: ringColor(info.usedPercent))
-            } else {
-                ProgressView()
-                    .frame(width: 184, height: 184)
+                Circle()
+                    .fill(ringColor(info.usedPercent).opacity(0.45))
+                    .frame(width: 220, height: 220)
+                    .blur(radius: 72)
+                    .scaleEffect(breathing ? 1.10 : 0.92)
+                    .opacity(breathing ? 0.9 : 0.5)
+                    .offset(y: -24)
             }
 
-            if hasResults {
-                HStack(spacing: 6) {
-                    Image(systemName: "sparkles")
-                        .foregroundStyle(.purple)
-                    CountingBytes(value: shownCleanable)
-                        .font(.title2).fontWeight(.bold).fontDesign(.rounded)
-                    Text("ready to clean")
-                        .foregroundStyle(.secondary)
+            VStack(spacing: 18) {
+                if let info = vm.diskInfo {
+                    DiskOrb(usedPercent: info.usedPercent,
+                            freeText: "\(info.freeStr) free",
+                            color: ringColor(info.usedPercent))
+                } else {
+                    ProgressView().frame(width: 190, height: 190).tint(.white)
                 }
-            } else {
-                Text("Scan your disk to find junk")
-                    .font(.title3).fontWeight(.medium)
-                    .foregroundStyle(.secondary)
-            }
 
-            Button {
-                navigate(.cleanDisk)
-                if !hasResults { Task { await vm.scan() } }
-            } label: {
-                HStack(spacing: 6) {
-                    if vm.isScanning {
-                        ProgressView().controlSize(.small)
-                    } else {
-                        Image(systemName: hasResults ? "trash.fill" : "magnifyingglass")
+                if hasResults {
+                    HStack(spacing: 6) {
+                        Image(systemName: "sparkles").foregroundStyle(.white.opacity(0.9))
+                        CountingBytes(value: shownCleanable)
+                            .font(.title2).fontWeight(.bold).fontDesign(.rounded)
+                            .foregroundStyle(.white)
+                        Text("ready to clean").foregroundStyle(.white.opacity(0.6))
                     }
-                    Text(hasResults ? "Review & Clean" : "Scan & Clean Disk")
-                        .fontWeight(.semibold)
+                } else {
+                    Text("Scan your disk to find junk")
+                        .font(.title3).fontWeight(.medium)
+                        .foregroundStyle(.white.opacity(0.7))
                 }
-                .padding(.horizontal, 12).padding(.vertical, 4)
+
+                pillCTA
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
-            .tint(.purple)
-            .disabled(vm.isScanning)
+            .padding(.vertical, 36)
+            .padding(.horizontal, 28)
         }
         .frame(maxWidth: .infinity)
-        .padding(28)
-        .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 20))
-        .overlay(
-            RoundedRectangle(cornerRadius: 20)
-                .strokeBorder(.quaternary, lineWidth: 1)
-        )
+        .background(Color(red: 0.09, green: 0.08, blue: 0.17))
+        .clipShape(RoundedRectangle(cornerRadius: 28))
         .onAppear {
             withAnimation(.easeOut(duration: 0.8)) { shownCleanable = Double(vm.totalCleanableSize) }
+            withAnimation(.easeInOut(duration: 4).repeatForever(autoreverses: true)) { breathing = true }
         }
         .onChange(of: vm.totalCleanableSize) { _, new in
             withAnimation(.easeOut(duration: 0.8)) { shownCleanable = Double(new) }
         }
     }
 
+    private var pillCTA: some View {
+        Button {
+            navigate(.cleanDisk)
+            if !hasResults { Task { await vm.scan() } }
+        } label: {
+            HStack(spacing: 8) {
+                if vm.isScanning {
+                    ProgressView().controlSize(.small).tint(.black)
+                } else {
+                    Image(systemName: hasResults ? "trash.fill" : "sparkles")
+                }
+                Text(hasResults ? "Review & Clean" : "Scan & Clean Disk")
+                    .fontWeight(.semibold)
+            }
+            .padding(.horizontal, 28).padding(.vertical, 14)
+            .background(Capsule().fill(.white))
+            .foregroundStyle(.black)
+        }
+        .buttonStyle(.plain)
+        .disabled(vm.isScanning)
+        .opacity(vm.isScanning ? 0.7 : 1)
+    }
+
     private func ringColor(_ usedPercent: Double) -> Color {
-        if usedPercent > 90 { return .red }
+        if usedPercent > 90 { return .pink }
         if usedPercent > 75 { return .orange }
-        return .green
+        return .mint
     }
 
     // MARK: - Stats row
@@ -154,12 +192,12 @@ struct HomeView: View {
                 .padding(.vertical, 4)
             }
         }
-        .padding(16)
+        .padding(18)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .clipShape(RoundedRectangle(cornerRadius: 20))
         .overlay(
-            RoundedRectangle(cornerRadius: 14)
+            RoundedRectangle(cornerRadius: 20)
                 .strokeBorder(.quaternary, lineWidth: 1)
         )
     }
@@ -187,9 +225,9 @@ struct HomeView: View {
     }
 }
 
-// MARK: - Disk usage ring (animated fill)
+// MARK: - Disk usage orb (animated fill on dark)
 
-private struct DiskRing: View {
+private struct DiskOrb: View {
     let usedPercent: Double   // 0...100
     let freeText: String
     let color: Color
@@ -198,24 +236,26 @@ private struct DiskRing: View {
     var body: some View {
         ZStack {
             Circle()
-                .stroke(.quaternary.opacity(0.4), lineWidth: 14)
+                .stroke(.white.opacity(0.12), lineWidth: 12)
             Circle()
                 .trim(from: 0, to: progress)
-                .stroke(color, style: StrokeStyle(lineWidth: 14, lineCap: .round))
+                .stroke(color, style: StrokeStyle(lineWidth: 12, lineCap: .round))
                 .rotationEffect(.degrees(-90))
+                .shadow(color: color.opacity(0.7), radius: 8)
             VStack(spacing: 2) {
                 Text("\(Int(usedPercent.rounded()))%")
-                    .font(.system(size: 42, weight: .bold, design: .rounded))
+                    .font(.system(size: 44, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
                 Text("USED")
-                    .font(.caption2).foregroundStyle(.tertiary).tracking(1)
+                    .font(.caption2).foregroundStyle(.white.opacity(0.5)).tracking(1.5)
                 Text(freeText)
-                    .font(.caption).foregroundStyle(.secondary)
+                    .font(.caption).foregroundStyle(.white.opacity(0.7))
                     .padding(.top, 2)
             }
         }
-        .frame(width: 184, height: 184)
+        .frame(width: 190, height: 190)
         .onAppear {
-            withAnimation(.easeOut(duration: 0.9)) {
+            withAnimation(.easeOut(duration: 1.0)) {
                 progress = CGFloat(min(max(usedPercent / 100, 0), 1))
             }
         }
@@ -235,7 +275,7 @@ private struct CountingBytes: View, Animatable {
     }
 }
 
-// MARK: - Feature card (subtle hover, gentle entrance — no scale/jump)
+// MARK: - Feature card (soft, calm — subtle shadow hover, no scale)
 
 private struct FeatureCard: View {
     let icon: String
@@ -250,28 +290,34 @@ private struct FeatureCard: View {
 
     var body: some View {
         Button(action: action) {
-            VStack(alignment: .leading, spacing: 10) {
-                Image(systemName: icon)
-                    .font(.system(size: 22))
-                    .foregroundStyle(color.gradient)
+            VStack(alignment: .leading, spacing: 12) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(color.opacity(0.15))
+                        .frame(width: 44, height: 44)
+                    Image(systemName: icon)
+                        .font(.system(size: 20))
+                        .foregroundStyle(color)
+                }
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title).font(.headline)
                     Text(subtitle).font(.caption).foregroundStyle(.secondary)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(16)
+            .padding(18)
             .background(.ultraThinMaterial)
-            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .clipShape(RoundedRectangle(cornerRadius: 20))
             .overlay(
-                RoundedRectangle(cornerRadius: 14)
-                    .strokeBorder(hovered ? color.opacity(0.45) : color.opacity(0.12), lineWidth: 1)
+                RoundedRectangle(cornerRadius: 20)
+                    .strokeBorder(.quaternary, lineWidth: 1)
             )
-            .shadow(color: hovered ? .black.opacity(0.10) : .clear, radius: 8, y: 3)
+            .shadow(color: .black.opacity(hovered ? 0.12 : 0.04),
+                    radius: hovered ? 14 : 5, y: hovered ? 6 : 2)
         }
         .buttonStyle(.plain)
         .onHover { h in
-            withAnimation(.easeInOut(duration: 0.22)) { hovered = h }
+            withAnimation(.easeInOut(duration: 0.25)) { hovered = h }
         }
         .opacity(appeared ? 1 : 0)
         .offset(y: appeared ? 0 : 10)
