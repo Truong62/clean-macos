@@ -4,6 +4,7 @@ import SwiftUI
 struct CleanMacOSApp: App {
     @StateObject private var vm = AppViewModel()
     @StateObject private var updater = UpdaterViewModel()
+    @StateObject private var clipboard = ClipboardViewModel()
     private let menuBar = MenuBarController.shared
 
     var body: some Scene {
@@ -11,10 +12,12 @@ struct CleanMacOSApp: App {
             ContentView()
                 .environmentObject(vm)
                 .environmentObject(updater)
+                .environmentObject(clipboard)
                 .frame(minWidth: 900, minHeight: 600)
                 .onAppear {
                     setAppIcon()
                     menuBar.setup(showMenuBar: vm.showMenuBar)
+                    clipboard.startMonitoring()
                 }
                 .onChange(of: vm.showMenuBar) {
                     menuBar.setup(showMenuBar: vm.showMenuBar)

@@ -41,6 +41,9 @@ struct ContentView: View {
             case .uninstall:
                 UninstallView()
 
+            case .clipboard:
+                ClipboardHistoryView()
+
             case .settings:
                 SettingsView()
 

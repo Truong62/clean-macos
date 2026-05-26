@@ -4,6 +4,7 @@ enum SidebarPage: Hashable {
     case home
     case largeFiles
     case uninstall
+    case clipboard
     case settings
     case about
 }
@@ -24,6 +25,9 @@ struct SidebarView: View {
                 }
                 SidebarItem(icon: "trash.fill", label: "Uninstall Apps", color: .red, isSelected: currentPage == .uninstall) {
                     currentPage = .uninstall
+                }
+                SidebarItem(icon: "doc.on.clipboard.fill", label: "Clipboard", color: .indigo, isSelected: currentPage == .clipboard) {
+                    currentPage = .clipboard
                 }
                 SidebarItem(icon: "gearshape.fill", label: "Settings", color: .gray, isSelected: currentPage == .settings) {
                     currentPage = .settings
