@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		10BB5BA2697E75F5C92A0868 /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A1479088579DC6E2A293A68 /* SidebarView.swift */; };
 		15251D9BC4DF543DCD8A403E /* PermissionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC661B5A58FE8B57EF1C939C /* PermissionView.swift */; };
+		171CB18E3F33997A33D09624 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 519973CA3556535EDD116B2C /* HomeView.swift */; };
 		179E822D590C3A03BCF4132C /* Cleaner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B132021AA2508B2000D6D63 /* Cleaner.swift */; };
 		1BF633E6145E7F8438492DAF /* UninstallerService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3910672BE6DD40B3BC79BCD2 /* UninstallerService.swift */; };
 		1D6A04FACE24BC65DB42E6BE /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 4A0A95590228EC533FD37160 /* Assets.xcassets */; };
@@ -61,6 +62,7 @@
 		44805A604CACFED574E48F5C /* ArtifactTableView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtifactTableView.swift; sourceTree = "<group>"; };
 		4A0A95590228EC533FD37160 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		4BDB8F98BBA9CA360C581E8E /* ClipboardStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardStore.swift; sourceTree = "<group>"; };
+		519973CA3556535EDD116B2C /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
 		586232A2D65D100703262AB1 /* ClipboardSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardSettings.swift; sourceTree = "<group>"; };
 		5A993B1ADB912A796AE468D9 /* MenuBarController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarController.swift; sourceTree = "<group>"; };
 		6961B68D8844C43ABA231FF8 /* UpdaterViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdaterViewModel.swift; sourceTree = "<group>"; };
@@ -126,6 +128,7 @@
 				F65E738A5F0EF1106FF98BA1 /* DashboardView.swift */,
 				90B7181574359261F04305FF /* DockerService.swift */,
 				E1FC8128FEE8FEEE7743FF7B /* GlobalShortcuts.swift */,
+				519973CA3556535EDD116B2C /* HomeView.swift */,
 				30AE1414B4AC514340366221 /* LargeFilesService.swift */,
 				D5DCE02A3AFD020C36EFFF76 /* LargeFilesView.swift */,
 				5A993B1ADB912A796AE468D9 /* MenuBarController.swift */,
@@ -245,6 +248,7 @@
 				D27E79EC1251B3A7506D22C4 /* DashboardView.swift in Sources */,
 				ADB833098DB19DD1D86A7454 /* DockerService.swift in Sources */,
 				B94D5E73B6A99CD323DB3DA8 /* GlobalShortcuts.swift in Sources */,
+				171CB18E3F33997A33D09624 /* HomeView.swift in Sources */,
 				91D5705DF41581EA40B80285 /* LargeFilesService.swift in Sources */,
 				2CD6BD854BCDA0E493C97ABC /* LargeFilesView.swift in Sources */,
 				7BA19101C45ED46BA88C75C2 /* MenuBarController.swift in Sources */,

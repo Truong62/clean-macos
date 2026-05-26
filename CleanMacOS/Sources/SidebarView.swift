@@ -44,7 +44,7 @@ struct SidebarView: View {
             .padding(.top, 12)
             .padding(.bottom, 8)
 
-            if currentPage == .home && !vm.categoryCounts.isEmpty {
+            if currentPage == .cleanDisk && !vm.categoryCounts.isEmpty {
                 Divider()
                     .padding(.horizontal, 16)
                     .padding(.vertical, 4)
