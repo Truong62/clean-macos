@@ -1,8 +1,14 @@
 import SwiftUI
+import KeyboardShortcuts
 
 struct SettingsView: View {
     @EnvironmentObject var vm: AppViewModel
     @EnvironmentObject var updater: UpdaterViewModel
+    @EnvironmentObject var clipboard: ClipboardViewModel
+    @AppStorage(ClipboardSettings.persistKey) private var clipboardPersist = true
+    @AppStorage(ClipboardSettings.maxItemsKey) private var clipboardMaxItems = ClipboardSettings.defaultMaxItems
+    @AppStorage(ClipboardSettings.skipConcealedKey) private var clipboardSkipConcealed = false
+    @State private var accessibilityTrusted = PasteService.isAccessibilityTrusted
 
     var body: some View {
         ScrollView {
@@ -131,6 +137,99 @@ struct SettingsView: View {
                     .padding(4)
                 }
 
+                // Clipboard settings
+                GroupBox {
+                    VStack(alignment: .leading, spacing: 16) {
+                        HStack {
+                            Image(systemName: "doc.on.clipboard")
+                                .foregroundStyle(.indigo.gradient)
+                                .font(.title3)
+                            Text("Clipboard")
+                                .font(.headline)
+                        }
+
+                        Divider()
+
+                        Toggle(isOn: $clipboardPersist) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Keep history after quitting")
+                                    .fontWeight(.medium)
+                                Text("Save clipboard history to disk so it survives a restart")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .onChange(of: clipboardPersist) { _, _ in
+                            clipboard.persistenceSettingChanged()
+                        }
+
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Maximum items")
+                                    .fontWeight(.medium)
+                                Text("Oldest items are dropped beyond this count")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Picker("", selection: $clipboardMaxItems) {
+                                Text("50").tag(50)
+                                Text("100").tag(100)
+                                Text("200").tag(200)
+                                Text("500").tag(500)
+                            }
+                            .pickerStyle(.segmented)
+                            .frame(width: 240)
+                        }
+
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("History shortcut")
+                                    .fontWeight(.medium)
+                                Text("Global hotkey to open the clipboard picker")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            KeyboardShortcuts.Recorder(for: .showClipboardHistory)
+                        }
+
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Auto-paste")
+                                    .fontWeight(.medium)
+                                Text(accessibilityTrusted
+                                     ? "Accessibility granted — picks paste automatically"
+                                     : "Grant Accessibility to paste the picked item automatically")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            if accessibilityTrusted {
+                                Label("Granted", systemImage: "checkmark.circle.fill")
+                                    .foregroundStyle(.green)
+                                    .font(.callout)
+                            } else {
+                                Button("Open Accessibility…") {
+                                    PasteService.requestAccessibility()
+                                    PasteService.openAccessibilitySettings()
+                                }
+                            }
+                        }
+
+                        Toggle(isOn: $clipboardSkipConcealed) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Skip passwords")
+                                    .fontWeight(.medium)
+                                Text("Don't capture clipboard marked private by password managers")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                    .padding(4)
+                }
+
                 // Update settings
                 GroupBox {
                     VStack(alignment: .leading, spacing: 16) {
@@ -169,5 +268,6 @@ struct SettingsView: View {
             .padding(24)
         }
         .background(Color(nsColor: .windowBackgroundColor))
+        .onAppear { accessibilityTrusted = PasteService.isAccessibilityTrusted }
     }
 }
