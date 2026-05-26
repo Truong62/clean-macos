@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 // Soft pastel blob gradient — the Sense signature (pink → peach → lavender → mint).
 private let pastelGradient = LinearGradient(
@@ -162,11 +163,14 @@ struct HomeView: View {
     private var featureCards: some View {
         HStack(spacing: 12) {
             FeatureCard(icon: "doc.text.magnifyingglass", title: "Large Files",
-                        subtitle: "Find big files", color: .orange, index: 0) { navigate(.largeFiles) }
+                        description: "Hunt down the biggest files and folders anywhere on your Mac and send the space-hogs to the Trash.",
+                        color: .orange, index: 0) { navigate(.largeFiles) }
             FeatureCard(icon: "trash.fill", title: "Uninstall Apps",
-                        subtitle: "Apps + leftovers", color: .pink, index: 1) { navigate(.uninstall) }
+                        description: "Remove an app and every leftover it hides — caches, preferences, containers and logs included.",
+                        color: .pink, index: 1) { navigate(.uninstall) }
             FeatureCard(icon: "doc.on.clipboard.fill", title: "Clipboard",
-                        subtitle: "\(clipboard.items.count) items", color: .indigo, index: 2) { navigate(.clipboard) }
+                        description: "Everything you copy is kept here — \(clipboard.items.count) saved. Bring back earlier copies with ⌘⇧V.",
+                        color: .indigo, index: 2) { navigate(.clipboard) }
         }
     }
 
@@ -279,7 +283,7 @@ private struct CountingBytes: View, Animatable {
 private struct FeatureCard: View {
     let icon: String
     let title: String
-    let subtitle: String
+    let description: String
     let color: Color
     let index: Int
     let action: () -> Void
@@ -297,20 +301,24 @@ private struct FeatureCard: View {
             VStack(alignment: .leading, spacing: 12) {
                 RoundedRectangle(cornerRadius: 14)
                     .fill(thumb)
-                    .frame(height: 60)
+                    .frame(height: 64)
                     .overlay(
                         Image(systemName: icon)
                             .font(.system(size: 24))
                             .foregroundStyle(.white)
                             .shadow(color: .black.opacity(0.15), radius: 3, y: 1)
                     )
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: 5) {
                     Text(title).font(.headline)
-                    Text(subtitle).font(.caption).foregroundStyle(.secondary)
+                    Text(description)
+                        .font(.caption).foregroundStyle(.secondary)
+                        .lineLimit(3)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
+                Spacer(minLength: 0)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(14)
+            .frame(maxWidth: .infinity, minHeight: 188, alignment: .leading)
+            .padding(16)
             .background(.ultraThinMaterial)
             .clipShape(RoundedRectangle(cornerRadius: 20))
             .overlay(RoundedRectangle(cornerRadius: 20).strokeBorder(.white.opacity(0.3), lineWidth: 1))
@@ -320,7 +328,9 @@ private struct FeatureCard: View {
         .buttonStyle(.plain)
         .onHover { h in
             withAnimation(.easeInOut(duration: 0.25)) { hovered = h }
+            if h { NSCursor.pointingHand.push() } else { NSCursor.pop() }
         }
+        .onDisappear { if hovered { NSCursor.pop() } }
         .opacity(appeared ? 1 : 0)
         .offset(y: appeared ? 0 : 10)
         .onAppear {
