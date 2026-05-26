@@ -97,37 +97,6 @@ struct SidebarView: View {
     }
 }
 
-// MARK: - Liquid glass pill (shared selected/hover background)
-
-private struct LiquidPill: View {
-    let isSelected: Bool
-    let isHovered: Bool
-    let color: Color
-
-    var body: some View {
-        RoundedRectangle(cornerRadius: 10, style: .continuous)
-            .fill(fill)
-            .overlay {
-                if isSelected {
-                    // glossy top sheen
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(LinearGradient(colors: [.white.opacity(0.5), .white.opacity(0.04)],
-                                             startPoint: .top, endPoint: .bottom))
-                        .blendMode(.plusLighter)
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .strokeBorder(.white.opacity(0.4), lineWidth: 1)
-                }
-            }
-            .shadow(color: isSelected ? color.opacity(0.5) : .clear, radius: 8, y: 3)
-    }
-
-    private var fill: AnyShapeStyle {
-        if isSelected { return AnyShapeStyle(color.gradient) }
-        if isHovered { return AnyShapeStyle(.ultraThinMaterial) }
-        return AnyShapeStyle(Color.clear)
-    }
-}
-
 // MARK: - Sidebar Item (Home, Settings, About)
 
 struct SidebarItem: View {
@@ -156,7 +125,10 @@ struct SidebarItem: View {
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
-            .background(LiquidPill(isSelected: isSelected, isHovered: isHovered, color: color))
+            .background(
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(isSelected ? color.opacity(0.9) : (isHovered ? Color.primary.opacity(0.06) : Color.clear))
+            )
             .contentShape(RoundedRectangle(cornerRadius: 10))
         }
         .buttonStyle(.plain)
@@ -207,7 +179,10 @@ struct CategoryRow: View {
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 7)
-            .background(LiquidPill(isSelected: isSelected, isHovered: isHovered, color: color))
+            .background(
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(isSelected ? color.opacity(0.9) : (isHovered ? Color.primary.opacity(0.06) : Color.clear))
+            )
             .contentShape(RoundedRectangle(cornerRadius: 10))
         }
         .buttonStyle(.plain)
