@@ -94,14 +94,13 @@ struct LargeFilesView: View {
     }()
 
     var body: some View {
-        VStack(spacing: 0) {
+        VStack(spacing: 14) {
             controls
-            Divider()
             content
-            Divider()
             statusBar
         }
-        .background(Color(nsColor: .windowBackgroundColor))
+        .padding(20)
+        .background(background)
         .alert("Move to Trash?", isPresented: $vm.showConfirm) {
             Button("Cancel", role: .cancel) { }
             Button("Move to Trash", role: .destructive) { Task { await vm.delete() } }
@@ -110,29 +109,55 @@ struct LargeFilesView: View {
         }
     }
 
+    // Light base with a soft pastel glow pooling at the bottom (matches Home).
+    private var background: some View {
+        ZStack {
+            Color(nsColor: .windowBackgroundColor)
+            VStack {
+                Spacer()
+                appPastelGradient
+                    .frame(height: 320)
+                    .blur(radius: 90)
+                    .opacity(0.35)
+            }
+            .ignoresSafeArea()
+        }
+    }
+
     private var controls: some View {
-        VStack(spacing: 10) {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("LARGE FILES")
+                .font(.caption2).fontWeight(.semibold)
+                .foregroundStyle(.tertiary).tracking(1)
+
             HStack(spacing: 10) {
                 HStack(spacing: 8) {
                     Image(systemName: "folder.fill").foregroundStyle(.blue).font(.caption)
                     TextField("Folder to scan", text: $vm.root)
                         .textFieldStyle(.plain).font(.callout)
                 }
-                .padding(.horizontal, 12).padding(.vertical, 8)
+                .padding(.horizontal, 14).padding(.vertical, 10)
                 .background(.ultraThinMaterial)
-                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(.white.opacity(0.3), lineWidth: 1))
 
                 Button {
                     Task { await vm.scan() }
                 } label: {
-                    HStack(spacing: 5) {
+                    HStack(spacing: 6) {
                         if vm.isScanning { ProgressView().controlSize(.small) }
                         else { Image(systemName: "magnifyingglass") }
-                        Text("Scan")
-                    }.padding(.horizontal, 4)
+                        Text("Scan").fontWeight(.semibold)
+                    }
+                    .padding(.horizontal, 18).padding(.vertical, 9)
+                    .background(Capsule().fill(.tint))
+                    .foregroundStyle(.white)
+                    .shadow(color: .black.opacity(0.12), radius: 6, y: 3)
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.plain)
                 .disabled(vm.isScanning)
+                .opacity(vm.isScanning ? 0.7 : 1)
+                .pointerCursor()
             }
 
             HStack(spacing: 12) {
@@ -159,18 +184,24 @@ struct LargeFilesView: View {
                 Button {
                     vm.showConfirm = true
                 } label: {
-                    HStack(spacing: 5) {
+                    HStack(spacing: 6) {
                         if vm.isDeleting { ProgressView().controlSize(.small) }
                         else { Image(systemName: "trash.fill") }
-                        Text("Trash \(formatBytes(vm.selectedSize))").fontWeight(.medium)
-                    }.padding(.horizontal, 4)
+                        Text("Trash \(formatBytes(vm.selectedSize))").fontWeight(.semibold)
+                    }
+                    .padding(.horizontal, 18).padding(.vertical, 9)
+                    .background(Capsule().fill(Color.red.opacity(vm.canDelete ? 1 : 0.4)))
+                    .foregroundStyle(.white)
+                    .shadow(color: .black.opacity(vm.canDelete ? 0.12 : 0), radius: 6, y: 3)
                 }
-                .buttonStyle(.borderedProminent).tint(.red)
+                .buttonStyle(.plain)
                 .disabled(!vm.canDelete)
+                .pointerCursor()
             }
         }
-        .padding(.horizontal, 16).padding(.vertical, 10)
-        .background(.bar)
+        .padding(18)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .glassCard(cornerRadius: 20)
     }
 
     @ViewBuilder
@@ -179,13 +210,23 @@ struct LargeFilesView: View {
             VStack(spacing: 16) {
                 ProgressView().controlSize(.large)
                 Text("Scanning for large files...").font(.callout).foregroundStyle(.secondary)
-            }.frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .padding(40)
+            .glassCard(cornerRadius: 20)
         } else if vm.files.isEmpty {
-            VStack(spacing: 12) {
-                Image(systemName: "doc.on.doc").font(.system(size: 40)).foregroundStyle(.tertiary)
+            VStack(spacing: 14) {
+                Circle()
+                    .fill(appPastelGradient)
+                    .frame(width: 72, height: 72)
+                    .overlay(Image(systemName: "doc.on.doc").font(.system(size: 28)).foregroundStyle(.white))
+                    .shadow(color: .black.opacity(0.10), radius: 6, y: 3)
                 Text("No large files yet").font(.title3).fontWeight(.semibold)
                 Text("Pick a folder and size, then Scan.").font(.callout).foregroundStyle(.secondary)
-            }.frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .padding(40)
+            .glassCard(cornerRadius: 20)
         } else {
             Table(vm.files.sorted(using: sortOrder), selection: $vm.selected, sortOrder: $sortOrder) {
                 TableColumn("") { file in
@@ -212,19 +253,26 @@ struct LargeFilesView: View {
                         .frame(maxWidth: .infinity, alignment: .trailing)
                 }.width(min: 70, ideal: 90)
             }
+            .scrollContentBackground(.hidden)
+            .background(.ultraThinMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 20))
+            .overlay(RoundedRectangle(cornerRadius: 20).strokeBorder(.white.opacity(0.3), lineWidth: 1))
+            .shadow(color: .black.opacity(0.05), radius: 10, y: 4)
         }
     }
 
     private var statusBar: some View {
         HStack(spacing: 8) {
-            Circle().fill(vm.isScanning || vm.isDeleting ? .orange : .green).frame(width: 6, height: 6)
+            Circle().fill(vm.isScanning || vm.isDeleting ? .orange : .green).frame(width: 7, height: 7)
             Text(vm.status).font(.caption).foregroundStyle(.secondary).lineLimit(1)
             Spacer()
             if !vm.selected.isEmpty {
                 Text("\(vm.selected.count) selected — \(formatBytes(vm.selectedSize))")
-                    .font(.caption).fontWeight(.medium).foregroundStyle(.blue)
+                    .font(.caption).fontWeight(.semibold).foregroundStyle(.blue)
             }
         }
-        .padding(.horizontal, 16).padding(.vertical, 6).background(.bar)
+        .padding(.horizontal, 16).padding(.vertical, 10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .glassCard(cornerRadius: 14)
     }
 }

@@ -10,10 +10,17 @@ struct ArtifactTableView: View {
 
     var body: some View {
         if vm.artifacts.isEmpty && !vm.isScanning {
-            VStack(spacing: 16) {
-                Image(systemName: "sparkles")
-                    .font(.system(size: 40))
-                    .foregroundStyle(.tertiary)
+            VStack(spacing: 18) {
+                Circle()
+                    .fill(appPastelGradient)
+                    .frame(width: 72, height: 72)
+                    .overlay(
+                        Image(systemName: "sparkles")
+                            .font(.system(size: 30))
+                            .foregroundStyle(.white)
+                            .shadow(color: .black.opacity(0.12), radius: 3, y: 1)
+                    )
+                    .shadow(color: .black.opacity(0.08), radius: 10, y: 4)
 
                 VStack(spacing: 6) {
                     Text("No Artifacts Found")
@@ -27,14 +34,21 @@ struct ArtifactTableView: View {
                 Button {
                     Task { await vm.scan() }
                 } label: {
-                    Label("Start Scan", systemImage: "magnifyingglass")
-                        .padding(.horizontal, 8)
+                    HStack(spacing: 8) {
+                        Image(systemName: "magnifyingglass")
+                        Text("Start Scan").fontWeight(.semibold)
+                    }
+                    .padding(.horizontal, 24).padding(.vertical, 12)
+                    .background(Capsule().fill(.ultraThinMaterial))
+                    .overlay(Capsule().strokeBorder(.white.opacity(0.3), lineWidth: 1))
+                    .shadow(color: .black.opacity(0.08), radius: 8, y: 3)
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
+                .buttonStyle(.plain)
+                .pointerCursor()
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color(nsColor: .windowBackgroundColor))
+            .padding(40)
+            .background(emptyStateBackground)
         } else if vm.isScanning {
             VStack(spacing: 16) {
                 ProgressView()
@@ -44,7 +58,8 @@ struct ArtifactTableView: View {
                     .foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color(nsColor: .windowBackgroundColor))
+            .padding(40)
+            .background(emptyStateBackground)
         } else {
             Table(sortedArtifacts, selection: $vm.selectedArtifacts, sortOrder: $sortOrder) {
                 TableColumn("") { artifact in
@@ -147,6 +162,23 @@ struct ArtifactTableView: View {
                 }
                 .width(min: 70, ideal: 90)
             }
+            .scrollContentBackground(.hidden)
+            .background(emptyStateBackground)
+        }
+    }
+
+    // Light base with a soft pastel glow pooling at the bottom — matches Home.
+    private var emptyStateBackground: some View {
+        ZStack {
+            Color(nsColor: .windowBackgroundColor)
+            VStack {
+                Spacer()
+                appPastelGradient
+                    .frame(height: 320)
+                    .blur(radius: 90)
+                    .opacity(0.25)
+            }
+            .ignoresSafeArea()
         }
     }
 
