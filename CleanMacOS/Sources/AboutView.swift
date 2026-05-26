@@ -6,16 +6,17 @@ struct AboutView: View {
             Spacer()
 
             VStack(spacing: 20) {
-                // App icon
+                // App icon — soft pastel accent
                 ZStack {
                     RoundedRectangle(cornerRadius: 24)
-                        .fill(.blue.gradient)
+                        .fill(appPastelGradient)
                         .frame(width: 96, height: 96)
-                        .shadow(color: .blue.opacity(0.3), radius: 20, y: 10)
+                        .shadow(color: .black.opacity(0.12), radius: 20, y: 10)
 
                     Image(systemName: "sparkles")
                         .font(.system(size: 40))
                         .foregroundStyle(.white)
+                        .shadow(color: .black.opacity(0.15), radius: 3, y: 1)
                 }
 
                 // App info
@@ -75,15 +76,35 @@ struct AboutView: View {
                     .font(.caption)
                     .foregroundStyle(.tertiary)
             }
+            .padding(.vertical, 40)
+            .padding(.horizontal, 44)
+            .glassCard(cornerRadius: 28)
+            .frame(maxWidth: 520)
+            .padding(.horizontal, 24)
 
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(nsColor: .windowBackgroundColor))
+        .background(background)
     }
 
     private var appVersion: String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
+    }
+
+    // Light base with a soft pastel glow pooling at the bottom (matching Home).
+    private var background: some View {
+        ZStack {
+            Color(nsColor: .windowBackgroundColor)
+            VStack {
+                Spacer()
+                appPastelGradient
+                    .frame(height: 320)
+                    .blur(radius: 90)
+                    .opacity(0.35)
+            }
+            .ignoresSafeArea()
+        }
     }
 }
 
@@ -106,12 +127,7 @@ struct TechBadge: View {
         }
         .frame(width: 80)
         .padding(.vertical, 12)
-        .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .strokeBorder(color.opacity(0.15), lineWidth: 1)
-        )
+        .glassCard(cornerRadius: 14)
     }
 }
 
@@ -123,6 +139,8 @@ struct LinkRow: View {
     let icon: String
     let color: Color
     var url: String? = nil
+
+    @State private var hovered = false
 
     var body: some View {
         Button {
@@ -155,8 +173,16 @@ struct LinkRow: View {
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
             .background(.ultraThinMaterial)
-            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .overlay(
+                RoundedRectangle(cornerRadius: 14)
+                    .strokeBorder(.white.opacity(0.3), lineWidth: 1)
+            )
+            .shadow(color: .black.opacity(hovered ? 0.12 : 0.04),
+                    radius: hovered ? 12 : 6, y: hovered ? 5 : 2)
         }
         .buttonStyle(.plain)
+        .onHover { hovering in withAnimation(.easeInOut(duration: 0.2)) { hovered = hovering } }
+        .pointerCursor()
     }
 }

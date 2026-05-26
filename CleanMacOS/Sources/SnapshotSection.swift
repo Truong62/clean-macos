@@ -46,16 +46,18 @@ struct SnapshotSection: View {
                                 .font(.caption)
                         }
                         .buttonStyle(.borderless)
+                        .pointerCursor()
                         .help("Delete snapshot (requires sudo)")
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
 
                     if snapshot.id != vm.snapshots.last?.id {
-                        Divider().padding(.leading, 48).opacity(0.5)
+                        Divider().padding(.leading, 44).opacity(0.4)
                     }
                 }
             }
+            .padding(.top, 6)
         } label: {
             HStack(spacing: 8) {
                 Image(systemName: "clock.arrow.circlepath")
@@ -73,8 +75,9 @@ struct SnapshotSection: View {
                     .clipShape(Capsule())
             }
         }
+        .padding(16)
+        .glassCard()
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
-        .background(.bar)
     }
 }

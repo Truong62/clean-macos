@@ -84,6 +84,9 @@ final class UninstallViewModel: ObservableObject {
     }
 }
 
+// Dark ink that stays legible on the light pastel accents, regardless of system theme.
+private let heroInk = Color(red: 0.17, green: 0.15, blue: 0.23)
+
 struct UninstallView: View {
     @StateObject private var vm = UninstallViewModel()
 
@@ -94,6 +97,7 @@ struct UninstallView: View {
             detail
                 .frame(minWidth: 360, maxWidth: .infinity)
         }
+        .background(background)
         .task { if vm.apps.isEmpty { await vm.loadApps() } }
         .alert("Uninstall \(vm.selectedApp?.name ?? "app")?", isPresented: $vm.showConfirmation) {
             Button("Cancel", role: .cancel) { }
@@ -105,26 +109,42 @@ struct UninstallView: View {
         }
     }
 
+    // Light base with a soft pastel glow pooling at the bottom (matches Home).
+    private var background: some View {
+        ZStack {
+            Color(nsColor: .windowBackgroundColor)
+            VStack {
+                Spacer()
+                appPastelGradient
+                    .frame(height: 320)
+                    .blur(radius: 90)
+                    .opacity(0.30)
+            }
+            .ignoresSafeArea()
+        }
+    }
+
     // MARK: - App list
 
     private var appList: some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 6) {
-                Image(systemName: "magnifyingglass").foregroundStyle(.tertiary).font(.caption)
+        VStack(spacing: 12) {
+            HStack(spacing: 8) {
+                Image(systemName: "magnifyingglass").foregroundStyle(.tertiary).font(.callout)
                 TextField("Search apps...", text: $vm.searchText)
                     .textFieldStyle(.plain)
                 Button {
                     Task { await vm.loadApps() }
                 } label: {
-                    Image(systemName: "arrow.clockwise")
+                    Image(systemName: "arrow.clockwise").foregroundStyle(.secondary)
                 }
                 .buttonStyle(.plain)
+                .pointerCursor()
                 .help("Refresh app list")
             }
-            .padding(10)
-            .background(.bar)
-
-            Divider()
+            .padding(.horizontal, 14).padding(.vertical, 11)
+            .glassCard(cornerRadius: 14)
+            .padding(.horizontal, 12)
+            .padding(.top, 12)
 
             if vm.isLoadingApps {
                 Spacer()
@@ -143,8 +163,10 @@ struct UninstallView: View {
                         .tag(app.id)
                 }
                 .listStyle(.sidebar)
+                .scrollContentBackground(.hidden)
             }
         }
+        .background(.clear)
     }
 
     // MARK: - Detail
@@ -152,74 +174,114 @@ struct UninstallView: View {
     @ViewBuilder
     private var detail: some View {
         if let app = vm.selectedApp {
-            VStack(spacing: 0) {
-                HStack(spacing: 12) {
-                    AppIcon(path: app.path, size: 44)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(app.name).font(.headline)
+            VStack(spacing: 14) {
+                HStack(spacing: 14) {
+                    RoundedRectangle(cornerRadius: 14)
+                        .fill(appPastelGradient)
+                        .frame(width: 60, height: 60)
+                        .overlay(AppIcon(path: app.path, size: 44))
+                        .shadow(color: .black.opacity(0.08), radius: 6, y: 3)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(app.name).font(.title3).fontWeight(.bold)
                         Text(app.bundleID).font(.caption).foregroundStyle(.secondary)
                     }
                     Spacer()
-                    Button {
-                        vm.showConfirmation = true
-                    } label: {
-                        HStack(spacing: 5) {
-                            if vm.isUninstalling {
-                                ProgressView().controlSize(.small)
-                            } else {
-                                Image(systemName: "trash.fill")
-                            }
-                            Text("Uninstall (\(formatBytes(vm.selectedSize)))").fontWeight(.medium)
-                        }
-                        .padding(.horizontal, 4)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(.red)
-                    .disabled(!vm.canUninstall)
+                    uninstallButton
                 }
                 .padding(16)
-
-                Divider()
+                .glassCard()
+                .padding(.horizontal, 16)
+                .padding(.top, 16)
 
                 if vm.isScanning {
                     Spacer()
                     ProgressView("Finding leftover files...").controlSize(.small)
                     Spacer()
                 } else {
-                    List {
-                        ForEach(vm.leftovers) { item in
-                            LeftoverRow(
-                                item: item,
-                                isOn: vm.selectedLeftovers.contains(item.id),
-                                toggle: { vm.toggle(item) }
-                            )
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("LEFTOVER FILES")
+                            .font(.caption2).fontWeight(.semibold)
+                            .foregroundStyle(.tertiary).tracking(1)
+                            .padding(.horizontal, 4)
+
+                        List {
+                            ForEach(vm.leftovers) { item in
+                                LeftoverRow(
+                                    item: item,
+                                    isOn: vm.selectedLeftovers.contains(item.id),
+                                    toggle: { vm.toggle(item) }
+                                )
+                                .listRowBackground(Color.clear)
+                                .listRowSeparator(.hidden)
+                            }
                         }
+                        .listStyle(.plain)
+                        .scrollContentBackground(.hidden)
                     }
+                    .padding(.horizontal, 16)
                 }
 
-                Divider()
-                HStack {
-                    Circle().fill(vm.isScanning || vm.isUninstalling ? .orange : .green).frame(width: 6, height: 6)
-                    Text(vm.statusMessage).font(.caption).foregroundStyle(.secondary)
-                    Spacer()
-                    Text("\(vm.selectedLeftovers.count) of \(vm.leftovers.count) selected")
-                        .font(.caption).foregroundStyle(.blue)
-                }
-                .padding(.horizontal, 16).padding(.vertical, 6)
-                .background(.bar)
+                statusBar
             }
         } else {
-            VStack(spacing: 12) {
-                Image(systemName: "trash.square")
-                    .font(.system(size: 40)).foregroundStyle(.tertiary)
-                Text("Select an app to uninstall")
-                    .font(.title3).fontWeight(.semibold)
-                Text("Clean macOS finds every file the app left behind.")
-                    .font(.callout).foregroundStyle(.secondary)
+            VStack(spacing: 16) {
+                RoundedRectangle(cornerRadius: 22)
+                    .fill(appPastelGradient)
+                    .frame(width: 92, height: 92)
+                    .overlay(
+                        Image(systemName: "trash.square")
+                            .font(.system(size: 40))
+                            .foregroundStyle(.white)
+                            .shadow(color: .black.opacity(0.15), radius: 3, y: 1)
+                    )
+                    .shadow(color: .black.opacity(0.08), radius: 12, y: 6)
+                VStack(spacing: 6) {
+                    Text("Select an app to uninstall")
+                        .font(.title3).fontWeight(.semibold)
+                    Text("Clean macOS finds every file the app left behind.")
+                        .font(.callout).foregroundStyle(.secondary)
+                }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color(nsColor: .windowBackgroundColor))
         }
+    }
+
+    private var uninstallButton: some View {
+        Button {
+            vm.showConfirmation = true
+        } label: {
+            HStack(spacing: 6) {
+                if vm.isUninstalling {
+                    ProgressView().controlSize(.small).tint(.white)
+                } else {
+                    Image(systemName: "trash.fill")
+                }
+                Text("Uninstall (\(formatBytes(vm.selectedSize)))").fontWeight(.semibold)
+            }
+            .padding(.horizontal, 18).padding(.vertical, 10)
+            .background(Capsule().fill(Color(red: 0.82, green: 0.30, blue: 0.42)))
+            .foregroundStyle(.white)
+            .shadow(color: .black.opacity(0.12), radius: 6, y: 3)
+        }
+        .buttonStyle(.plain)
+        .pointerCursor()
+        .disabled(!vm.canUninstall)
+        .opacity(vm.canUninstall ? 1 : 0.45)
+    }
+
+    private var statusBar: some View {
+        HStack(spacing: 8) {
+            Circle().fill(vm.isScanning || vm.isUninstalling ? .orange : .green).frame(width: 7, height: 7)
+            Text(vm.statusMessage).font(.caption).foregroundStyle(.secondary)
+            Spacer()
+            Text("\(vm.selectedLeftovers.count) of \(vm.leftovers.count) selected")
+                .font(.caption).fontWeight(.medium)
+                .foregroundStyle(heroInk.opacity(0.7))
+        }
+        .padding(.horizontal, 16).padding(.vertical, 11)
+        .glassCard(cornerRadius: 14)
+        .padding(.horizontal, 16)
+        .padding(.bottom, 16)
     }
 }
 
@@ -228,11 +290,15 @@ struct UninstallView: View {
 private struct AppRow: View {
     let app: InstalledApp
     var body: some View {
-        HStack(spacing: 10) {
-            AppIcon(path: app.path, size: 24)
+        HStack(spacing: 11) {
+            RoundedRectangle(cornerRadius: 7)
+                .fill(.white.opacity(0.5))
+                .frame(width: 30, height: 30)
+                .overlay(AppIcon(path: app.path, size: 22))
             Text(app.name).lineLimit(1)
             Spacer()
         }
+        .padding(.vertical, 2)
     }
 }
 
@@ -242,7 +308,7 @@ private struct LeftoverRow: View {
     let toggle: () -> Void
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 12) {
             Toggle(isOn: Binding(get: { isOn }, set: { _ in toggle() })) { }
                 .toggleStyle(.checkbox)
             VStack(alignment: .leading, spacing: 2) {
@@ -255,9 +321,20 @@ private struct LeftoverRow: View {
             Spacer()
             Text(item.sizeHuman)
                 .font(.callout).fontDesign(.rounded).fontWeight(.semibold)
+                .foregroundStyle(heroInk.opacity(0.75))
         }
+        .padding(.horizontal, 14).padding(.vertical, 11)
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .strokeBorder(.white.opacity(isOn ? 0.45 : 0.2), lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.04), radius: 6, y: 2)
+        .opacity(isOn ? 1 : 0.7)
         .contentShape(Rectangle())
         .onTapGesture(perform: toggle)
+        .pointerCursor()
     }
 }
 
