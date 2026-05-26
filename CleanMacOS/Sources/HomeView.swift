@@ -6,15 +6,17 @@ struct HomeView: View {
     let navigate: (SidebarPage) -> Void
 
     @State private var shownCleanable: Double = 0
-    @State private var animateGradient = false
 
     private var hasResults: Bool { !vm.artifacts.isEmpty }
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 18) {
+            VStack(spacing: 16) {
                 hero
+                statsRow
                 featureCards
+                breakdownCard
+                systemInfo
                 Spacer(minLength: 0)
             }
             .padding(20)
@@ -32,7 +34,7 @@ struct HomeView: View {
                          color: ringColor(info.usedPercent))
             } else {
                 ProgressView()
-                    .frame(width: 180, height: 180)
+                    .frame(width: 184, height: 184)
             }
 
             if hasResults {
@@ -72,11 +74,11 @@ struct HomeView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(28)
-        .background(animatedGradient)
+        .background(.ultraThinMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 20))
         .overlay(
             RoundedRectangle(cornerRadius: 20)
-                .strokeBorder(.white.opacity(0.08), lineWidth: 1)
+                .strokeBorder(.quaternary, lineWidth: 1)
         )
         .onAppear {
             withAnimation(.easeOut(duration: 0.8)) { shownCleanable = Double(vm.totalCleanableSize) }
@@ -86,23 +88,22 @@ struct HomeView: View {
         }
     }
 
-    private var animatedGradient: some View {
-        LinearGradient(
-            colors: [.purple.opacity(0.30), .blue.opacity(0.22), .teal.opacity(0.25)],
-            startPoint: animateGradient ? .topLeading : .bottomLeading,
-            endPoint: animateGradient ? .bottomTrailing : .topTrailing
-        )
-        .onAppear {
-            withAnimation(.easeInOut(duration: 6).repeatForever(autoreverses: true)) {
-                animateGradient = true
-            }
-        }
-    }
-
     private func ringColor(_ usedPercent: Double) -> Color {
         if usedPercent > 90 { return .red }
         if usedPercent > 75 { return .orange }
         return .green
+    }
+
+    // MARK: - Stats row
+
+    private var statsRow: some View {
+        HStack(spacing: 10) {
+            StatCard(title: "Total", value: vm.diskInfo?.totalStr ?? "—", icon: "internaldrive.fill", color: .blue)
+            StatCard(title: "Used", value: vm.diskInfo?.usedStr ?? "—", icon: "chart.pie.fill", color: .orange)
+            StatCard(title: "Free", value: vm.diskInfo?.freeStr ?? "—", icon: "leaf.fill", color: .green)
+            StatCard(title: "Cleanable", value: hasResults ? formatBytes(vm.totalCleanableSize) : "—", icon: "sparkles", color: .purple)
+            StatCard(title: "Items", value: hasResults ? "\(vm.artifacts.count)" : "—", icon: "doc.on.doc.fill", color: .cyan)
+        }
     }
 
     // MARK: - Feature cards
@@ -115,6 +116,73 @@ struct HomeView: View {
                         subtitle: "Remove apps + leftovers", color: .red, index: 1) { navigate(.uninstall) }
             FeatureCard(icon: "doc.on.clipboard.fill", title: "Clipboard",
                         subtitle: "\(clipboard.items.count) items", color: .indigo, index: 2) { navigate(.clipboard) }
+        }
+    }
+
+    // MARK: - Cleanable breakdown
+
+    private var breakdownCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("CLEANABLE BY CATEGORY")
+                .font(.caption2).fontWeight(.semibold)
+                .foregroundStyle(.tertiary).tracking(1)
+
+            if hasResults {
+                ForEach(vm.categoryCounts, id: \.0) { cat, count, size in
+                    HStack(spacing: 10) {
+                        Image(systemName: cat.icon)
+                            .foregroundStyle(cat.color)
+                            .frame(width: 22)
+                        Text(cat.displayName)
+                            .font(.callout)
+                        Spacer()
+                        Text("\(count) items")
+                            .font(.caption).foregroundStyle(.secondary)
+                        Text(formatBytes(size))
+                            .font(.callout).fontWeight(.medium)
+                            .foregroundStyle(cat.color)
+                            .frame(width: 84, alignment: .trailing)
+                    }
+                }
+            } else {
+                HStack(spacing: 8) {
+                    Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+                    Text("Run a scan to see what's cleanable on your Mac.")
+                        .font(.callout).foregroundStyle(.secondary)
+                    Spacer()
+                }
+                .padding(.vertical, 4)
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .strokeBorder(.quaternary, lineWidth: 1)
+        )
+    }
+
+    // MARK: - System info
+
+    @ViewBuilder
+    private var systemInfo: some View {
+        if let info = vm.diskInfo {
+            HStack(spacing: 8) {
+                Image(systemName: "desktopcomputer")
+                    .font(.caption2).foregroundStyle(.tertiary)
+                Text(info.hostname)
+                    .font(.caption).foregroundStyle(.secondary)
+                Spacer()
+                if !vm.snapshots.isEmpty {
+                    Label("\(vm.snapshots.count) snapshots", systemImage: "clock.arrow.circlepath")
+                        .font(.caption2).foregroundStyle(.tertiary)
+                }
+                Text("\(info.osVersion) • \(info.arch)")
+                    .font(.caption2).foregroundStyle(.tertiary)
+            }
+            .padding(.horizontal, 4)
         }
     }
 }
@@ -133,7 +201,7 @@ private struct DiskRing: View {
                 .stroke(.quaternary.opacity(0.4), lineWidth: 14)
             Circle()
                 .trim(from: 0, to: progress)
-                .stroke(color.gradient, style: StrokeStyle(lineWidth: 14, lineCap: .round))
+                .stroke(color, style: StrokeStyle(lineWidth: 14, lineCap: .round))
                 .rotationEffect(.degrees(-90))
             VStack(spacing: 2) {
                 Text("\(Int(usedPercent.rounded()))%")
@@ -167,7 +235,7 @@ private struct CountingBytes: View, Animatable {
     }
 }
 
-// MARK: - Feature card (hover lift + staggered entrance)
+// MARK: - Feature card (subtle hover, gentle entrance — no scale/jump)
 
 private struct FeatureCard: View {
     let icon: String
@@ -197,17 +265,16 @@ private struct FeatureCard: View {
             .clipShape(RoundedRectangle(cornerRadius: 14))
             .overlay(
                 RoundedRectangle(cornerRadius: 14)
-                    .strokeBorder(hovered ? color.opacity(0.6) : color.opacity(0.15), lineWidth: 1)
+                    .strokeBorder(hovered ? color.opacity(0.45) : color.opacity(0.12), lineWidth: 1)
             )
-            .shadow(color: hovered ? color.opacity(0.35) : .clear, radius: 12, y: 6)
-            .scaleEffect(hovered ? 1.03 : 1.0)
+            .shadow(color: hovered ? .black.opacity(0.10) : .clear, radius: 8, y: 3)
         }
         .buttonStyle(.plain)
         .onHover { h in
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) { hovered = h }
+            withAnimation(.easeInOut(duration: 0.22)) { hovered = h }
         }
         .opacity(appeared ? 1 : 0)
-        .offset(y: appeared ? 0 : 16)
+        .offset(y: appeared ? 0 : 10)
         .onAppear {
             withAnimation(.easeOut(duration: 0.4).delay(0.08 * Double(index))) { appeared = true }
         }
