@@ -13,6 +13,9 @@ CleanMacOS/CleanMacOS.xcodeproj/project.xcworkspace/xcuserdata/
 CleanMacOS/.build/
 CleanMacOS/.swiftpm/
 
+# xcodebuild derived data / output (local test builds)
+CleanMacOS/build/
+
 # Build output
 *.o
 *.dSYM/
