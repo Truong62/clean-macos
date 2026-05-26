@@ -18,22 +18,7 @@ struct ContentView: View {
         } detail: {
             switch currentPage {
             case .home:
-                VStack(spacing: 0) {
-                    DashboardView()
-
-                    ToolbarRow()
-
-                    Divider().opacity(0.5)
-
-                    ArtifactTableView()
-
-                    if !vm.snapshots.isEmpty {
-                        SnapshotSection()
-                    }
-
-                    StatusBar()
-                }
-                .background(Color(nsColor: .windowBackgroundColor))
+                HomeView(navigate: { currentPage = $0 })
 
             case .largeFiles:
                 LargeFilesView()
