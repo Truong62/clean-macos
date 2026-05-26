@@ -9,6 +9,25 @@
     <!-- Paste new <item> blocks here when releasing (newest first) -->
 
     <item>
+      <title>Version 1.0.4</title>
+      <pubDate>Tue, 26 May 2026 15:16:21 +0700</pubDate>
+      <sparkle:version>5</sparkle:version>
+      <sparkle:shortVersionString>1.0.4</sparkle:shortVersionString>
+      <description><![CDATA[
+        <h2>What's new in 1.0.4</h2>
+        <ul>
+          <li><b>Clipboard history</b> — a new Clipboard tab keeps the text you copy; press ⌘⇧V anywhere to pick an earlier copy and paste it (auto-paste needs Accessibility).</li>
+          <li><b>New Home</b> — a calm dashboard hub; the scan &amp; clean workflow now lives in its own <b>Clean Disk</b> tab.</li>
+          <li><b>Refreshed interface</b> — a softer, more consistent look across every screen.</li>
+        </ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/Truong62/clean-macos/releases/download/v1.0.4/CleanMacOS-1.0.4.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="GZaF9inV/c18TJAbC8EGwgs9s8IIT+eJTfbkwnual4Dm5YGTMHbe4UX5dtBaiia84EcVKuK2v1nn8+3UJuljBA==" length="3017508" />
+    </item>
+
+    <item>
       <title>Version 1.0.3</title>
       <pubDate>Mon, 25 May 2026 16:31:24 +0700</pubDate>
       <sparkle:version>4</sparkle:version>
