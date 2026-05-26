@@ -39,3 +39,6 @@ CleanMacOS/dist/
 sparkle_private_key
 sparkle_private_key*.txt
 *.pem
+
+# Compiler diagnostics
+*.dia
