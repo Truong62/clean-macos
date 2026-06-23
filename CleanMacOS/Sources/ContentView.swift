@@ -32,6 +32,9 @@ struct ContentView: View {
             case .clipboard:
                 ClipboardHistoryView()
 
+            case .displays:
+                DisplaysView()
+
             case .settings:
                 SettingsView()
 
