@@ -9,6 +9,24 @@
     <!-- Paste new <item> blocks here when releasing (newest first) -->
 
     <item>
+      <title>Version 1.0.7</title>
+      <pubDate>Tue, 23 Jun 2026 15:36:49 +0700</pubDate>
+      <sparkle:version>8</sparkle:version>
+      <sparkle:shortVersionString>1.0.7</sparkle:shortVersionString>
+      <description><![CDATA[
+        <h2>What's new in 1.0.7</h2>
+        <ul>
+          <li><b>New Displays tab</b> — manage your monitors in one place: see how they're arranged and <b>drag to rearrange</b> them, or set a different display as the main one.</li>
+          <li><b>Per-monitor wallpaper</b> — pick a separate wallpaper for each screen, with Fill / Fit / Stretch / Center scaling and a background color.</li>
+        </ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/Truong62/clean-macos/releases/download/v1.0.7/CleanMacOS-1.0.7.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="aDD76wB8qAj3Z00XLNtJd1oSSnNWwdKTL84dV8P/uWORpsmfZcx8CnbYpJQecNzDVjKoN73gm85m/BDL2gj4DQ==" length="3110903" />
+    </item>
+
+    <item>
       <title>Version 1.0.6</title>
       <pubDate>Tue, 26 May 2026 17:07:39 +0700</pubDate>
       <sparkle:version>7</sparkle:version>
