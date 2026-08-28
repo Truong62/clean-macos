@@ -35,6 +35,9 @@ struct ContentView: View {
             case .displays:
                 DisplaysView()
 
+            case .ram:
+                RAMView()
+
             case .settings:
                 SettingsView()
 
