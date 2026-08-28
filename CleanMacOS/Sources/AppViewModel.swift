@@ -14,6 +14,8 @@ final class AppViewModel: ObservableObject {
     @Published var searchText = ""
     @Published var sortBySize = true
     @Published var showCleanConfirmation = false
+    @Published var lastCleanResult: CleanResult?
+    @Published var showResults = false
 
     @AppStorage("minFileSize") var minFileSizeMB = 1
     @AppStorage("skipHidden") var skipHidden = true
@@ -86,7 +88,8 @@ final class AppViewModel: ObservableObject {
     }
 
     var selectedSize: Int64 {
-        artifacts.filter { selectedArtifacts.contains($0.id) }.reduce(0) { $0 + $1.size }
+        let selected = allArtifacts.filter { selectedArtifacts.contains($0.id) }
+        return Self.removingDescendants(from: selected).reduce(0) { $0 + $1.size }
     }
 
     var categoryCounts: [(ArtifactCategory, Int, Int64)] {
@@ -107,7 +110,7 @@ final class AppViewModel: ObservableObject {
 
     /// Detailed confirmation text that calls out any commands to be run and destructive warnings.
     var cleanConfirmationMessage: String {
-        let selected = artifacts.filter { selectedArtifacts.contains($0.id) }
+        let selected = Self.removingDescendants(from: allArtifacts.filter { selectedArtifacts.contains($0.id) })
         var lines = ["Reclaim \(selected.count) item(s) — about \(formatBytes(selectedSize))."]
 
         let commands = selected.compactMap { $0.reclaim.commandString }
@@ -163,7 +166,9 @@ final class AppViewModel: ObservableObject {
     }
 
     func clean() async {
-        let selected = artifacts.filter { selectedArtifacts.contains($0.id) }
+        let selected = Self.removingDescendants(
+            from: allArtifacts.filter { selectedArtifacts.contains($0.id) }
+        )
         let nonSudo = selected.filter { !$0.needsSudo }
         let sudo = selected.filter { $0.needsSudo }
 
@@ -174,15 +179,18 @@ final class AppViewModel: ObservableObject {
 
         isCleaning = true
         statusMessage = "Cleaning \(selected.count) items..."
+        let freeBefore = scanner.getDiskInfo()?.free
 
         var allDeleted: [DeleteResult] = []
         var totalFreed: Int64 = 0
         var okCount = 0
         var failCount = 0
+        var retryArtifacts: [Artifact] = []
 
         if !nonSudo.isEmpty {
             let r = await Task.detached { [cleaner] in cleaner.reclaim(nonSudo) }.value
             allDeleted += r.deleted; totalFreed += r.totalFreed; okCount += r.okCount; failCount += r.failCount
+            retryArtifacts += r.retryArtifacts
         }
         if !sudo.isEmpty {
             statusMessage = "Authorizing system cleanup..."
@@ -190,12 +198,22 @@ final class AppViewModel: ObservableObject {
             allDeleted += r.deleted; totalFreed += r.totalFreed; okCount += r.okCount; failCount += r.failCount
         }
 
-        // Remove successfully cleaned artifacts.
-        let cleanedPaths = Set(allDeleted.filter(\.success).map(\.path))
-        artifacts.removeAll { cleanedPaths.contains($0.path) }
+        let freeAfter = scanner.getDiskInfo()?.free
+        artifacts = await refreshedArtifacts(after: allDeleted)
         selectedArtifacts.removeAll()
 
         refreshDiskInfo()
+        let realFreed = Self.freeSpaceDelta(before: freeBefore, after: freeAfter)
+        let result = CleanResult(
+            deleted: allDeleted,
+            totalFreed: totalFreed,
+            failCount: failCount,
+            okCount: okCount,
+            realFreed: realFreed,
+            retryArtifacts: retryArtifacts
+        )
+        lastCleanResult = result
+        showResults = true
 
         let freedStr = formatBytes(totalFreed)
         if failCount > 0 {
@@ -204,6 +222,31 @@ final class AppViewModel: ObservableObject {
             statusMessage = "Cleaned \(okCount) items — \(freedStr) freed!"
         }
 
+        isCleaning = false
+    }
+
+    func retryFailedAsAdministrator() async {
+        guard let retryArtifacts = lastCleanResult?.retryArtifacts, !retryArtifacts.isEmpty else { return }
+        isCleaning = true
+        statusMessage = "Authorizing failed items..."
+        let freeBefore = scanner.getDiskInfo()?.free
+        let result = await Task.detached { [cleaner] in
+            cleaner.deletePrivileged(retryArtifacts)
+        }.value
+        let freeAfter = scanner.getDiskInfo()?.free
+        artifacts = await refreshedArtifacts(after: result.deleted)
+        refreshDiskInfo()
+        let finalResult = CleanResult(
+            deleted: result.deleted,
+            totalFreed: result.totalFreed,
+            failCount: result.failCount,
+            okCount: result.okCount,
+            realFreed: Self.freeSpaceDelta(before: freeBefore, after: freeAfter)
+        )
+        lastCleanResult = finalResult
+        statusMessage = result.failCount == 0
+            ? "Administrator retry cleaned \(result.okCount) items"
+            : "Administrator retry: \(result.okCount) cleaned, \(result.failCount) failed"
         isCleaning = false
     }
 
@@ -239,5 +282,46 @@ final class AppViewModel: ObservableObject {
 
     func refreshDiskInfo() {
         diskInfo = scanner.getDiskInfo()
+    }
+
+    nonisolated static func removingDescendants(from artifacts: [Artifact]) -> [Artifact] {
+        let sorted = artifacts.sorted { $0.path.count < $1.path.count }
+        var result: [Artifact] = []
+        for artifact in sorted {
+            let path = (artifact.path as NSString).standardizingPath
+            let isDescendant = result.contains { parent in
+                let parentPath = (parent.path as NSString).standardizingPath
+                return path.hasPrefix(parentPath + "/")
+            }
+            if !isDescendant { result.append(artifact) }
+        }
+        return result
+    }
+
+    private var allArtifacts: [Artifact] {
+        artifacts.flatMap { [$0] + ($0.children ?? []) }
+    }
+
+    private func refreshedArtifacts(after results: [DeleteResult]) async -> [Artifact] {
+        let current = artifacts
+        return await Task.detached { [scanner] in
+            current.compactMap { artifact in
+                guard artifact.reclaim == .deletePath else {
+                    if results.contains(where: { $0.path == artifact.path && $0.success }) { return nil }
+                    return artifact
+                }
+                let affected = results.contains { result in
+                    result.path == artifact.path || result.path.hasPrefix(artifact.path + "/")
+                }
+                guard affected else { return artifact }
+                if results.contains(where: { $0.path == artifact.path && $0.success }) { return nil }
+                return scanner.remeasure(artifact) ?? artifact
+            }
+        }.value
+    }
+
+    nonisolated private static func freeSpaceDelta(before: UInt64?, after: UInt64?) -> Int64 {
+        guard let before, let after, after > before else { return 0 }
+        return Int64(min(after - before, UInt64(Int64.max)))
     }
 }
