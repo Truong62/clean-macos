@@ -136,6 +136,7 @@ struct FixedPath {
     let description: String
     let needsSudo: Bool
     var isPersonalData: Bool = false
+    var warning: String? = nil
 }
 
 // MARK: - CleanResult

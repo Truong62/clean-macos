@@ -175,6 +175,7 @@ final class ScannerService: Sendable {
                         path: fp.path, name: fp.name, size: size,
                         category: fp.category, description: fp.description,
                         needsSudo: fp.needsSudo,
+                        warning: fp.warning,
                         isPersonalData: fp.isPersonalData,
                         sizeIsLowerBound: sizeIsLowerBound
                     )
@@ -215,11 +216,12 @@ final class ScannerService: Sendable {
             }
         }
 
-        let userDirectories = [
-            ("DARWIN_USER_CACHE_DIR", "User Darwin Cache"),
-            ("DARWIN_USER_TEMP_DIR", "User Darwin Temp"),
+        let userDirectories: [(String, String, String, String?)] = [
+            ("DARWIN_USER_CACHE_DIR", "User Darwin Cache", "Regenerable per-user cache", nil),
+            ("DARWIN_USER_TEMP_DIR", "User Darwin Temp", "Temp files of RUNNING apps — quit them first",
+             "Running apps keep live files here. Deleting them can make open apps misbehave or lose unsaved work."),
         ]
-        for (key, name) in userDirectories {
+        for (key, name, description, warning) in userDirectories {
             guard let rawPath = runCommand("getconf", key)?
                 .trimmingCharacters(in: .whitespacesAndNewlines),
                   !rawPath.isEmpty else { continue }
@@ -228,8 +230,10 @@ final class ScannerService: Sendable {
                 path: path,
                 name: name,
                 category: .system,
-                description: "Current user's macOS temporary data",
-                needsSudo: false
+                description: description,
+                needsSudo: false,
+                isPersonalData: warning != nil,
+                warning: warning
             ))
         }
 
