@@ -8,6 +8,7 @@ enum SidebarPage: Hashable {
     case uninstall
     case clipboard
     case displays
+    case ram
     case settings
     case about
 }
@@ -37,6 +38,9 @@ struct SidebarView: View {
                 }
                 SidebarItem(icon: "display.2", label: "Displays", color: .purple, isSelected: currentPage == .displays) {
                     currentPage = .displays
+                }
+                SidebarItem(icon: "memorychip", label: "RAM", color: .mint, isSelected: currentPage == .ram) {
+                    currentPage = .ram
                 }
                 SidebarItem(icon: "gearshape.fill", label: "Settings", color: .gray, isSelected: currentPage == .settings) {
                     currentPage = .settings

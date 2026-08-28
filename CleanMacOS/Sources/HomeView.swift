@@ -171,6 +171,9 @@ struct HomeView: View {
             FeatureCard(icon: "doc.on.clipboard.fill", title: "Clipboard",
                         description: "Everything you copy is kept here — \(clipboard.items.count) saved. Bring back earlier copies with ⌘⇧V.",
                         color: .indigo, index: 2) { navigate(.clipboard) }
+            FeatureCard(icon: "memorychip", title: "RAM",
+                        description: "See apps, background agents, helpers and daemons, then quit processes that no longer belong.",
+                        color: .mint, index: 3) { navigate(.ram) }
         }
     }
 
