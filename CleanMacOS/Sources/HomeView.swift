@@ -45,6 +45,10 @@ struct HomeView: View {
             .padding(20)
         }
         .background(background)
+        .sheet(isPresented: $vm.showResults) {
+            CleanResultsView()
+                .environmentObject(vm)
+        }
     }
 
     // Light base with a soft pastel glow pooling at the bottom (like the shot).
