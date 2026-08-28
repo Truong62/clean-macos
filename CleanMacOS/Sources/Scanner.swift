@@ -1,4 +1,5 @@
 import Foundation
+import Darwin
 
 final class ScannerService: Sendable {
 
@@ -45,8 +46,9 @@ final class ScannerService: Sendable {
         async let brewArtifacts = scanHomebrew()
         async let snapshotList = detectSnapshots()
 
-        let allArtifacts = await deduplicateArtifacts(devArtifacts + fixedArtifacts + dockerArtifacts + brewArtifacts)
+        let deduplicated = await deduplicateArtifacts(devArtifacts + fixedArtifacts + dockerArtifacts + brewArtifacts)
             .sorted { $0.size > $1.size }
+        let allArtifacts = await populateChildren(deduplicated)
 
         let diskInfo = getDiskInfo()
         let snapshots = await snapshotList
@@ -109,11 +111,12 @@ final class ScannerService: Sendable {
                     group.enter()
                     queue.async {
                         semaphore.wait()
-                        let size = Self.calculateDirSize(path: path)
+                        let measurement = Self.measureDirSize(path: path)
                         lock.lock()
                         artifacts.append(Artifact(
-                            path: path, name: name, size: size,
-                            category: p.category, description: p.description, needsSudo: false
+                            path: path, name: name, size: measurement.size,
+                            category: p.category, description: p.description, needsSudo: false,
+                            sizeIsLowerBound: measurement.didTimeout
                         ))
                         lock.unlock()
                         semaphore.signal()
@@ -136,7 +139,7 @@ final class ScannerService: Sendable {
     // MARK: - Fixed Paths
 
     private func scanFixedPaths() async -> [Artifact] {
-        let fixedPaths = Self.macOSFixedPaths()
+        let fixedPaths = Self.macOSFixedPaths() + discoveredFixedPaths()
 
         return await withCheckedContinuation { continuation in
             let queue = DispatchQueue(label: "scan.fixed", attributes: .concurrent)
@@ -156,10 +159,14 @@ final class ScannerService: Sendable {
                     guard fm.fileExists(atPath: fp.path, isDirectory: &isDir) else { return }
 
                     let size: Int64
+                    let sizeIsLowerBound: Bool
                     if isDir.boolValue {
-                        size = Self.calculateDirSize(path: fp.path)
+                        let measurement = Self.measureDirSize(path: fp.path, timeout: 120)
+                        size = measurement.size
+                        sizeIsLowerBound = measurement.didTimeout
                     } else {
                         size = Self.physicalSize(path: fp.path)
+                        sizeIsLowerBound = false
                     }
 
                     guard size >= 1_048_576 else { return } // 1MB minimum
@@ -168,7 +175,8 @@ final class ScannerService: Sendable {
                         path: fp.path, name: fp.name, size: size,
                         category: fp.category, description: fp.description,
                         needsSudo: fp.needsSudo,
-                        isPersonalData: fp.isPersonalData
+                        isPersonalData: fp.isPersonalData,
+                        sizeIsLowerBound: sizeIsLowerBound
                     )
                     lock.lock()
                     results.append(artifact)
@@ -179,6 +187,153 @@ final class ScannerService: Sendable {
             group.wait()
             continuation.resume(returning: results)
         }
+    }
+
+    private func discoveredFixedPaths() -> [FixedPath] {
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        let fm = FileManager.default
+        var paths: [FixedPath] = []
+
+        let roots = [
+            ((home as NSString).appendingPathComponent("Library/Containers"), "Data/Library/Caches", "App Container Cache"),
+            ((home as NSString).appendingPathComponent("Library/Group Containers"), "Library/Caches", "Group Container Cache"),
+        ]
+
+        for (root, suffix, label) in roots {
+            guard let containers = try? fm.contentsOfDirectory(atPath: root) else { continue }
+            for container in containers {
+                let path = ((root as NSString).appendingPathComponent(container) as NSString)
+                    .appendingPathComponent(suffix)
+                guard fm.fileExists(atPath: path) else { continue }
+                paths.append(FixedPath(
+                    path: path,
+                    name: "\(container) \(label)",
+                    category: .caches,
+                    description: "Sandboxed application cache",
+                    needsSudo: false
+                ))
+            }
+        }
+
+        let userDirectories = [
+            ("DARWIN_USER_CACHE_DIR", "User Darwin Cache"),
+            ("DARWIN_USER_TEMP_DIR", "User Darwin Temp"),
+        ]
+        for (key, name) in userDirectories {
+            guard let rawPath = runCommand("getconf", key)?
+                .trimmingCharacters(in: .whitespacesAndNewlines),
+                  !rawPath.isEmpty else { continue }
+            let path = URL(fileURLWithPath: rawPath).resolvingSymlinksInPath().path
+            paths.append(FixedPath(
+                path: path,
+                name: name,
+                category: .system,
+                description: "Current user's macOS temporary data",
+                needsSudo: false
+            ))
+        }
+
+        return paths
+    }
+
+    private func populateChildren(_ artifacts: [Artifact]) async -> [Artifact] {
+        await withCheckedContinuation { continuation in
+            let queue = DispatchQueue(label: "scan.children", attributes: .concurrent)
+            let group = DispatchGroup()
+            let semaphore = DispatchSemaphore(value: 8)
+            let lock = NSLock()
+            var expanded = artifacts
+
+            for index in artifacts.indices where artifacts[index].size >= 104_857_600 {
+                group.enter()
+                queue.async {
+                    semaphore.wait()
+                    defer { semaphore.signal(); group.leave() }
+                    let artifact = Self.addChildren(to: artifacts[index])
+                    lock.lock()
+                    expanded[index] = artifact
+                    lock.unlock()
+                }
+            }
+
+            group.wait()
+            continuation.resume(returning: expanded)
+        }
+    }
+
+    func remeasure(_ artifact: Artifact) -> Artifact? {
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: artifact.path, isDirectory: &isDirectory) else { return nil }
+
+        let measurement: (size: Int64, didTimeout: Bool)
+        if isDirectory.boolValue {
+            measurement = Self.measureDirSize(path: artifact.path, timeout: 120)
+        } else {
+            measurement = (Self.physicalSize(path: artifact.path), false)
+        }
+
+        let measured = Artifact(
+            path: artifact.path,
+            name: artifact.name,
+            size: measurement.size,
+            category: artifact.category,
+            description: artifact.description,
+            needsSudo: artifact.needsSudo,
+            reclaim: artifact.reclaim,
+            warning: artifact.warning,
+            isPersonalData: artifact.isPersonalData,
+            sizeIsLowerBound: measurement.didTimeout
+        )
+        guard isDirectory.boolValue, measurement.size >= 104_857_600 else { return measured }
+        return Self.addChildren(to: measured)
+    }
+
+    private static func addChildren(to artifact: Artifact) -> Artifact {
+        var isDirectory: ObjCBool = false
+        guard artifact.reclaim == .deletePath,
+              FileManager.default.fileExists(atPath: artifact.path, isDirectory: &isDirectory),
+              isDirectory.boolValue,
+              let urls = try? FileManager.default.contentsOfDirectory(
+                at: URL(fileURLWithPath: artifact.path),
+                includingPropertiesForKeys: [.isDirectoryKey],
+                options: []
+              ) else { return artifact }
+
+        let queue = DispatchQueue(label: "scan.child.items", attributes: .concurrent)
+        let group = DispatchGroup()
+        let semaphore = DispatchSemaphore(value: 10)
+        let lock = NSLock()
+        var children: [Artifact] = []
+
+        for url in urls {
+            group.enter()
+            queue.async {
+                semaphore.wait()
+                defer { semaphore.signal(); group.leave() }
+                let isDirectory = (try? url.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory == true
+                let measurement = isDirectory
+                    ? measureDirSize(path: url.path, timeout: 60)
+                    : (physicalSize(path: url.path), false)
+                let child = Artifact(
+                    path: url.path,
+                    name: url.lastPathComponent,
+                    size: measurement.0,
+                    category: artifact.category,
+                    description: "Inside \(artifact.name)",
+                    needsSudo: artifact.needsSudo,
+                    isPersonalData: artifact.isPersonalData,
+                    sizeIsLowerBound: measurement.1
+                )
+                lock.lock()
+                children.append(child)
+                lock.unlock()
+            }
+        }
+
+        group.wait()
+        var result = artifact
+        result.children = children.sorted { $0.size > $1.size }
+        return result
     }
 
     // MARK: - Docker
@@ -218,18 +373,20 @@ final class ScannerService: Sendable {
             return []
         }
 
-        let size = Self.calculateDirSize(path: dataDir)
-        guard size >= 1_048_576 else { return [] }
+        let measurement = Self.measureDirSize(path: dataDir, timeout: 120)
+        guard measurement.size >= 1_048_576 else { return [] }
 
         return [Artifact(
             path: dataDir,
             name: "Docker Data (entire VM)",
-            size: size,
+            size: measurement.size,
             category: .developer,
             description: "All Docker data. Start Docker Desktop to reclaim space safely via prune.",
             needsSudo: false,
             reclaim: .deletePath,
-            warning: "Deletes ALL Docker images, containers and volumes — cannot be undone."
+            warning: "Deletes ALL Docker images, containers and volumes — cannot be undone.",
+            isPersonalData: true,
+            sizeIsLowerBound: measurement.didTimeout
         )]
     }
 
@@ -322,10 +479,11 @@ final class ScannerService: Sendable {
         let home = FileManager.default.homeDirectoryForCurrentUser.path
         if absPath == home { return false }
 
-        guard let attrs = try? FileManager.default.attributesOfItem(atPath: absPath) else { return false }
-        if let type = attrs[.type] as? FileAttributeType, type == .typeSymbolicLink { return false }
-
-        return true
+        var info = stat()
+        if lstat(absPath, &info) == 0 {
+            return (info.st_mode & S_IFMT) != S_IFLNK
+        }
+        return errno != ENOENT && errno != ENOTDIR
     }
 
     // MARK: - Delete Snapshot
@@ -357,15 +515,15 @@ final class ScannerService: Sendable {
         return Int64(v.totalFileAllocatedSize ?? v.fileAllocatedSize ?? v.fileSize ?? 0)
     }
 
-    static func calculateDirSize(path: String, timeout: TimeInterval = 10, maxDepth: Int = 50) -> Int64 {
+    static func measureDirSize(path: String, timeout: TimeInterval = 10, maxDepth: Int = 50) -> (size: Int64, didTimeout: Bool) {
         let deadline = Date().addingTimeInterval(timeout)
         let rootURL = URL(fileURLWithPath: path)
         let fm = FileManager.default
 
         var isDir: ObjCBool = false
-        guard fm.fileExists(atPath: path, isDirectory: &isDir) else { return 0 }
+        guard fm.fileExists(atPath: path, isDirectory: &isDir) else { return (0, false) }
         if !isDir.boolValue {
-            return allocatedSize(of: rootURL)
+            return (allocatedSize(of: rootURL), false)
         }
 
         let keys: [URLResourceKey] = [
@@ -377,11 +535,15 @@ final class ScannerService: Sendable {
             includingPropertiesForKeys: keys,
             options: [],
             errorHandler: { _, _ in true }
-        ) else { return 0 }
+        ) else { return (0, false) }
 
         var total: Int64 = 0
+        var didTimeout = false
         while let url = enumerator.nextObject() as? URL {
-            if Date() >= deadline { break }
+            if Date() >= deadline {
+                didTimeout = true
+                break
+            }
             if enumerator.level > maxDepth { enumerator.skipDescendants(); continue }
 
             guard let v = try? url.resourceValues(forKeys: Set(keys)) else { continue }
@@ -390,7 +552,11 @@ final class ScannerService: Sendable {
                 total += Int64(v.totalFileAllocatedSize ?? v.fileAllocatedSize ?? v.fileSize ?? 0)
             }
         }
-        return total
+        return (total, didTimeout)
+    }
+
+    static func calculateDirSize(path: String, timeout: TimeInterval = 10, maxDepth: Int = 50) -> Int64 {
+        measureDirSize(path: path, timeout: timeout, maxDepth: maxDepth).size
     }
 
     static func physicalSize(path: String) -> Int64 {
@@ -419,7 +585,7 @@ final class ScannerService: Sendable {
         var result: [Artifact] = []
         for a in sorted {
             let nested = result.contains { existing in
-                a.path.hasPrefix(existing.path + "/")
+                a.path == existing.path || a.path.hasPrefix(existing.path + "/")
             }
             if !nested { result.append(a) }
         }
@@ -570,8 +736,6 @@ final class ScannerService: Sendable {
                       description: "Files in Trash (not yet permanently deleted)", needsSudo: false),
             FixedPath(path: "/var/log", name: "System Logs", category: .system,
                       description: "System log files (asl, install, wifi, etc.)", needsSudo: true),
-            FixedPath(path: "/private/var/folders", name: "Temporary Items", category: .system,
-                      description: "Per-user temporary files & caches (managed by macOS)", needsSudo: true),
             FixedPath(path: hp("Library", "Logs", "DiagnosticReports"), name: "User Crash Reports", category: .system,
                       description: "Application crash logs (.ips, .crash files)", needsSudo: false),
             FixedPath(path: "/Library/Logs/DiagnosticReports", name: "System Crash Reports", category: .system,
@@ -595,7 +759,7 @@ final class ScannerService: Sendable {
             FixedPath(path: hp("Library", "Developer", "Xcode", "DerivedData"), name: "Xcode DerivedData", category: .developer,
                       description: "Build intermediates & indexes (often 10-50GB+)", needsSudo: false),
             FixedPath(path: hp("Library", "Developer", "Xcode", "Archives"), name: "Xcode Archives", category: .developer,
-                      description: "Archived app builds (.xcarchive)", needsSudo: false),
+                      description: "Archived app builds (.xcarchive)", needsSudo: false, isPersonalData: true),
             FixedPath(path: hp("Library", "Developer", "Xcode", "iOS DeviceSupport"), name: "iOS DeviceSupport", category: .developer,
                       description: "Debug symbols for connected iOS devices (2-5GB per iOS version)", needsSudo: false),
             FixedPath(path: hp("Library", "Developer", "Xcode", "watchOS DeviceSupport"), name: "watchOS DeviceSupport", category: .developer,
@@ -603,7 +767,7 @@ final class ScannerService: Sendable {
             FixedPath(path: hp("Library", "Developer", "Xcode", "tvOS DeviceSupport"), name: "tvOS DeviceSupport", category: .developer,
                       description: "Debug symbols for Apple TV", needsSudo: false),
             FixedPath(path: hp("Library", "Developer", "CoreSimulator", "Devices"), name: "iOS Simulators", category: .developer,
-                      description: "iOS/watchOS/tvOS simulator data (can be 20GB+)", needsSudo: false),
+                      description: "iOS/watchOS/tvOS simulator data (can be 20GB+)", needsSudo: false, isPersonalData: true),
             FixedPath(path: hp("Library", "Developer", "CoreSimulator", "Caches"), name: "Simulator Caches", category: .developer,
                       description: "Simulator runtime caches", needsSudo: false),
             FixedPath(path: hp("Library", "Developer", "Xcode", "UserData", "IB Support"), name: "Xcode IB Support", category: .developer,
@@ -622,15 +786,15 @@ final class ScannerService: Sendable {
 
             // VMs & SDKs
             FixedPath(path: hp(".android", "avd"), name: "Android Emulator AVDs", category: .developer,
-                      description: "Android emulator virtual device images (2-10GB each)", needsSudo: false),
+                      description: "Android emulator virtual device images (2-10GB each)", needsSudo: false, isPersonalData: true),
             FixedPath(path: hp("Library", "Android", "sdk"), name: "Android SDK", category: .developer,
                       description: "Android SDK, build tools, platform images", needsSudo: false),
             FixedPath(path: hp("Parallels"), name: "Parallels VMs", category: .developer,
-                      description: "Parallels Desktop virtual machine images (20-60GB each)", needsSudo: false),
+                      description: "Parallels Desktop virtual machine images (20-60GB each)", needsSudo: false, isPersonalData: true),
             FixedPath(path: hp("Virtual Machines.localized"), name: "VMware VMs", category: .developer,
-                      description: "VMware Fusion virtual machine images", needsSudo: false),
+                      description: "VMware Fusion virtual machine images", needsSudo: false, isPersonalData: true),
             FixedPath(path: hp("VirtualBox VMs"), name: "VirtualBox VMs", category: .developer,
-                      description: "VirtualBox virtual machine images", needsSudo: false),
+                      description: "VirtualBox virtual machine images", needsSudo: false, isPersonalData: true),
 
             // ---- Media (re-downloadable media caches) ----
             FixedPath(path: hp("Library", "Group Containers", "243LU875E5.groups.com.apple.podcasts"), name: "Apple Podcasts", category: .media,
@@ -649,6 +813,8 @@ final class ScannerService: Sendable {
                       description: "Mail messages & attachments (years of email)", needsSudo: false, isPersonalData: true),
             FixedPath(path: hp("Library", "Mail Downloads"), name: "Mail Downloads", category: .personal,
                       description: "Opened mail attachment files", needsSudo: false, isPersonalData: true),
+            FixedPath(path: hp("Library", "Containers", "com.apple.mail", "Data", "Library", "Mail Downloads"), name: "Mail Container Downloads", category: .personal,
+                      description: "Downloaded Apple Mail attachments", needsSudo: false, isPersonalData: true),
             FixedPath(path: hp("Library", "Messages", "Attachments"), name: "iMessage Attachments", category: .personal,
                       description: "Photos/videos/files received via iMessage", needsSudo: false, isPersonalData: true),
             FixedPath(path: hp("Movies"), name: "Movies", category: .personal,
