@@ -1,8 +1,8 @@
 import Foundation
 import Darwin
 
+@MainActor
 final class SystemMonitor: ObservableObject {
-    // Published chỉ update khi popover đang mở
     @Published var cpuUsage: Double = 0
     @Published var memUsed: UInt64 = 0
     @Published var memTotal: UInt64 = 0
@@ -12,97 +12,68 @@ final class SystemMonitor: ObservableObject {
     @Published var diskPercent: Double = 0
     @Published var diskFree: UInt64 = 0
     @Published var uptime: String = ""
+    @Published private(set) var latestCPU: Double = 0
 
-    // Static info (chỉ đọc 1 lần)
     let cpuName: String
     let osVersion: String
 
-    // Background state — không trigger UI
-    private(set) var latestCPU: Double = 0
     private var prevCPUInfo: host_cpu_load_info?
-    private var sampleTimer: DispatchSourceTimer?
-    private let queue = DispatchQueue(label: "monitor.sample", qos: .utility)
+    private var sampleTimer: Timer?
     private var popoverOpen = false
 
     init() {
         cpuName = Self.readCPUName()
         osVersion = ProcessInfo.processInfo.operatingSystemVersionString
         memTotal = ProcessInfo.processInfo.physicalMemory
+        refreshPublishedValues(cpu: readCPUUsage())
     }
 
-    // MARK: - Background sampling (luôn chạy nhẹ, không update UI)
-
     func startSampling(interval: TimeInterval = 3) {
-        stopSampling()
-        let t = DispatchSource.makeTimerSource(queue: queue)
-        t.schedule(deadline: .now(), repeating: interval)
-        t.setEventHandler { [weak self] in
-            self?.sample()
+        guard sampleTimer == nil else { return }
+        sample()
+        let timer = Timer(timeInterval: interval, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                self?.sample()
+            }
         }
-        t.resume()
-        sampleTimer = t
+        RunLoop.main.add(timer, forMode: .common)
+        sampleTimer = timer
     }
 
     func stopSampling() {
-        sampleTimer?.cancel()
+        sampleTimer?.invalidate()
         sampleTimer = nil
     }
 
-    // Sample nhẹ — chỉ đọc CPU, không push UI
-    private func sample() {
-        latestCPU = readCPUUsage()
-
-        // Chỉ update @Published khi popover đang mở
-        if popoverOpen {
-            let mem = Self.readMemory()
-            let disk = Self.readDisk()
-            let up = Self.readUptime()
-            let cpu = latestCPU
-
-            DispatchQueue.main.async { [weak self] in
-                guard let self, self.popoverOpen else { return }
-                self.cpuUsage = cpu
-                self.memUsed = mem.used
-                self.memPercent = mem.percent
-                self.diskUsed = disk.used
-                self.diskTotal = disk.total
-                self.diskFree = disk.free
-                self.diskPercent = disk.percent
-                self.uptime = up
-            }
-        }
-    }
-
-    // MARK: - Popover lifecycle
-
     func popoverDidOpen() {
         popoverOpen = true
-        // Đọc 1 lần ngay lập tức khi mở
-        queue.async { [weak self] in
-            guard let self else { return }
-            let cpu = self.latestCPU
-            let mem = Self.readMemory()
-            let disk = Self.readDisk()
-            let up = Self.readUptime()
-
-            DispatchQueue.main.async {
-                self.cpuUsage = cpu
-                self.memUsed = mem.used
-                self.memPercent = mem.percent
-                self.diskUsed = disk.used
-                self.diskTotal = disk.total
-                self.diskFree = disk.free
-                self.diskPercent = disk.percent
-                self.uptime = up
-            }
-        }
+        refreshPublishedValues(cpu: latestCPU)
     }
 
     func popoverDidClose() {
         popoverOpen = false
     }
 
-    // MARK: - CPU (instance method vì cần prevCPUInfo state)
+    private func sample() {
+        latestCPU = readCPUUsage()
+        if popoverOpen {
+            refreshPublishedValues(cpu: latestCPU)
+        }
+    }
+
+    private func refreshPublishedValues(cpu: Double) {
+        let mem = Self.readMemory()
+        let disk = Self.readDisk()
+        cpuUsage = cpu
+        memUsed = mem.used
+        memTotal = ProcessInfo.processInfo.physicalMemory
+        memPercent = mem.percent
+        diskUsed = disk.used
+        diskTotal = disk.total
+        diskFree = disk.free
+        diskPercent = disk.percent
+        uptime = Self.readUptime()
+    }
 
     private func readCPUUsage() -> Double {
         var loadInfo = host_cpu_load_info()
@@ -136,8 +107,6 @@ final class SystemMonitor: ObservableObject {
         return total > 0 ? ((user + system + nice) / total) * 100 : 0
     }
 
-    // MARK: - Static reads (pure functions, no state)
-
     private static func readCPUName() -> String {
         var size: size_t = 0
         sysctlbyname("machdep.cpu.brand_string", nil, &size, nil, 0)
@@ -161,8 +130,8 @@ final class SystemMonitor: ObservableObject {
 
         let pageSize = UInt64(vm_kernel_page_size)
         let used = UInt64(stats.active_count) * pageSize
-                  + UInt64(stats.wire_count) * pageSize
-                  + UInt64(stats.compressor_page_count) * pageSize
+            + UInt64(stats.wire_count) * pageSize
+            + UInt64(stats.compressor_page_count) * pageSize
 
         return (used, Double(used) / Double(total) * 100)
     }
@@ -179,14 +148,12 @@ final class SystemMonitor: ObservableObject {
     }
 
     private static func readUptime() -> String {
-        let t = Int(ProcessInfo.processInfo.systemUptime)
-        let h = t / 3600
-        let m = (t % 3600) / 60
-        if h >= 24 { return "\(h / 24)d \(h % 24)h \(m)m" }
-        return "\(h)h \(m)m"
+        let time = Int(ProcessInfo.processInfo.systemUptime)
+        let hours = time / 3600
+        let minutes = (time % 3600) / 60
+        if hours >= 24 { return "\(hours / 24)d \(hours % 24)h \(minutes)m" }
+        return "\(hours)h \(minutes)m"
     }
-
-    // MARK: - Formatted strings
 
     var memUsedStr: String { Self.fmtSize(memUsed) }
     var memTotalStr: String { Self.fmtSize(memTotal) }

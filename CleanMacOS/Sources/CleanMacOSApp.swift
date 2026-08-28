@@ -4,6 +4,7 @@ import KeyboardShortcuts
 
 /// Keeps the app alive after the main window is closed (like Safari/Mail), so the
 /// clipboard monitor and the ⌘⇧V hotkey keep working in the background.
+@MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         false
@@ -12,10 +13,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // Re-open the main window when the user clicks the Dock icon with no windows open.
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         if !flag {
-            for window in sender.windows where window.canBecomeMain {
-                window.makeKeyAndOrderFront(nil)
-            }
-            sender.activate(ignoringOtherApps: true)
+            MainWindowController.show(sender)
         }
         return true
     }
@@ -27,8 +25,8 @@ struct CleanMacOSApp: App {
     @StateObject private var vm = AppViewModel()
     @StateObject private var updater = UpdaterViewModel()
     @StateObject private var clipboard = ClipboardViewModel()
+    @StateObject private var monitor = SystemMonitor()
     @State private var panelController: ClipboardPanelController?
-    private let menuBar = MenuBarController.shared
 
     var body: some Scene {
         Window("Clean macOS", id: "main") {
@@ -39,7 +37,7 @@ struct CleanMacOSApp: App {
                 .frame(minWidth: 900, minHeight: 600)
                 .onAppear {
                     setAppIcon()
-                    menuBar.setup(showMenuBar: vm.showMenuBar)
+                    monitor.startSampling(interval: 3)
                     clipboard.startMonitoring()
                     if panelController == nil {
                         let controller = ClipboardPanelController(clipboard: clipboard)
@@ -48,9 +46,6 @@ struct CleanMacOSApp: App {
                             controller.toggle()
                         }
                     }
-                }
-                .onChange(of: vm.showMenuBar) {
-                    menuBar.setup(showMenuBar: vm.showMenuBar)
                 }
         }
         .windowStyle(.titleBar)
@@ -75,6 +70,13 @@ struct CleanMacOSApp: App {
                 .keyboardShortcut("r", modifiers: .command)
             }
         }
+
+        MenuBarExtra(isInserted: $vm.showMenuBar) {
+            MenuBarView(monitor: monitor)
+        } label: {
+            Label(String(format: " %.0f%%", monitor.latestCPU), systemImage: "sparkles")
+        }
+        .menuBarExtraStyle(.window)
     }
 
     private func setAppIcon() {
