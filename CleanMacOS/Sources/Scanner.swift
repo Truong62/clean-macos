@@ -553,6 +553,15 @@ final class ScannerService: Sendable {
                       description: "Zoom recordings, cache and data", needsSudo: false),
             FixedPath(path: hp("Library", "Application Support", "Telegram Desktop", "tdata", "user_data"), name: "Telegram Cache", category: .caches,
                       description: "Telegram media & message cache", needsSudo: false),
+            FixedPath(path: hp("Library", "Application Support", "Claude", "Cache"), name: "Claude Cache", category: .caches,
+                      description: "Claude Desktop renderer cache (rebuildable)", needsSudo: false),
+            FixedPath(path: hp("Library", "Application Support", "Claude", "Code Cache"), name: "Claude Code Cache", category: .caches,
+                      description: "Claude Desktop compiled code cache", needsSudo: false),
+            // Cowork/agent VMs — large but Claude re-downloads them on demand → flagged, never auto-selected
+            FixedPath(path: hp("Library", "Application Support", "Claude", "vm_bundles"), name: "Claude Cowork VM Bundles", category: .caches,
+                      description: "Cowork VM images — large, re-downloaded on demand", needsSudo: false, isPersonalData: true),
+            FixedPath(path: hp("Library", "Application Support", "Claude", "claude-code-vm"), name: "Claude Code VM", category: .caches,
+                      description: "claude-code sandbox VM — re-provisioned on demand", needsSudo: false, isPersonalData: true),
 
             // ---- System (logs, crashes, temp, indexes) ----
             FixedPath(path: hp("Library", "Logs"), name: "User Logs", category: .system,
