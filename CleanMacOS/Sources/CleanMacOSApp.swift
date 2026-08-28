@@ -26,6 +26,7 @@ struct CleanMacOSApp: App {
     @StateObject private var updater = UpdaterViewModel()
     @StateObject private var clipboard = ClipboardViewModel()
     @StateObject private var monitor = SystemMonitor()
+    @AppStorage("showMenuBar") private var showMenuBar = true
     @State private var panelController: ClipboardPanelController?
 
     var body: some Scene {
@@ -71,7 +72,7 @@ struct CleanMacOSApp: App {
             }
         }
 
-        MenuBarExtra(isInserted: $vm.showMenuBar) {
+        MenuBarExtra(isInserted: $showMenuBar) {
             MenuBarView(monitor: monitor)
         } label: {
             Label(String(format: " %.0f%%", monitor.latestCPU), systemImage: "sparkles")
