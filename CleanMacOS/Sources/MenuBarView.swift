@@ -2,6 +2,7 @@ import SwiftUI
 
 struct MenuBarView: View {
     @ObservedObject var monitor: SystemMonitor
+    @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         VStack(spacing: 0) {
@@ -66,10 +67,9 @@ struct MenuBarView: View {
             // Actions
             VStack(spacing: 4) {
                 Button {
-                    NSApp.activate(ignoringOtherApps: true)
-                    for window in NSApp.windows where window.canBecomeMain {
-                        window.makeKeyAndOrderFront(nil)
-                        break
+                    openWindow(id: "main")
+                    DispatchQueue.main.async {
+                        MainWindowController.show()
                     }
                 } label: {
                     HStack {
@@ -99,6 +99,12 @@ struct MenuBarView: View {
             .padding(.vertical, 8)
         }
         .frame(width: 300)
+        .onAppear {
+            monitor.popoverDidOpen()
+        }
+        .onDisappear {
+            monitor.popoverDidClose()
+        }
     }
 }
 
