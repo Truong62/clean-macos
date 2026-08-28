@@ -9,7 +9,8 @@ struct ArtifactTableView: View {
     }
 
     var body: some View {
-        if vm.artifacts.isEmpty && !vm.isScanning {
+        Group {
+            if vm.artifacts.isEmpty && !vm.isScanning {
             VStack(spacing: 18) {
                 Circle()
                     .fill(appPastelGradient)
@@ -49,7 +50,7 @@ struct ArtifactTableView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .padding(40)
             .background(emptyStateBackground)
-        } else if vm.isScanning {
+            } else if vm.isScanning {
             VStack(spacing: 16) {
                 ProgressView()
                     .controlSize(.large)
@@ -60,8 +61,8 @@ struct ArtifactTableView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .padding(40)
             .background(emptyStateBackground)
-        } else {
-            Table(sortedArtifacts, selection: $vm.selectedArtifacts, sortOrder: $sortOrder) {
+            } else {
+                Table(sortedArtifacts, children: \.children, selection: $vm.selectedArtifacts, sortOrder: $sortOrder) {
                 TableColumn("") { artifact in
                     Toggle(isOn: Binding(
                         get: { vm.selectedArtifacts.contains(artifact.id) },
@@ -162,8 +163,13 @@ struct ArtifactTableView: View {
                 }
                 .width(min: 70, ideal: 90)
             }
-            .scrollContentBackground(.hidden)
-            .background(emptyStateBackground)
+                .scrollContentBackground(.hidden)
+                .background(emptyStateBackground)
+            }
+        }
+        .sheet(isPresented: $vm.showResults) {
+            CleanResultsView()
+                .environmentObject(vm)
         }
     }
 

@@ -82,8 +82,10 @@ struct Artifact: Identifiable, Hashable, Sendable {
     var warning: String? = nil
     /// User data (photos, mail, browser profiles…). Excluded from "Select All" and warned before delete.
     var isPersonalData: Bool = false
+    var children: [Artifact]? = nil
+    var sizeIsLowerBound: Bool = false
 
-    var sizeHuman: String { formatBytes(size) }
+    var sizeHuman: String { (sizeIsLowerBound ? "≥ " : "") + formatBytes(size) }
 
     func hash(into hasher: inout Hasher) {
         hasher.combine(id)
@@ -143,8 +145,31 @@ struct DeleteResult: Identifiable {
     let path: String
     let name: String
     let size: Int64
+    let freedBytes: Int64
     let success: Bool
     let error: String?
+    let retryableAsAdmin: Bool
+    let failures: [DeleteResult]
+
+    init(
+        path: String,
+        name: String,
+        size: Int64,
+        freedBytes: Int64? = nil,
+        success: Bool,
+        error: String?,
+        retryableAsAdmin: Bool = false,
+        failures: [DeleteResult] = []
+    ) {
+        self.path = path
+        self.name = name
+        self.size = size
+        self.freedBytes = freedBytes ?? (success ? size : 0)
+        self.success = success
+        self.error = error
+        self.retryableAsAdmin = retryableAsAdmin
+        self.failures = failures
+    }
 }
 
 struct CleanResult {
@@ -152,8 +177,40 @@ struct CleanResult {
     let totalFreed: Int64
     let failCount: Int
     let okCount: Int
+    var realFreed: Int64 = 0
+    var retryArtifacts: [Artifact] = []
 
     var freedStr: String { formatBytes(totalFreed) }
+    var realFreedStr: String { formatBytes(realFreed) }
+    var detailedFailureCount: Int {
+        deleted.reduce(0) { $0 + ($1.success ? 0 : max(1, $1.failures.count)) }
+    }
+
+    var plainTextReport: String {
+        var lines = [
+            "CleanMacOS clean report",
+            "Items cleaned: \(okCount)",
+            "Real space freed: \(realFreedStr)",
+            "Estimated freed: \(freedStr)",
+            "Failures: \(detailedFailureCount)",
+            "",
+        ]
+        for result in deleted.sorted(by: { lhs, rhs in
+            if lhs.success != rhs.success { return !lhs.success }
+            return lhs.path.localizedCaseInsensitiveCompare(rhs.path) == .orderedAscending
+        }) {
+            lines.append("\(result.success ? "✅" : "❌") \(result.name) — \(formatBytes(result.size))")
+            lines.append(result.path)
+            if let error = result.error, !error.isEmpty { lines.append(error) }
+            for failure in result.failures {
+                lines.append("  ❌ \(failure.name) — \(formatBytes(failure.size))")
+                lines.append("  \(failure.path)")
+                if let error = failure.error, !error.isEmpty { lines.append("  \(error)") }
+            }
+            lines.append("")
+        }
+        return lines.joined(separator: "\n")
+    }
 }
 
 // MARK: - Helpers
