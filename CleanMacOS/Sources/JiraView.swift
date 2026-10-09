@@ -30,9 +30,31 @@ struct JiraWebView: NSViewRepresentable {
     let url: URL
     let router: JiraRouter
 
-    final class Coordinator {
+    final class Coordinator: NSObject, WKUIDelegate, WKNavigationDelegate {
         var handler: JiraSchemeHandler?
         var loadedURL: URL?
+
+        func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration,
+                     for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
+            if let url = navigationAction.request.url { JiraWebView.openExternally(url) }
+            return nil
+        }
+
+        func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
+                     decisionHandler: @escaping @MainActor (WKNavigationActionPolicy) -> Void) {
+            guard let url = navigationAction.request.url, url.scheme != JiraRouter.scheme else {
+                return decisionHandler(.allow)
+            }
+            JiraWebView.openExternally(url)
+            decisionHandler(.cancel)
+        }
+    }
+
+    @MainActor static var urlOpener: (URL) -> Void = { NSWorkspace.shared.open($0) }
+
+    @MainActor static func openExternally(_ url: URL) {
+        guard ["http", "https", "mailto"].contains(url.scheme?.lowercased() ?? "") else { return }
+        urlOpener(url)
     }
 
     func makeCoordinator() -> Coordinator { Coordinator() }
@@ -44,6 +66,8 @@ struct JiraWebView: NSViewRepresentable {
         configuration.setURLSchemeHandler(handler, forURLScheme: JiraRouter.scheme)
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.setValue(false, forKey: "drawsBackground")
+        webView.uiDelegate = context.coordinator
+        webView.navigationDelegate = context.coordinator
         return webView
     }
 
