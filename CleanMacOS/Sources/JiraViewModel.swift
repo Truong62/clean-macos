@@ -12,6 +12,7 @@ final class JiraViewModel: ObservableObject {
     @Published private(set) var menuUpdatedAt: Date?
 
     private let keychain: KeychainStore
+    private var token: String?
     private let kpiStore: JiraKpiStore
     private var menuLoop: Task<Void, Never>?
     private lazy var notifier = JiraNotifier { [weak self] key in self?.openFromOutside(issueKey: key) }
@@ -19,15 +20,16 @@ final class JiraViewModel: ObservableObject {
     init(keychain: KeychainStore = KeychainStore(), kpiStore: JiraKpiStore = JiraKpiStore()) {
         self.keychain = keychain
         self.kpiStore = kpiStore
-        service = Self.makeService(keychain: keychain)
+        token = keychain.read()
+        service = Self.makeService(token: token)
     }
 
     var isConfigured: Bool { service != nil }
 
-    var hasToken: Bool { !(keychain.read() ?? "").isEmpty }
+    var hasToken: Bool { !(token ?? "").isEmpty }
 
     func reload() {
-        service = Self.makeService(keychain: keychain)
+        service = Self.makeService(token: token)
         webURL = JiraRouter.startURL
         menu = JiraMenuSnapshot()
         menuError = nil
@@ -84,10 +86,11 @@ final class JiraViewModel: ObservableObject {
     func saveToken(_ token: String) throws {
         let trimmed = token.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.isEmpty { keychain.delete() } else { try keychain.save(trimmed) }
+        self.token = trimmed.isEmpty ? nil : trimmed
     }
 
     func testConnection() async -> String {
-        guard let client = JiraClient.fromSettings(keychain: keychain) else { return "Fill in domain and token first" }
+        guard let client = JiraClient.fromSettings(token: token) else { return "Fill in domain and token first" }
         do {
             let me = try await client.json(path: "/rest/api/2/myself") as? JiraJSON
             return "Connected as \(me?["displayName"] as? String ?? "unknown user")"
@@ -96,7 +99,7 @@ final class JiraViewModel: ObservableObject {
         }
     }
 
-    private static func makeService(keychain: KeychainStore) -> JiraService? {
-        JiraClient.fromSettings(keychain: keychain).map { JiraService(client: $0) }
+    private static func makeService(token: String?) -> JiraService? {
+        JiraClient.fromSettings(token: token).map { JiraService(client: $0) }
     }
 }
