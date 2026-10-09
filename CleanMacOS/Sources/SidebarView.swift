@@ -104,6 +104,10 @@ struct SidebarView: View {
             }
 
             Spacer()
+
+            ReleaseHistoryButton()
+                .padding(.horizontal, 12)
+                .padding(.bottom, 12)
         }
         .navigationSplitViewColumnWidth(min: 200, ideal: 240)
     }
