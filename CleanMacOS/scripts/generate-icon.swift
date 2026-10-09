@@ -1,8 +1,15 @@
 #!/usr/bin/env swift
 
 import AppKit
+import ImageIO
+import UniformTypeIdentifiers
 
-let sizes: [(CGFloat, String)] = [
+let canvas: CGFloat = 1024
+let body = CGRect(x: 100, y: 100, width: 824, height: 824)
+let cornerRadius: CGFloat = 185
+let outputDir = "Sources/Assets.xcassets/AppIcon.appiconset"
+
+let sizes: [(Int, String)] = [
     (16, "icon_16x16"),
     (32, "icon_16x16@2x"),
     (32, "icon_32x32"),
@@ -15,105 +22,149 @@ let sizes: [(CGFloat, String)] = [
     (1024, "icon_512x512@2x"),
 ]
 
-func renderIcon(size: CGFloat) -> NSImage {
-    let image = NSImage(size: NSSize(width: size, height: size))
-    image.lockFocus()
+func rgb(_ hex: UInt32, _ alpha: CGFloat = 1) -> CGColor {
+    CGColor(srgbRed: CGFloat((hex >> 16) & 0xFF) / 255,
+            green: CGFloat((hex >> 8) & 0xFF) / 255,
+            blue: CGFloat(hex & 0xFF) / 255,
+            alpha: alpha)
+}
 
-    guard let ctx = NSGraphicsContext.current?.cgContext else {
-        image.unlockFocus()
-        return image
-    }
+func gradient(_ colors: [CGColor], _ locations: [CGFloat]) -> CGGradient {
+    CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB), colors: colors as CFArray, locations: locations)!
+}
 
-    let rect = CGRect(x: 0, y: 0, width: size, height: size)
-    let cornerRadius = size * 0.22
-
-    // Background gradient (blue)
-    let path = CGPath(roundedRect: rect.insetBy(dx: size * 0.02, dy: size * 0.02),
-                      cornerWidth: cornerRadius, cornerHeight: cornerRadius, transform: nil)
-    ctx.addPath(path)
-    ctx.clip()
-
-    let colorSpace = CGColorSpaceCreateDeviceRGB()
-    let colors = [
-        CGColor(red: 0.2, green: 0.45, blue: 1.0, alpha: 1.0),
-        CGColor(red: 0.35, green: 0.3, blue: 0.95, alpha: 1.0),
+func squirclePath(in rect: CGRect, radius: CGFloat) -> CGPath {
+    let extent = radius * 1.528
+    let exponent: CGFloat = 3.3
+    let steps = 48
+    let corners: [(CGPoint, CGFloat, CGFloat)] = [
+        (CGPoint(x: rect.maxX, y: rect.maxY), -1, -1),
+        (CGPoint(x: rect.minX, y: rect.maxY), 1, -1),
+        (CGPoint(x: rect.minX, y: rect.minY), 1, 1),
+        (CGPoint(x: rect.maxX, y: rect.minY), -1, 1),
     ]
-    if let gradient = CGGradient(colorsSpace: colorSpace, colors: colors as CFArray, locations: [0, 1]) {
-        ctx.drawLinearGradient(gradient,
-                               start: CGPoint(x: 0, y: size),
-                               end: CGPoint(x: size, y: 0),
-                               options: [])
+    let path = CGMutablePath()
+    for (index, (corner, sx, sy)) in corners.enumerated() {
+        let center = CGPoint(x: corner.x + sx * extent, y: corner.y + sy * extent)
+        let startAngle = CGFloat(index) * .pi / 2
+        for step in 0...steps {
+            let t = startAngle + CGFloat(step) / CGFloat(steps) * .pi / 2
+            let c = cos(t), s = sin(t)
+            let x = center.x + extent * copysign(pow(abs(c), 2 / exponent), c)
+            let y = center.y + extent * copysign(pow(abs(s), 2 / exponent), s)
+            if index == 0 && step == 0 { path.move(to: CGPoint(x: x, y: y)) } else { path.addLine(to: CGPoint(x: x, y: y)) }
+        }
     }
+    path.closeSubpath()
+    return path
+}
 
-    // Subtle inner glow
-    ctx.setFillColor(CGColor(red: 1, green: 1, blue: 1, alpha: 0.08))
-    let glowRect = CGRect(x: size * 0.1, y: size * 0.5, width: size * 0.8, height: size * 0.45)
-    let glowPath = CGPath(roundedRect: glowRect, cornerWidth: size * 0.15, cornerHeight: size * 0.15, transform: nil)
-    ctx.addPath(glowPath)
+func sparklePath(center: CGPoint, radius: CGFloat, pinch: CGFloat) -> CGPath {
+    let path = CGMutablePath()
+    let tips = (0..<4).map { i -> CGPoint in
+        let a = CGFloat(i) * .pi / 2 + .pi / 2
+        return CGPoint(x: center.x + radius * cos(a), y: center.y + radius * sin(a))
+    }
+    path.move(to: tips[0])
+    for i in 0..<4 {
+        let next = tips[(i + 1) % 4]
+        let control = CGPoint(x: center.x + (tips[i].x - center.x + next.x - center.x) * pinch,
+                              y: center.y + (tips[i].y - center.y + next.y - center.y) * pinch)
+        path.addQuadCurve(to: next, control: control)
+    }
+    path.closeSubpath()
+    return path
+}
+
+func drawBody(_ ctx: CGContext) {
+    let shape = squirclePath(in: body, radius: cornerRadius)
+
+    ctx.saveGState()
+    ctx.setShadow(offset: CGSize(width: 0, height: -10), blur: 24, color: rgb(0x000000, 0.35))
+    ctx.addPath(shape)
+    ctx.setFillColor(rgb(0x000000))
     ctx.fillPath()
+    ctx.restoreGState()
 
-    // Sparkles symbol
-    let symbolConfig = NSImage.SymbolConfiguration(pointSize: size * 0.4, weight: .medium)
-    if let symbol = NSImage(systemSymbolName: "sparkles", accessibilityDescription: nil)?
-        .withSymbolConfiguration(symbolConfig) {
-        let symbolSize = symbol.size
-        let x = (size - symbolSize.width) / 2
-        let y = (size - symbolSize.height) / 2
+    ctx.saveGState()
+    ctx.addPath(shape)
+    ctx.clip()
+    ctx.drawLinearGradient(gradient([rgb(0x2A2A2D), rgb(0x161618), rgb(0x050505)], [0, 0.55, 1]),
+                           start: CGPoint(x: body.midX, y: body.maxY),
+                           end: CGPoint(x: body.midX, y: body.minY), options: [])
+    ctx.restoreGState()
 
-        // White symbol
-        let tinted = NSImage(size: symbolSize)
-        tinted.lockFocus()
-        NSColor.white.set()
-        symbol.draw(in: NSRect(origin: .zero, size: symbolSize),
-                    from: .zero, operation: .sourceOver, fraction: 1.0)
-        NSRect(origin: .zero, size: symbolSize).fill(using: .sourceAtop)
-        tinted.unlockFocus()
+    ctx.saveGState()
+    ctx.addPath(squirclePath(in: body.insetBy(dx: 2, dy: 2), radius: cornerRadius - 2))
+    ctx.setLineWidth(4)
+    ctx.setStrokeColor(rgb(0xFFFFFF, 0.10))
+    ctx.strokePath()
+    ctx.restoreGState()
+}
 
-        tinted.draw(in: NSRect(x: x, y: y, width: symbolSize.width, height: symbolSize.height),
-                    from: .zero, operation: .sourceOver, fraction: 0.95)
+func drawSwoosh(_ ctx: CGContext) {
+    let center = CGPoint(x: 488, y: 500)
+    let radius: CGFloat = 216
+    let arc = CGMutablePath()
+    arc.addArc(center: center, radius: radius, startAngle: .pi * 0.40, endAngle: -.pi * 0.27, clockwise: false)
+
+    ctx.saveGState()
+    ctx.setShadow(offset: CGSize(width: 0, height: -6), blur: 16, color: rgb(0x000000, 0.5))
+    ctx.addPath(arc)
+    ctx.setLineWidth(112)
+    ctx.setLineCap(.round)
+    ctx.setStrokeColor(rgb(0xFFFFFF))
+    ctx.strokePath()
+    ctx.restoreGState()
+}
+
+func drawSparkles(_ ctx: CGContext) {
+    let big = sparklePath(center: CGPoint(x: 740, y: 720), radius: 124, pinch: 0.16)
+    ctx.saveGState()
+    ctx.setShadow(offset: .zero, blur: 28, color: rgb(0xFF6A00, 0.45))
+    ctx.addPath(big)
+    ctx.setFillColor(rgb(0xFF7A00))
+    ctx.fillPath()
+    ctx.restoreGState()
+
+    ctx.saveGState()
+    ctx.addPath(big)
+    ctx.clip()
+    ctx.drawLinearGradient(gradient([rgb(0xFFA21A), rgb(0xFF5E00)], [0, 1]),
+                           start: CGPoint(x: 676, y: 844), end: CGPoint(x: 804, y: 596), options: [])
+    ctx.restoreGState()
+
+    ctx.addPath(sparklePath(center: CGPoint(x: 800, y: 500), radius: 52, pinch: 0.16))
+    ctx.setFillColor(rgb(0xFF8A00))
+    ctx.fillPath()
+}
+
+func renderIcon(pixels: Int) -> CGImage {
+    let ctx = CGContext(data: nil, width: pixels, height: pixels, bitsPerComponent: 8, bytesPerRow: 0,
+                        space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                        bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+    ctx.interpolationQuality = .high
+    ctx.setShouldAntialias(true)
+    ctx.scaleBy(x: CGFloat(pixels) / canvas, y: CGFloat(pixels) / canvas)
+    drawBody(ctx)
+    drawSwoosh(ctx)
+    drawSparkles(ctx)
+    return ctx.makeImage()!
+}
+
+func writePNG(_ image: CGImage, to path: String) throws {
+    let url = URL(fileURLWithPath: path) as CFURL
+    guard let dest = CGImageDestinationCreateWithURL(url, UTType.png.identifier as CFString, 1, nil) else {
+        throw NSError(domain: "generate-icon", code: 1, userInfo: [NSLocalizedDescriptionKey: "Cannot create \(path)"])
     }
-
-    image.unlockFocus()
-    return image
-}
-
-// Create output directory
-let outputDir = "Sources/Assets.xcassets/AppIcon.appiconset"
-let fm = FileManager.default
-try? fm.createDirectory(atPath: outputDir, withIntermediateDirectories: true)
-
-// Generate icons
-for (size, name) in sizes {
-    let image = renderIcon(size: size)
-    guard let tiff = image.tiffRepresentation,
-          let bitmap = NSBitmapImageRep(data: tiff),
-          let png = bitmap.representation(using: .png, properties: [:]) else {
-        print("Failed to generate \(name)")
-        continue
+    CGImageDestinationAddImage(dest, image, nil)
+    guard CGImageDestinationFinalize(dest) else {
+        throw NSError(domain: "generate-icon", code: 2, userInfo: [NSLocalizedDescriptionKey: "Cannot write \(path)"])
     }
-    let path = "\(outputDir)/\(name).png"
-    try png.write(to: URL(fileURLWithPath: path))
-    print("Generated \(name).png (\(Int(size))x\(Int(size)))")
 }
 
-// Generate Contents.json
-let contents = """
-{
-  "images" : [
-    { "filename" : "icon_16x16.png", "idiom" : "mac", "scale" : "1x", "size" : "16x16" },
-    { "filename" : "icon_16x16@2x.png", "idiom" : "mac", "scale" : "2x", "size" : "16x16" },
-    { "filename" : "icon_32x32.png", "idiom" : "mac", "scale" : "1x", "size" : "32x32" },
-    { "filename" : "icon_32x32@2x.png", "idiom" : "mac", "scale" : "2x", "size" : "32x32" },
-    { "filename" : "icon_128x128.png", "idiom" : "mac", "scale" : "1x", "size" : "128x128" },
-    { "filename" : "icon_128x128@2x.png", "idiom" : "mac", "scale" : "2x", "size" : "128x128" },
-    { "filename" : "icon_256x256.png", "idiom" : "mac", "scale" : "1x", "size" : "256x256" },
-    { "filename" : "icon_256x256@2x.png", "idiom" : "mac", "scale" : "2x", "size" : "256x256" },
-    { "filename" : "icon_512x512.png", "idiom" : "mac", "scale" : "1x", "size" : "512x512" },
-    { "filename" : "icon_512x512@2x.png", "idiom" : "mac", "scale" : "2x", "size" : "512x512" }
-  ],
-  "info" : { "author" : "xcode", "version" : 1 }
+try FileManager.default.createDirectory(atPath: outputDir, withIntermediateDirectories: true)
+for (pixels, name) in sizes {
+    try writePNG(renderIcon(pixels: pixels), to: "\(outputDir)/\(name).png")
+    print("Generated \(name).png (\(pixels)x\(pixels))")
 }
-"""
-try contents.write(toFile: "\(outputDir)/Contents.json", atomically: true, encoding: .utf8)
-print("Generated Contents.json")
-print("Done! AppIcon asset catalog created.")
