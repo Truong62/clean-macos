@@ -1057,13 +1057,16 @@ async function uploadCommentImages(files) {
   }
 }
 
-function commentsHtml(d) {
-  const comments = d.comments.length
+function commentListHtml(d) {
+  return d.comments.length
     ? `<div class="mt-2 flex flex-col">${d.comments.map(commentBubble).join('')}</div>`
     : '<p class="py-2 text-sm text-muted">No comments yet.</p>';
+}
+
+function commentsHtml(d) {
   return `<section class="border-t border-border pt-5">
-    <h3 class="text-sm font-semibold text-foreground">Comments <span class="font-normal tabular-nums text-muted">${d.comments.length || ''}</span></h3>
-    ${comments}
+    <h3 class="text-sm font-semibold text-foreground">Comments <span id="comment-count" class="font-normal tabular-nums text-muted">${d.comments.length || ''}</span></h3>
+    <div id="comment-list">${commentListHtml(d)}</div>
     <div class="relative mt-2">${formatToolbar('comment-input')}<label class="block"><span class="sr-only">Add a comment</span><textarea id="comment-input" rows="3" placeholder="Add a comment — type @ to mention someone" class="${editorTextareaClass}"></textarea></label>
       <div id="comment-upload" role="status" hidden class="mt-2 flex items-center gap-2 rounded-lg bg-foreground/5 px-3 py-2 text-xs font-medium text-muted"><span class="size-3.5 shrink-0 animate-spin rounded-full border-2 border-foreground/20 border-t-primary"></span><span data-upload-text></span></div>
       <div id="comment-images" hidden class="mt-2 flex flex-wrap gap-2"></div>
@@ -1097,6 +1100,36 @@ function panelError(key, message) {
   return `<div class="border-b border-border px-6 pt-4 pb-4">${panelTopBar(key)}</div>
     <div role="alert" class="px-6 py-6"><p class="text-sm font-medium text-danger-text">Cannot load ${esc(key)}</p><p class="mt-1 text-sm text-muted">${esc(message)}</p></div>`;
 }
+
+const REMOTE_REFRESH_LIMIT = 5;
+
+function isEditingPanel() {
+  const active = document.activeElement;
+  const typing = active && active !== $('#panel') && $('#panel').contains(active) && active.matches('input, textarea, select, [contenteditable]');
+  return Boolean(typing || document.querySelector('[data-comment-editor]') || $('#description-edit')?.hidden === false);
+}
+
+function applyRemoteDetail(detail) {
+  if (!isEditingPanel()) return renderPanel(detail);
+  state.detail = detail;
+  $('#comment-list').innerHTML = commentListHtml(detail);
+  $('#comment-count').textContent = detail.comments.length || '';
+}
+
+async function handleRemoteUpdate(keys) {
+  const relevant = keys.filter((key) => key === state.panelKey || findIssue(key)).slice(0, REMOTE_REFRESH_LIMIT);
+  for (const key of relevant) {
+    try {
+      const detail = await api.issue(key);
+      if (findIssue(key)) replaceIssue(detail);
+      if (state.panelKey === key && state.detail?.key === key) applyRemoteDetail(detail);
+    } catch (error) {
+      console.warn('remote refresh failed', key, error);
+    }
+  }
+}
+
+window.jiraRemoteUpdate = handleRemoteUpdate;
 
 function renderPanel(detail) {
   const draft = compose.key === detail.key ? ($('#comment-input')?.value || '') : '';

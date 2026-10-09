@@ -419,7 +419,7 @@ struct JiraEventsTests {
     }
 
     @Test func jqlFieldsIncludeEverythingDetectionReads() {
-        #expect(fields.jqlFields == "summary,description,comment,customfield_10700,assignee,customfield_10900")
+        #expect(fields.jqlFields == "summary,updated,description,comment,customfield_10700,assignee,customfield_10900")
     }
 
     @Test func stateRoundTripsThroughJSON() throws {
