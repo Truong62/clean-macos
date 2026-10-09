@@ -205,6 +205,16 @@ struct SettingsView: View {
                         }
                     }
 
+                    Toggle(isOn: updater.automaticallyDownloadsUpdates) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Download and install automatically")
+                                .fontWeight(.medium)
+                            Text("New versions install in the background and apply when you quit")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
                     Button {
                         updater.checkForUpdates()
                     } label: {
