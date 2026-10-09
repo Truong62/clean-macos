@@ -45,3 +45,22 @@ struct JiraAttachmentTests {
         #expect(traversal.status == 400)
     }
 }
+
+struct JiraRenderTests {
+    @Test func previewRendersWikiMarkupThroughJira() async throws {
+        let transport = FakeJiraTransport { _ in (200, Data(#"<p><b>Hi</b> <img src="/secure/attachment/1/a.png"></p>"#.utf8)) }
+        let service = JiraService(client: transport.client(), projectKey: "FAL", boardId: nil, role: .dev, appFieldName: "", fieldOverrides: [:])
+        let router = JiraRouter(service: { service }, kpiStore: JiraKpiStore(fileURL: URL(fileURLWithPath: "/nonexistent")), webRoot: nil)
+        let body = try JSONSerialization.data(withJSONObject: ["markup": "*Hi*", "issueKey": "FAL-1"])
+        let response = await router.handle(method: "POST", path: "/api/render", query: nil, body: body)
+        let html = (try JSONSerialization.jsonObject(with: response.data) as? JiraJSON)?["html"] as? String
+        #expect(html == #"<p><b>Hi</b> <img src="/api/file?path=%2Fsecure%2Fattachment%2F1%2Fa.png"></p>"#)
+        let request = try #require(transport.requests.first)
+        #expect(request.httpMethod == "POST")
+        #expect(request.url?.path == "/rest/api/1.0/render")
+        let sent = try JSONSerialization.jsonObject(with: request.httpBody!) as? JiraJSON
+        #expect(sent?["unrenderedMarkup"] as? String == "*Hi*")
+        #expect(sent?["rendererType"] as? String == "atlassian-wiki-renderer")
+        #expect(sent?["issueKey"] as? String == "FAL-1")
+    }
+}

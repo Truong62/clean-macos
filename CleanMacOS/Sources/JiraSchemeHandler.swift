@@ -66,6 +66,8 @@ struct JiraRouter {
         let input = { (key: String) in try Self.bodyField(body, key) }
         switch (method, parts.count, parts.first, parts.last) {
         case ("GET", 1, "issues", _): return try await service.listIssues()
+        case ("POST", 1, "render", _):
+            return try await service.renderWiki(try Self.bodyField(body, "markup"), issueKey: (try? Self.bodyField(body, "issueKey")) ?? "")
         case ("GET", 1, "meta", _): return try await service.getMeta()
         case ("GET", 2, "issues", let key?): return try await service.getIssue(key)
         case ("PATCH", 2, "issues", let key?): return try await service.updateIssue(key, changes: try Self.bodyObject(body))
