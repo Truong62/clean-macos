@@ -663,6 +663,37 @@ function searchPeople(input) {
   }, PEOPLE_SEARCH_DELAY_MS);
 }
 
+const MENTION_PATTERN = /@([\p{L}\p{N}._-]{2,})$/u;
+let mentionTimer;
+
+function searchMention(textarea) {
+  const list = $('#mention-results');
+  const match = textarea.value.slice(0, textarea.selectionStart).match(MENTION_PATTERN);
+  clearTimeout(mentionTimer);
+  if (!match) { list.hidden = true; return; }
+  mentionTimer = setTimeout(async () => {
+    try {
+      const users = await api.users(match[1]);
+      list.innerHTML = users.length
+        ? users.map((u) => `<li><button type="button" data-mention="${esc(u.name)}" class="flex w-full cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm hover:bg-item-hover">${avatar(u, 'size-6')}<span class="min-w-0 truncate">${esc(u.displayName)}</span><span class="ml-auto truncate text-xs text-muted">${esc(u.name)}</span></button></li>`).join('')
+        : '<li class="px-2 py-1.5 text-sm text-muted">No matching people</li>';
+      list.hidden = false;
+    } catch (error) {
+      showToast(error.message, true);
+    }
+  }, PEOPLE_SEARCH_DELAY_MS);
+}
+
+function insertMention(name) {
+  const textarea = $('#comment-input');
+  const before = textarea.value.slice(0, textarea.selectionStart).replace(MENTION_PATTERN, `[~${name}] `);
+  textarea.value = before + textarea.value.slice(textarea.selectionStart);
+  textarea.setSelectionRange(before.length, before.length);
+  $('#mention-results').hidden = true;
+  $('[data-action="add-comment"]').disabled = !textarea.value.trim();
+  textarea.focus();
+}
+
 function closePeopleResults(except) {
   document.querySelectorAll('[data-person-results]').forEach((list) => { if (list !== except) list.hidden = true; });
 }
@@ -743,7 +774,8 @@ function commentsHtml(d) {
   return `<section class="border-t border-border pt-5">
     <h3 class="text-sm font-semibold text-foreground">Comments <span class="font-normal tabular-nums text-muted">${d.comments.length || ''}</span></h3>
     ${comments}
-    <label class="mt-2 block"><span class="sr-only">Add a comment</span><textarea id="comment-input" rows="3" placeholder="Add a comment (Jira wiki markup)" class="${textareaClass}"></textarea></label>
+    <div class="relative mt-2"><label class="block"><span class="sr-only">Add a comment</span><textarea id="comment-input" rows="3" placeholder="Add a comment — type @ to mention someone" class="${textareaClass}"></textarea></label>
+      <ul id="mention-results" hidden class="absolute bottom-full left-0 z-30 mb-1 max-h-64 w-72 overflow-y-auto rounded-xl border border-border bg-surface p-1 shadow-lg"></ul></div>
     <div class="mt-3 flex justify-end"><button type="button" data-action="add-comment" disabled class="${buttonPrimary}">Comment</button></div>
   </section>`;
 }
@@ -1060,6 +1092,7 @@ const CLICK_ACTIONS = [
   ['[data-action]', (el) => PANEL_ACTIONS[el.dataset.action]?.()],
   ['[data-issue]', (el) => openPanel(el.dataset.issue)],
   ['[data-remove-person]', (el) => savePeople(el.dataset.removePerson, personNames(el.dataset.removePerson).filter((n) => n !== el.dataset.name))],
+  ['[data-mention]', (el) => insertMention(el.dataset.mention)],
   ['[data-add-person]', (el) => savePeople(el.dataset.addPerson, [...personNames(el.dataset.addPerson), el.dataset.name])],
 ];
 
@@ -1073,6 +1106,7 @@ function handleClick(event) {
   }
   closePop();
   closePeopleResults(target.closest('[data-person-results]'));
+  if (!target.closest('#mention-results') && $('#mention-results')) $('#mention-results').hidden = true;
   for (const [selector, run] of CLICK_ACTIONS) {
     const el = target.closest(selector);
     if (el) return run(el);
@@ -1091,6 +1125,7 @@ function handleInput(event) {
     searchPeople(target);
   } else if (target.id === 'comment-input') {
     $('[data-action="add-comment"]').disabled = !target.value.trim();
+    searchMention(target);
   }
 }
 
