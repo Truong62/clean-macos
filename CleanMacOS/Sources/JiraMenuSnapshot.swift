@@ -1,18 +1,10 @@
 import Foundation
 
 enum JiraTaskGroup: Int, CaseIterable, Identifiable {
-    case doing, review, todo
+    case doing, recent, todo
 
     var id: Int { rawValue }
-    var title: String { ["Doing", "Review & test", "To do"][rawValue] }
-
-    static func of(status: String) -> JiraTaskGroup {
-        switch status {
-        case "Doing": return .doing
-        case "To Do": return .todo
-        default: return .review
-        }
-    }
+    var title: String { ["Doing", "Recently updated", "To do"][rawValue] }
 }
 
 struct JiraTaskRow: Identifiable, Equatable {
@@ -22,6 +14,7 @@ struct JiraTaskRow: Identifiable, Equatable {
     let app: String?
     let points: String?
     let isBug: Bool
+    let isDone: Bool
     let group: JiraTaskGroup
 }
 
@@ -37,6 +30,9 @@ struct JiraSprintStats: Equatable {
 struct JiraMenuSnapshot: Equatable {
     static let pointLabels = ["dev": "DP", "tester": "TP", "ba": "BA pt", "designer": "DS pt"]
     private static let summaryTagsPattern = #"^(\s*\[[^\]]*\])+\s*"#
+    static let recentLimit = 3
+    static let doingStatus = "Doing"
+    static let todoStatus = "To Do"
 
     var rows: [JiraTaskRow] = []
     var sprint = JiraSprintStats()
@@ -51,7 +47,13 @@ struct JiraMenuSnapshot: Equatable {
         let mine = issues.filter { ($0["assignees"] as? [JiraJSON] ?? []).contains { $0["name"] as? String == me } }
         let thisMonth = mine.filter { month(of: $0, kpi: kpi) == currentMonth }
         let open = thisMonth.filter { $0["isDone"] as? Bool != true }
-        let todoOutsideMonth = mine.filter { $0["status"] as? String == "To Do" && month(of: $0, kpi: kpi) != currentMonth }
+        let todoOutsideMonth = mine.filter { $0["status"] as? String == todoStatus && month(of: $0, kpi: kpi) != currentMonth }
+        let doing = open.filter { $0["status"] as? String == doingStatus }
+        let todo = (open + todoOutsideMonth).filter { $0["status"] as? String == todoStatus }
+        let listed = Set((doing + todo).compactMap { $0["key"] as? String })
+        let recent = mine.filter { !listed.contains($0["key"] as? String ?? "") }
+            .sorted { ($0["updatedAt"] as? String ?? "") > ($1["updatedAt"] as? String ?? "") }
+            .prefix(recentLimit)
         let active = (meta["sprints"] as? [JiraJSON] ?? []).first { $0["state"] as? String == "active" }
         let sprint = JiraSprintStats(
             name: (active?["name"] as? String ?? "").replacingOccurrences(of: "Falcon ", with: ""),
@@ -60,16 +62,18 @@ struct JiraMenuSnapshot: Equatable {
             monthDone: thisMonth.count - open.count,
             monthPoints: thisMonth.reduce(0) { $0 + (Int(rolePoint($1, role: role) ?? "") ?? 0) },
             pointLabel: pointLabels[role] ?? "pt")
-        return JiraMenuSnapshot(rows: (open + todoOutsideMonth).map { row($0, role: role) }, sprint: sprint)
+        let rows = doing.map { row($0, role: role, group: .doing) } + recent.map { row($0, role: role, group: .recent) }
+            + todo.map { row($0, role: role, group: .todo) }
+        return JiraMenuSnapshot(rows: rows, sprint: sprint)
     }
 
-    private static func row(_ issue: JiraJSON, role: String) -> JiraTaskRow {
+    private static func row(_ issue: JiraJSON, role: String, group: JiraTaskGroup) -> JiraTaskRow {
         let status = issue["status"] as? String ?? ""
         let summary = (issue["summary"] as? String ?? "")
             .replacingOccurrences(of: summaryTagsPattern, with: "", options: .regularExpression)
         return JiraTaskRow(id: issue["key"] as? String ?? "", summary: summary, status: status,
                            app: issue["falconApp"] as? String, points: rolePoint(issue, role: role),
-                           isBug: issue["isBug"] as? Bool == true, group: .of(status: status))
+                           isBug: issue["isBug"] as? Bool == true, isDone: issue["isDone"] as? Bool == true, group: group)
     }
 
     private static func rolePoint(_ issue: JiraJSON, role: String) -> String? {

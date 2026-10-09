@@ -15,7 +15,18 @@ private extension Color {
 }
 
 private extension JiraTaskGroup {
-    var color: Color { [Color(jiraHex: 0x337ea9), Color(jiraHex: 0x9065b0), Color.gray][rawValue] }
+    var color: Color { [Color(jiraHex: 0x337ea9), Color.orange, Color.gray][rawValue] }
+}
+
+private extension JiraTaskRow {
+    var statusColor: Color {
+        if isDone { return .green }
+        switch status {
+        case JiraMenuSnapshot.doingStatus: return Color(jiraHex: 0x337ea9)
+        case JiraMenuSnapshot.todoStatus: return .gray
+        default: return Color(jiraHex: 0x9065b0)
+        }
+    }
 }
 
 struct JiraMenuBarSection: View {
@@ -95,7 +106,7 @@ private struct JiraTaskRowView: View {
     var body: some View {
         Button { open(row.id) } label: {
             HStack(spacing: 8) {
-                Circle().fill(row.group.color).frame(width: 7, height: 7)
+                Circle().fill(row.statusColor).frame(width: 7, height: 7)
                 Text(row.id).font(.system(size: 11).monospacedDigit()).foregroundStyle(.secondary)
                     .frame(width: jiraKeyColumnWidth, alignment: .leading)
                 if row.isBug { Image(systemName: "ladybug.fill").font(.system(size: 10)).foregroundStyle(.red) }
