@@ -64,3 +64,28 @@ struct JiraRenderTests {
         #expect(sent?["issueKey"] as? String == "FAL-1")
     }
 }
+
+struct JiraAttachmentListTests {
+    @Test func detailMapsAttachmentsThroughTheFileProxy() {
+        let issue = JiraFixtures.makeIssue(["attachment": [[
+            "id": "321", "filename": "lockscreen right.png", "size": 3_430_000, "mimeType": "image/png",
+            "created": "2026-10-09T11:08:00.000+0700", "author": ["displayName": "Ngọc Trường"],
+            "content": "https://space.avada.net/secure/attachment/321/lockscreen%20right.png",
+            "thumbnail": "https://space.avada.net/secure/thumbnail/321/_thumb_321.png",
+        ], [
+            "id": "322", "filename": "spec.pdf", "size": 1200, "mimeType": "application/pdf",
+            "created": "2026-10-09T11:09:00.000+0700", "author": ["displayName": "Tony"],
+            "content": "https://space.avada.net/secure/attachment/322/spec.pdf",
+        ]]])
+        let attachments = JiraFixtures.mapper.detail(issue)["attachments"] as? [JiraJSON] ?? []
+        #expect(attachments.count == 2)
+        #expect(attachments[0]["filename"] as? String == "lockscreen right.png")
+        #expect(attachments[0]["file"] as? String == "/api/file?path=%2Fsecure%2Fattachment%2F321%2Flockscreen%20right.png")
+        #expect(attachments[0]["thumbnail"] as? String == "/api/file?path=%2Fsecure%2Fthumbnail%2F321%2F_thumb_321.png")
+        #expect(attachments[0]["url"] as? String == "https://space.avada.net/secure/attachment/321/lockscreen%20right.png")
+        #expect(attachments[0]["created"] as? String == "2026-10-09 11:08")
+        #expect(attachments[0]["author"] as? String == "Ngọc Trường")
+        #expect(attachments[0]["size"] as? Int == 3_430_000)
+        #expect(attachments[1]["thumbnail"] is NSNull)
+    }
+}

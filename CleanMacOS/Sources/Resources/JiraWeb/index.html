@@ -65,6 +65,11 @@
     </div>
   </div>
 
+  <div id="lightbox" hidden data-close-lightbox class="fixed inset-0 z-[80] flex cursor-zoom-out flex-col items-center justify-center gap-3 bg-black/80 p-8">
+    <img alt="" class="max-h-[85vh] max-w-full rounded-lg object-contain shadow-modal" />
+    <p data-lightbox-name class="max-w-full truncate text-sm text-white/80"></p>
+  </div>
+
   <div id="drawer-root" class="pointer-events-none fixed inset-0 z-[60] overflow-hidden lg:hidden" data-open="false">
     <div data-close-drawer class="absolute inset-0 bg-black/15 opacity-0 transition-opacity duration-500 [[data-open=true]_&]:pointer-events-auto [[data-open=true]_&]:opacity-100 motion-reduce:transition-none"></div>
     <aside id="drawer" aria-label="Navigation"
