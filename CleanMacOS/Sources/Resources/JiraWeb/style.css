@@ -130,3 +130,19 @@ body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; 
 .rich a:hover { text-decoration: underline; }
 .rich img { max-width: 100%; }
 .rich pre { overflow-x: auto; white-space: pre-wrap; }
+.rich h1, .rich h2, .rich h3, .rich h4, .rich h5, .rich h6 { font-weight: 600; line-height: 1.3; margin-top: 1rem; }
+.rich h1 { font-size: 1.375rem; }
+.rich h2 { font-size: 1.2rem; }
+.rich h3 { font-size: 1.05rem; }
+.rich h4, .rich h5, .rich h6 { font-size: 0.95rem; }
+.rich code, .rich tt { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.85em; padding: 0.1em 0.35em; border-radius: 0.35rem; background: color-mix(in oklab, currentColor 10%, transparent); }
+.rich pre, .rich .code.panel, .rich .preformatted.panel { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.8rem; padding: 0.75rem; border-radius: 0.75rem; background: color-mix(in oklab, currentColor 7%, transparent); }
+.rich .code.panel pre, .rich .preformatted.panel pre { padding: 0; background: none; }
+.rich blockquote { border-left: 3px solid color-mix(in oklab, currentColor 25%, transparent); padding-left: 0.75rem; color: color-mix(in oklab, currentColor 75%, transparent); }
+.rich table { border-collapse: collapse; display: block; overflow-x: auto; }
+.rich th, .rich td { border: 1px solid color-mix(in oklab, currentColor 18%, transparent); padding: 0.35rem 0.6rem; text-align: left; vertical-align: top; }
+.rich th { font-weight: 600; background: color-mix(in oklab, currentColor 6%, transparent); }
+.rich hr { border: 0; border-top: 1px solid color-mix(in oklab, currentColor 18%, transparent); }
+.rich ul.alternate { list-style: square; }
+.rich .panel:not(.code):not(.preformatted) { border: 1px solid color-mix(in oklab, currentColor 18%, transparent); border-radius: 0.75rem; padding: 0.75rem; }
+.rich img { border-radius: 0.5rem; }

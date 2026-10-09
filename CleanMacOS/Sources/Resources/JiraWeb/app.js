@@ -122,6 +122,7 @@ const api = {
   move: (key, column) => api.call('POST', `/api/issues/${key}/move`, { column }),
   comment: (key, body) => api.call('POST', `/api/issues/${key}/comment`, { body }),
   users: (query) => api.call('GET', `/api/users?q=${encodeURIComponent(query)}`),
+  render: (markup, issueKey) => api.call('POST', '/api/render', { markup, issueKey }),
   async upload(key, file, name) {
     const response = await fetch(`/api/issues/${key}/attachments?name=${encodeURIComponent(name)}`, { method: 'POST', body: await file.arrayBuffer() });
     const data = await response.json();
@@ -762,12 +763,75 @@ function linkedHtml(d) {
   return `<section class="flex flex-col gap-4 border-t border-border pt-5">${group('Parent', parent ? [parent] : [])}${group(`Linked bugs & sub-tasks <span class="font-normal tabular-nums text-muted">${kids.length}</span>`, kids)}</section>`;
 }
 
+const WIKI_FORMATS = {
+  bold: { wrap: ['*', '*'], icon: 'bold', title: 'Bold (⌘B)' },
+  italic: { wrap: ['_', '_'], icon: 'italic', title: 'Italic (⌘I)' },
+  underline: { wrap: ['+', '+'], icon: 'underline', title: 'Underline (⌘U)' },
+  strike: { wrap: ['-', '-'], icon: 'strikethrough', title: 'Strikethrough' },
+  heading: { line: 'h3. ', icon: 'heading', title: 'Heading' },
+  bullet: { line: '* ', icon: 'list', title: 'Bulleted list' },
+  numbered: { line: '# ', icon: 'list-ordered', title: 'Numbered list' },
+  code: { wrap: ['{{', '}}'], icon: 'code', title: 'Inline code' },
+  codeblock: { wrap: ['{code}\n', '\n{code}'], icon: 'square-code', title: 'Code block' },
+  quote: { wrap: ['{quote}', '{quote}'], icon: 'quote', title: 'Quote' },
+  link: { link: true, icon: 'link', title: 'Link' },
+};
+const WIKI_SHORTCUTS = { b: 'bold', i: 'italic', u: 'underline' };
+const editorTextareaClass = textareaClass.replace('rounded-xl', 'rounded-b-xl rounded-t-none');
+
+function formatToolbar(targetId) {
+  const buttons = Object.entries(WIKI_FORMATS).map(([key, f]) => `<button type="button" data-format="${key}" data-target="${targetId}" title="${f.title}" aria-label="${f.title}" class="inline-flex size-7 cursor-pointer items-center justify-center rounded-md text-muted outline-hidden hover:bg-foreground/10 hover:text-foreground">${icon(f.icon, 'size-3.5')}</button>`).join('');
+  return `<div role="toolbar" aria-label="Formatting" class="flex flex-wrap items-center gap-0.5 rounded-t-xl border border-b-0 border-border-strong bg-foreground/[0.03] p-1">${buttons}
+    <button type="button" data-preview="${targetId}" aria-pressed="false" class="ml-auto inline-flex h-7 cursor-pointer items-center gap-1 rounded-md px-2 text-xs font-medium text-muted outline-hidden hover:bg-foreground/10 hover:text-foreground aria-pressed:bg-foreground/10 aria-pressed:text-foreground">${icon('eye', 'size-3.5')}Preview</button></div>
+    <div id="${targetId}-preview" hidden class="rich min-h-24 rounded-b-xl border border-border-strong bg-surface px-3 py-2.5 text-sm"></div>`;
+}
+
+function applyWikiFormat(textarea, key) {
+  const format = WIKI_FORMATS[key];
+  const { selectionStart: start, selectionEnd: end, value } = textarea;
+  const selected = value.slice(start, end);
+  if (format.line) {
+    const lineStart = value.lastIndexOf('\n', start - 1) + 1;
+    const block = value.slice(lineStart, end).split('\n').map((line) => format.line + line).join('\n');
+    textarea.setRangeText(block, lineStart, end, 'end');
+  } else if (format.link) {
+    const label = selected || 'link text';
+    textarea.setRangeText(`[${label}|https://]`, start, end, 'end');
+    const urlStart = start + label.length + 2;
+    textarea.setSelectionRange(urlStart, urlStart + 'https://'.length);
+  } else {
+    const [open, close] = format.wrap;
+    const inner = selected || 'text';
+    textarea.setRangeText(open + inner + close, start, end, 'end');
+    textarea.setSelectionRange(start + open.length, start + open.length + inner.length);
+  }
+  textarea.focus();
+  textarea.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+async function togglePreview(button) {
+  const textarea = document.getElementById(button.dataset.preview);
+  const preview = document.getElementById(`${button.dataset.preview}-preview`);
+  const showing = button.getAttribute('aria-pressed') === 'true';
+  button.setAttribute('aria-pressed', String(!showing));
+  textarea.closest('label').hidden = !showing;
+  preview.hidden = showing;
+  if (showing) return textarea.focus();
+  preview.innerHTML = '<p class="text-muted">Rendering…</p>';
+  try {
+    const { html } = await api.render(textarea.value, state.detail?.key || '');
+    preview.innerHTML = html || '<p class="text-muted">Nothing to preview.</p>';
+  } catch (error) {
+    preview.innerHTML = `<p class="text-danger-text">${esc(error.message)}</p>`;
+  }
+}
+
 function descriptionHtml(d) {
   return `<section class="border-t border-border pt-5">
     <div class="flex items-center justify-between gap-3"><h3 class="text-sm font-semibold text-foreground">Description</h3><button type="button" data-action="edit-description" class="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-lg px-2.5 text-sm font-medium text-muted outline-hidden transition-colors hover:bg-foreground/5 hover:text-foreground">${icon('pencil', 'size-3.5')}Edit</button></div>
     <div id="description-view" class="rich mt-2 text-sm leading-6 text-foreground">${d.descriptionHtml || '<p class="text-muted">No description.</p>'}</div>
     <div id="description-edit" class="mt-2" hidden>
-      <label><span class="sr-only">Description (Jira wiki markup)</span><textarea id="description-input" rows="12" class="${textareaClass} font-mono">${esc(d.descriptionRaw)}</textarea></label>
+      ${formatToolbar('description-input')}<label class="block"><span class="sr-only">Description (Jira wiki markup)</span><textarea id="description-input" rows="12" class="${editorTextareaClass} font-mono">${esc(d.descriptionRaw)}</textarea></label>
       <div class="mt-3 flex justify-end gap-2"><button type="button" data-action="cancel-description" class="${buttonSecondary}">Cancel</button><button type="button" data-action="save-description" class="${buttonPrimary}">Save</button></div>
     </div>
   </section>`;
@@ -823,7 +887,7 @@ function commentsHtml(d) {
   return `<section class="border-t border-border pt-5">
     <h3 class="text-sm font-semibold text-foreground">Comments <span class="font-normal tabular-nums text-muted">${d.comments.length || ''}</span></h3>
     ${comments}
-    <div class="relative mt-2"><label class="block"><span class="sr-only">Add a comment</span><textarea id="comment-input" rows="3" placeholder="Add a comment — type @ to mention someone" class="${textareaClass}"></textarea></label>
+    <div class="relative mt-2">${formatToolbar('comment-input')}<label class="block"><span class="sr-only">Add a comment</span><textarea id="comment-input" rows="3" placeholder="Add a comment — type @ to mention someone" class="${editorTextareaClass}"></textarea></label>
       <ul id="mention-results" hidden class="absolute bottom-full left-0 z-30 mb-1 max-h-64 w-72 overflow-y-auto rounded-xl border border-border bg-surface p-1 shadow-lg"></ul></div>
     <div class="mt-3 flex items-center justify-end gap-2">
       <input type="file" id="comment-file" accept="image/*" multiple hidden />
@@ -1146,6 +1210,8 @@ const CLICK_ACTIONS = [
   ['[data-issue]', (el) => openPanel(el.dataset.issue)],
   ['[data-remove-person]', (el) => savePeople(el.dataset.removePerson, personNames(el.dataset.removePerson).filter((n) => n !== el.dataset.name))],
   ['[data-mention]', (el) => insertMention(el.dataset.mention)],
+  ['[data-format]', (el) => applyWikiFormat(document.getElementById(el.dataset.target), el.dataset.format)],
+  ['[data-preview]', (el) => togglePreview(el)],
   ['[data-add-person]', (el) => savePeople(el.dataset.addPerson, [...personNames(el.dataset.addPerson), el.dataset.name])],
 ];
 
@@ -1197,6 +1263,11 @@ function handleChange(event) {
 }
 
 function handleKeydown(event) {
+  const shortcut = (event.metaKey || event.ctrlKey) && WIKI_SHORTCUTS[event.key.toLowerCase()];
+  if (shortcut && ['description-input', 'comment-input'].includes(event.target.id)) {
+    event.preventDefault();
+    return applyWikiFormat(event.target, shortcut);
+  }
   if (event.key === 'Enter' && event.target.dataset?.input === 'summary') {
     event.preventDefault();
     return event.target.blur();
