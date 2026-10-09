@@ -85,8 +85,14 @@ final class ReleaseHistoryViewModel: ObservableObject {
     @Published private(set) var error: String?
     @Published private(set) var isLoading = false
 
-    let currentVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
-    private let feedURL = (Bundle.main.object(forInfoDictionaryKey: "SUFeedURL") as? String).flatMap(URL.init(string:))
+    let currentVersion: String
+    private let feedURL: URL?
+
+    init(feedURL: URL? = (Bundle.main.object(forInfoDictionaryKey: "SUFeedURL") as? String).flatMap(URL.init(string:)),
+         currentVersion: String = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "") {
+        self.feedURL = feedURL
+        self.currentVersion = currentVersion
+    }
 
     func load() async {
         guard let feedURL else {
@@ -139,33 +145,40 @@ struct ReleaseHistoryView: View {
             HStack {
                 Text("Release history").font(.headline)
                 Spacer()
-                if history.isLoading { ProgressView().controlSize(.small) }
+                if history.isLoading, !history.notes.isEmpty { ProgressView().controlSize(.small) }
             }
             .padding(14)
             Divider()
             content
         }
-        .frame(width: 380)
+        .frame(width: Self.size.width, height: Self.size.height)
         .task { if history.notes.isEmpty { await history.load() } }
     }
 
+    static let size = CGSize(width: 380, height: 520)
+
     @ViewBuilder
     private var content: some View {
-        if let error = history.error, history.notes.isEmpty {
-            VStack(spacing: 8) {
-                Text(error).font(.callout).foregroundStyle(.secondary).multilineTextAlignment(.center)
-                Button("Try again") { Task { await history.load() } }
-            }
-            .frame(maxWidth: .infinity)
-            .padding(20)
-        } else {
+        if !history.notes.isEmpty {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     ForEach(history.notes) { note in ReleaseNoteRow(note: note, currentVersion: history.currentVersion) }
                 }
                 .padding(14)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .frame(maxHeight: 460)
+            .defaultScrollAnchor(.top)
+        } else if let error = history.error {
+            VStack(spacing: 8) {
+                Text(error).font(.callout).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                Button("Try again") { Task { await history.load() } }
+            }
+            .padding(20)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+            ProgressView("Loading releases…")
+                .controlSize(.small)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 }
