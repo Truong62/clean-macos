@@ -2,7 +2,11 @@ import SwiftUI
 
 struct MenuBarView: View {
     @ObservedObject var monitor: SystemMonitor
+    @ObservedObject var jira: JiraViewModel
     @Environment(\.openWindow) private var openWindow
+    @AppStorage(JiraSettings.menuBarEnabledKey) private var jiraMenuBarEnabled = true
+
+    private var showsJira: Bool { jira.isConfigured && jiraMenuBarEnabled }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -21,6 +25,14 @@ struct MenuBarView: View {
             .padding(.vertical, 10)
 
             Divider()
+
+            if showsJira {
+                JiraMenuBarSection(jira: jira) { key in
+                    openWindow(id: "main")
+                    DispatchQueue.main.async { jira.openFromOutside(issueKey: key) }
+                }
+                Divider()
+            }
 
             // Stats
             VStack(spacing: 12) {
@@ -98,7 +110,7 @@ struct MenuBarView: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
         }
-        .frame(width: 300)
+        .frame(width: showsJira ? 400 : 300)
         .onAppear {
             monitor.popoverDidOpen()
         }

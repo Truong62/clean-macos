@@ -6,6 +6,7 @@ struct JiraSettingsForm: View {
     @AppStorage(JiraSettings.authKindKey) private var authKind = JiraSettings.AuthKind.server.rawValue
     @AppStorage(JiraSettings.emailKey) private var email = ""
     @AppStorage(JiraSettings.projectKeyKey) private var projectKey = ""
+    @AppStorage(JiraSettings.appFieldNameKey) private var appFieldName = ""
     @AppStorage(JiraSettings.roleKey) private var role = JiraSettings.Role.dev.rawValue
     @AppStorage(JiraSettings.menuBarEnabledKey) private var menuBarEnabled = true
     @AppStorage(JiraSettings.notificationsEnabledKey) private var notificationsEnabled = true
@@ -40,6 +41,9 @@ struct JiraSettingsForm: View {
         row("Board ID", "Agile board for columns and sprints (number in the board URL)") {
             TextField("10030", text: $boardId).textFieldStyle(.roundedBorder).frame(width: 300)
         }
+        row("App field", "Custom field shown as the app tag (optional)") {
+            TextField("Falcon App", text: $appFieldName).textFieldStyle(.roundedBorder).frame(width: 300)
+        }
         row("Role", "Which point field counts for you") {
             Picker("", selection: $role) {
                 ForEach(JiraSettings.Role.allCases, id: \.rawValue) { Text($0.rawValue.capitalized).tag($0.rawValue) }
@@ -48,9 +52,11 @@ struct JiraSettingsForm: View {
             .frame(width: 300)
         }
         Toggle(isOn: $menuBarEnabled) { label("Show tasks in menu bar", "Sprint, month progress and your open tasks") }
+            .onChange(of: menuBarEnabled) { _, _ in jira.restartBackgroundWork() }
         Toggle(isOn: $notificationsEnabled) {
             label("Notifications", "Added to a task, new comment on your task, @mention")
         }
+        .onChange(of: notificationsEnabled) { _, _ in jira.restartBackgroundWork() }
         HStack {
             Button("Save & Test Connection", action: saveAndTest)
                 .disabled(isTesting)

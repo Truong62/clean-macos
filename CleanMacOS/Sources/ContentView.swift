@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ContentView: View {
     @EnvironmentObject var vm: AppViewModel
+    @EnvironmentObject var jira: JiraViewModel
     @State private var currentPage: SidebarPage = .home
 
     var body: some View {
@@ -49,6 +50,7 @@ struct ContentView: View {
             }
         }
         .navigationSplitViewStyle(.balanced)
+        .onChange(of: jira.openRequestCount) { _, _ in currentPage = .jira }
         .alert("Confirm Clean", isPresented: $vm.showCleanConfirmation) {
             Button("Cancel", role: .cancel) { }
             Button("Clean", role: .destructive) {

@@ -42,6 +42,7 @@ struct CleanMacOSApp: App {
                     setAppIcon()
                     monitor.startSampling(interval: 3)
                     clipboard.startMonitoring()
+                    jira.restartBackgroundWork()
                     if panelController == nil {
                         let controller = ClipboardPanelController(clipboard: clipboard)
                         panelController = controller
@@ -75,7 +76,7 @@ struct CleanMacOSApp: App {
         }
 
         MenuBarExtra(isInserted: $showMenuBar) {
-            MenuBarView(monitor: monitor)
+            MenuBarView(monitor: monitor, jira: jira)
         } label: {
             Label(String(format: " %.0f%%", monitor.latestCPU), systemImage: "sparkles")
         }
