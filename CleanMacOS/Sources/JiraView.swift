@@ -40,6 +40,15 @@ struct JiraWebView: NSViewRepresentable {
             return nil
         }
 
+        func webView(_ webView: WKWebView, runOpenPanelWith parameters: WKOpenPanelParameters,
+                     initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping @MainActor ([URL]?) -> Void) {
+            let panel = NSOpenPanel()
+            panel.allowsMultipleSelection = parameters.allowsMultipleSelection
+            panel.canChooseDirectories = parameters.allowsDirectories
+            panel.canChooseFiles = true
+            panel.begin { response in completionHandler(response == .OK ? panel.urls : nil) }
+        }
+
         func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
                      decisionHandler: @escaping @MainActor (WKNavigationActionPolicy) -> Void) {
             guard let url = navigationAction.request.url, url.scheme != JiraRouter.scheme else {
