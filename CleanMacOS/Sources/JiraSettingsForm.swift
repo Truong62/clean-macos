@@ -53,10 +53,15 @@ struct JiraSettingsForm: View {
         }
         Toggle(isOn: $menuBarEnabled) { label("Show tasks in menu bar", "Sprint, month progress and your open tasks") }
             .onChange(of: menuBarEnabled) { _, _ in jira.restartBackgroundWork() }
-        Toggle(isOn: $notificationsEnabled) {
-            label("Notifications", "Added to a task, new comment on your task, @mention")
+        HStack {
+            Toggle(isOn: $notificationsEnabled) {
+                label("Notifications", "Added to a task, new comment on your task, @mention")
+            }
+            .onChange(of: notificationsEnabled) { _, _ in jira.restartBackgroundWork() }
+            Spacer()
+            Button("Send Test") { Task { status = await jira.sendTestNotification() } }
+                .pointerCursor()
         }
-        .onChange(of: notificationsEnabled) { _, _ in jira.restartBackgroundWork() }
         HStack {
             Button("Save & Test Connection", action: saveAndTest)
                 .disabled(isTesting)

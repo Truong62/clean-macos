@@ -77,6 +77,10 @@ final class JiraViewModel: ObservableObject {
         open(issueKey: issueKey)
     }
 
+    func sendTestNotification() async -> String {
+        await notifier.sendTest()
+    }
+
     func saveToken(_ token: String) throws {
         let trimmed = token.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.isEmpty { keychain.delete() } else { try keychain.save(trimmed) }
