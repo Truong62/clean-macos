@@ -7,6 +7,7 @@ enum SidebarPage: Hashable {
     case largeFiles
     case uninstall
     case clipboard
+    case jira
     case displays
     case ram
     case settings
@@ -35,6 +36,9 @@ struct SidebarView: View {
                 }
                 SidebarItem(icon: "doc.on.clipboard.fill", label: "Clipboard", color: .indigo, isSelected: currentPage == .clipboard) {
                     currentPage = .clipboard
+                }
+                SidebarItem(icon: "checklist", label: "Jira", color: .blue, isSelected: currentPage == .jira) {
+                    currentPage = .jira
                 }
                 SidebarItem(icon: "display.2", label: "Displays", color: .purple, isSelected: currentPage == .displays) {
                     currentPage = .displays

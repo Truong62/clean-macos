@@ -169,6 +169,10 @@ struct SettingsView: View {
                     }
                 }
 
+                section(icon: "checklist", iconColor: .blue, title: "Jira") {
+                    JiraSettingsForm()
+                }
+
                 // Update settings
                 section(icon: "arrow.triangle.2.circlepath", iconColor: .purple, title: "Updates") {
                     Toggle(isOn: updater.automaticallyChecksForUpdates) {

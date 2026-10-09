@@ -32,6 +32,9 @@ struct ContentView: View {
             case .clipboard:
                 ClipboardHistoryView()
 
+            case .jira:
+                JiraView(openSettings: { currentPage = .settings })
+
             case .displays:
                 DisplaysView()
 

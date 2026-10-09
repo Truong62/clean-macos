@@ -1,4 +1,5 @@
-import XCTest
+import Foundation
+import Testing
 @testable import CleanMacOS
 
 enum JiraFixtures {
@@ -37,62 +38,60 @@ enum JiraFixtures {
     static let done: JiraJSON = ["id": "10001", "name": "Done", "statusCategory": ["key": "done"]]
 }
 
-final class JiraSummaryTests: XCTestCase {
+struct JiraSummaryTests {
     private func summary(_ overrides: JiraJSON = [:]) -> JiraJSON {
         JiraFixtures.mapper.summary(JiraFixtures.makeIssue(overrides))
     }
 
-    func testMapsCoreFieldsAndLastSprint() {
+    @Test func mapsCoreFieldsAndLastSprint() {
         let row = summary()
-        XCTAssertEqual(row["key"] as? String, "FAL-1120")
-        XCTAssertEqual(row["status"] as? String, "Doing")
-        XCTAssertEqual(row["statusId"] as? String, "10400")
-        XCTAssertEqual(row["sprint"] as? String, "Falcon Sprint 7")
-        XCTAssertEqual(row["sprintId"] as? Int, 71)
-        XCTAssertEqual(row["created"] as? String, "2026-10-08")
-        XCTAssertTrue(row["resolved"] is NSNull)
-        XCTAssertEqual(row["isDone"] as? Bool, false)
-        XCTAssertEqual(row["url"] as? String, "https://space.avada.net/browse/FAL-1120")
+        #expect(row["key"] as? String == "FAL-1120")
+        #expect(row["status"] as? String == "Doing")
+        #expect(row["statusId"] as? String == "10400")
+        #expect(row["sprint"] as? String == "Falcon Sprint 7")
+        #expect(row["sprintId"] as? Int == 71)
+        #expect(row["created"] as? String == "2026-10-08")
+        #expect(row["resolved"] is NSNull)
+        #expect(row["isDone"] as? Bool == false)
+        #expect(row["url"] as? String == "https://space.avada.net/browse/FAL-1120")
     }
 
-    func testWarnsMissingFalconApp() {
-        XCTAssertTrue((summary()["warnings"] as? [String])?.contains("missing_falcon_app") == true)
+    @Test func warnsMissingFalconApp() {
+        #expect((summary()["warnings"] as? [String])?.contains("missing_falcon_app") == true)
     }
 
-    func testWarnsDoneWithoutDevPoint() {
+    @Test func warnsDoneWithoutDevPoint() {
         let row = summary(["status": JiraFixtures.done, "customfield_11203": ["value": "SEO"]])
-        XCTAssertEqual(row["warnings"] as? [String], ["done_without_dev_point"])
+        #expect(row["warnings"] as? [String] == ["done_without_dev_point"])
     }
 
-    func testNoWarningsWhenComplete() {
+    @Test func noWarningsWhenComplete() {
         let row = summary(["status": JiraFixtures.done, "customfield_11203": ["value": "SEO"],
                            "customfield_11204": ["value": "3"]])
-        XCTAssertEqual(row["warnings"] as? [String], [])
-        XCTAssertEqual(row["devPoint"] as? String, "3")
-        XCTAssertEqual(row["falconApp"] as? String, "SEO")
+        #expect(row["warnings"] as? [String] == [])
+        #expect(row["devPoint"] as? String == "3")
+        #expect(row["falconApp"] as? String == "SEO")
     }
 
-    func testNoSprint() {
+    @Test func noSprint() {
         let row = summary(["customfield_10101": NSNull()])
-        XCTAssertTrue(row["sprint"] is NSNull)
-        XCTAssertTrue(row["sprintId"] is NSNull)
+        #expect(row["sprint"] is NSNull)
+        #expect(row["sprintId"] is NSNull)
     }
 
-    func testMapsAssigneesWithLocalAvatar() {
+    @Test func mapsAssigneesWithLocalAvatar() {
         let user: JiraJSON = ["name": "truongnn", "displayName": "Ngọc Trường", "avatarUrls": [
             "48x48": "https://space.avada.net/secure/useravatar?ownerId=JIRAUSER12206&avatarId=12401"]]
         let row = summary(["customfield_10700": [user]])
-        XCTAssertEqual(row["assignees"] as? [[String: String]], [[
-            "name": "truongnn", "displayName": "Ngọc Trường",
-            "avatar": "/api/avatar?ownerId=JIRAUSER12206&avatarId=12401"]])
+        #expect(row["assignees"] as? [[String: String]] == [[ "name": "truongnn", "displayName": "Ngọc Trường", "avatar": "/api/avatar?ownerId=JIRAUSER12206&avatarId=12401"]])
     }
 
-    func testParentFromSubtask() {
+    @Test func parentFromSubtask() {
         let row = summary(["parent": ["key": "FAL-541", "fields": ["summary": "[DEV] Pricing v2"]]])
-        XCTAssertEqual(row["parentKey"] as? String, "FAL-541")
+        #expect(row["parentKey"] as? String == "FAL-541")
     }
 
-    func testBugParentFromLinkToNonBug() {
+    @Test func bugParentFromLinkToNonBug() {
         let links: [JiraJSON] = [
             ["type": ["name": "Relates"], "inwardIssue": ["key": "FAL-900", "fields": [
                 "summary": "[BUG] Other", "issuetype": ["name": "Bug"]]]],
@@ -100,60 +99,59 @@ final class JiraSummaryTests: XCTestCase {
                 "summary": "[DEV][Speed] Pricing v2", "issuetype": ["name": "Task"]]]],
         ]
         let row = summary(["summary": "[BUG][Speed] Plan sai", "issuetype": ["name": "Bug"], "issuelinks": links])
-        XCTAssertEqual(row["parentKey"] as? String, "FAL-541")
-        XCTAssertEqual(row["isBug"] as? Bool, true)
+        #expect(row["parentKey"] as? String == "FAL-541")
+        #expect(row["isBug"] as? Bool == true)
     }
 
-    func testTaskLinksDoNotMakeParent() {
+    @Test func taskLinksDoNotMakeParent() {
         let links: [JiraJSON] = [["type": ["name": "Relates"], "outwardIssue": ["key": "FAL-541", "fields": [
             "summary": "[DEV] Pricing v2", "issuetype": ["name": "Task"]]]]]
-        XCTAssertTrue(summary(["summary": "[DEV] X", "issuelinks": links])["parentKey"] is NSNull)
+        #expect(summary(["summary": "[DEV] X", "issuelinks": links])["parentKey"] is NSNull)
     }
 
-    func testMapsPointsPerRole() {
+    @Test func mapsPointsPerRole() {
         let row = summary(["customfield_11204": ["value": "5"], "customfield_11202": ["value": "2"]])
         let points = row["rolePoints"] as? JiraJSON ?? [:]
-        XCTAssertEqual(points["dev"] as? String, "5")
-        XCTAssertEqual(points["tester"] as? String, "2")
-        XCTAssertTrue(points["ba"] is NSNull)
-        XCTAssertTrue(points["designer"] is NSNull)
+        #expect(points["dev"] as? String == "5")
+        #expect(points["tester"] as? String == "2")
+        #expect(points["ba"] is NSNull)
+        #expect(points["designer"] is NSNull)
     }
 
-    func testNoAssignees() {
-        XCTAssertEqual((summary()["assignees"] as? [Any])?.count, 0)
+    @Test func noAssignees() {
+        #expect((summary()["assignees"] as? [Any])?.count == 0)
     }
 
-    func testNoAppOrPointFieldMeansNoWarnings() {
+    @Test func noAppOrPointFieldMeansNoWarnings() {
         let mapper = JiraMapper(baseURL: JiraFixtures.baseURL, fields: JiraFieldMap(ids: [.assignees: "assignee"]))
         let row = mapper.summary(JiraFixtures.makeIssue(["status": JiraFixtures.done]))
-        XCTAssertEqual(row["warnings"] as? [String], [])
-        XCTAssertTrue(row["falconApp"] is NSNull)
+        #expect(row["warnings"] as? [String] == [])
+        #expect(row["falconApp"] is NSNull)
     }
 
-    func testStandardAssigneeAndCloudAccountId() {
+    @Test func standardAssigneeAndCloudAccountId() {
         let mapper = JiraMapper(baseURL: JiraFixtures.baseURL, fields: JiraFieldMap(ids: [.assignees: "assignee"]))
         let user: JiraJSON = ["accountId": "5b10ac", "displayName": "Tony", "avatarUrls": ["48x48": "https://x/a?avatarId=1"]]
         let row = mapper.summary(JiraFixtures.makeIssue(["assignee": user]))
-        XCTAssertEqual((row["assignees"] as? [JiraJSON])?.first?["name"] as? String, "5b10ac")
+        #expect((row["assignees"] as? [JiraJSON])?.first?["name"] as? String == "5b10ac")
     }
 
-    func testCloudSprintObjects() {
+    @Test func cloudSprintObjects() {
         let sprint = JiraMapper.parseLastSprint([["id": 1, "name": "S1"], ["id": 2, "name": "S2"]])
-        XCTAssertEqual(sprint.id, 2)
-        XCTAssertEqual(sprint.name, "S2")
+        #expect(sprint.id == 2)
+        #expect(sprint.name == "S2")
     }
 }
 
-final class JiraKpiTests: XCTestCase {
+struct JiraKpiTests {
     private let header = ["Month", "Task Name", "Description", "Task Link", "Dev Point", "Tester Point"]
 
-    func testMapsJiraKeyToKpiMonth() {
+    @Test func mapsJiraKeyToKpiMonth() {
         let rows = [header, ["T9 26", "Task - X", "", "https://space.avada.net/browse/FAL-1044", "5", "2"]]
-        XCTAssertEqual(JiraKpi.parseRows(rows, projectKey: "FAL"),
-                       ["FAL-1044": JiraKpiEntry(month: "2026-09", devPoint: "5", testerPoint: "2")])
+        #expect(JiraKpi.parseRows(rows, projectKey: "FAL") == ["FAL-1044": JiraKpiEntry(month: "2026-09", devPoint: "5", testerPoint: "2")])
     }
 
-    func testKeepsLatestMonthAndSkipsRowsWithoutKey() {
+    @Test func keepsLatestMonthAndSkipsRowsWithoutKey() {
         let rows = [
             header,
             ["T10 26", "Task", "", "https://space.avada.net/browse/FAL-7", "3"],
@@ -161,49 +159,46 @@ final class JiraKpiTests: XCTestCase {
             ["T7 26", "Notion task", "", "https://app.notion.com/p/x", "2"],
             ["", "Empty month", "", "https://space.avada.net/browse/FAL-8"],
         ]
-        XCTAssertEqual(JiraKpi.parseRows(rows, projectKey: "FAL"),
-                       ["FAL-7": JiraKpiEntry(month: "2026-10", devPoint: "3", testerPoint: "")])
+        #expect(JiraKpi.parseRows(rows, projectKey: "FAL") == ["FAL-7": JiraKpiEntry(month: "2026-10", devPoint: "3", testerPoint: "")])
     }
 
-    func testAddsCountedElsewhereMonthWithoutOverridingSheetRows() {
+    @Test func addsCountedElsewhereMonthWithoutOverridingSheetRows() {
         let sheet = ["FAL-7": JiraKpiEntry(month: "2026-07", devPoint: "3", testerPoint: "")]
         let merged = JiraKpi.addCountedElsewhere(sheet, keys: ["FAL-7", "FAL-114"], month: "2026-06")
-        XCTAssertEqual(merged["FAL-7"]?.month, "2026-07")
-        XCTAssertEqual(merged["FAL-114"], JiraKpiEntry(month: "2026-06", devPoint: "", testerPoint: "",
-                                                       source: JiraKpi.countedElsewhereSource))
-        XCTAssertNil(sheet["FAL-114"])
+        #expect(merged["FAL-7"]?.month == "2026-07")
+        #expect(merged["FAL-114"] == JiraKpiEntry(month: "2026-06", devPoint: "", testerPoint: "", source: JiraKpi.countedElsewhereSource))
+        #expect(sheet["FAL-114"] == nil)
     }
 
-    func testStoreRoundTrips() throws {
+    @Test func storeRoundTrips() throws {
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true).appendingPathComponent("jira-kpi.json")
         let store = JiraKpiStore(fileURL: url)
-        XCTAssertNil(store.read())
+        #expect(store.read() == nil)
         let data = JiraKpiData(syncedAt: "2026-10-09",
                                issues: ["FAL-1": JiraKpiEntry(month: "2026-09", devPoint: "2", testerPoint: "")])
         try store.write(data)
-        XCTAssertEqual(store.read(), data)
+        #expect(store.read() == data)
         try? FileManager.default.removeItem(at: url.deletingLastPathComponent())
     }
 }
 
-final class JiraAvatarParamsTests: XCTestCase {
-    func testKeepsOnlyAvatarKeys() throws {
-        XCTAssertEqual(try JiraMapper.avatarParams("ownerId=JIRAUSER1&avatarId=12401&size=small&next=/x"),
-                       ["ownerId": "JIRAUSER1", "avatarId": "12401", "size": "small"])
+struct JiraAvatarParamsTests {
+    @Test func keepsOnlyAvatarKeys() throws {
+        #expect(try JiraMapper.avatarParams("ownerId=JIRAUSER1&avatarId=12401&size=small&next=/x") == ["ownerId": "JIRAUSER1", "avatarId": "12401", "size": "small"])
     }
 
-    func testRejectsMissingAvatarId() {
-        XCTAssertThrowsError(try JiraMapper.avatarParams("ownerId=JIRAUSER1"))
+    @Test func rejectsMissingAvatarId() {
+        #expect(throws: (any Error).self) { try JiraMapper.avatarParams("ownerId=JIRAUSER1") }
     }
 
-    func testRejectsUnsafeValue() {
-        XCTAssertThrowsError(try JiraMapper.avatarParams("avatarId=1&ownerId=../admin"))
+    @Test func rejectsUnsafeValue() {
+        #expect(throws: (any Error).self) { try JiraMapper.avatarParams("avatarId=1&ownerId=../admin") }
     }
 }
 
-final class JiraDetailTests: XCTestCase {
-    func testAbsolutizesJiraLinksAndMapsExtras() {
+struct JiraDetailTests {
+    @Test func absolutizesJiraLinksAndMapsExtras() {
         var issue = JiraFixtures.makeIssue(["customfield_10800": "https://git/mr/1"])
         issue["renderedFields"] = [
             "description": #"<img src="/secure/attachment/1/a.png"><a href="/browse/FAL-1">x</a>"#,
@@ -214,27 +209,27 @@ final class JiraDetailTests: XCTestCase {
         issue["editmeta"] = ["fields": ["customfield_11203": ["allowedValues": [["value": "SEO"], ["value": "Team"]]]]]
         let detail = JiraFixtures.mapper.detail(issue)
         let html = detail["descriptionHtml"] as? String ?? ""
-        XCTAssertTrue(html.contains(#"src="https://space.avada.net/secure/attachment/1/a.png""#))
-        XCTAssertTrue(html.contains(#"href="https://space.avada.net/browse/FAL-1""#))
-        XCTAssertEqual(detail["descriptionRaw"] as? String, "h1. Raw")
+        #expect(html.contains(#"src="https://space.avada.net/secure/attachment/1/a.png""#))
+        #expect(html.contains(#"href="https://space.avada.net/browse/FAL-1""#))
+        #expect(detail["descriptionRaw"] as? String == "h1. Raw")
         let comment = (detail["comments"] as? [JiraJSON])?.first ?? [:]
-        XCTAssertEqual(comment["author"] as? String, "Tony")
-        XCTAssertEqual(comment["created"] as? String, "2026-10-08 10:00")
-        XCTAssertTrue((comment["bodyHtml"] as? String ?? "").contains("https://space.avada.net/browse/FAL-2"))
-        XCTAssertEqual(detail["transitions"] as? [[String: String]], [["id": "61", "name": "Waiting To Test", "toId": "10401"]])
-        XCTAssertEqual((detail["options"] as? JiraJSON)?["falconApp"] as? [String], ["SEO", "Team"])
-        XCTAssertEqual(detail["mergeRequest"] as? String, "https://git/mr/1")
+        #expect(comment["author"] as? String == "Tony")
+        #expect(comment["created"] as? String == "2026-10-08 10:00")
+        #expect((comment["bodyHtml"] as? String ?? "").contains("https://space.avada.net/browse/FAL-2"))
+        #expect(detail["transitions"] as? [[String: String]] == [["id": "61", "name": "Waiting To Test", "toId": "10401"]])
+        #expect((detail["options"] as? JiraJSON)?["falconApp"] as? [String] == ["SEO", "Team"])
+        #expect(detail["mergeRequest"] as? String == "https://git/mr/1")
     }
 }
 
-final class JiraUpdateFieldsTests: XCTestCase {
+struct JiraUpdateFieldsTests {
     private let mapper = JiraFixtures.mapper
 
-    private func assertJSONEqual(_ actual: JiraJSON, _ expected: JiraJSON, file: StaticString = #filePath, line: UInt = #line) {
-        XCTAssertTrue(NSDictionary(dictionary: actual).isEqual(to: expected), "\(actual) != \(expected)", file: file, line: line)
+    private func assertJSONEqual(_ actual: JiraJSON, _ expected: JiraJSON, sourceLocation: SourceLocation = #_sourceLocation) {
+        #expect(NSDictionary(dictionary: actual).isEqual(to: expected), "\(actual) != \(expected)", sourceLocation: sourceLocation)
     }
 
-    func testMapsEachField() throws {
+    @Test func mapsEachField() throws {
         let fields = try mapper.updateFields([
             "summary": " New title ", "description": "body", "falconApp": "Team", "devPoint": "3",
             "priority": "High", "dueDate": "2026-10-20", "sprintId": 71, "mergeRequest": "https://x",
@@ -247,47 +242,47 @@ final class JiraUpdateFieldsTests: XCTestCase {
         ])
     }
 
-    func testEmptyValuesClearField() throws {
+    @Test func emptyValuesClearField() throws {
         let fields = try mapper.updateFields(["falconApp": NSNull(), "devPoint": "", "dueDate": "", "sprintId": NSNull()])
         assertJSONEqual(fields, ["customfield_11203": NSNull(), "customfield_11204": NSNull(),
                                  "duedate": NSNull(), "customfield_10101": NSNull()])
     }
 
-    func testRejectsUnknownField() {
-        XCTAssertThrowsError(try mapper.updateFields(["reporter": "x"]))
+    @Test func rejectsUnknownField() {
+        #expect(throws: (any Error).self) { try mapper.updateFields(["reporter": "x"]) }
     }
 
-    func testRejectsEmptySummary() {
-        XCTAssertThrowsError(try mapper.updateFields(["summary": "  "]))
+    @Test func rejectsEmptySummary() {
+        #expect(throws: (any Error).self) { try mapper.updateFields(["summary": "  "]) }
     }
 
-    func testRejectsEmptyChanges() {
-        XCTAssertThrowsError(try mapper.updateFields([:]))
+    @Test func rejectsEmptyChanges() {
+        #expect(throws: (any Error).self) { try mapper.updateFields([:]) }
     }
 
-    func testRejectsUnconfiguredField() {
+    @Test func rejectsUnconfiguredField() {
         let bare = JiraMapper(baseURL: JiraFixtures.baseURL, fields: JiraFieldMap(ids: [.assignees: "assignee"]))
-        XCTAssertThrowsError(try bare.updateFields(["falconApp": "SEO"]))
+        #expect(throws: (any Error).self) { try bare.updateFields(["falconApp": "SEO"]) }
     }
 }
 
-final class JiraPickTransitionTests: XCTestCase {
+struct JiraPickTransitionTests {
     private let transitions: [JiraJSON] = [
         ["id": "41", "name": "Doing", "to": ["id": "10400"]],
         ["id": "61", "name": "Waiting To Test", "to": ["id": "10401"]],
         ["id": "251", "name": "done", "to": ["id": "10001"]],
     ]
 
-    func testPicksTransitionIntoColumn() {
-        XCTAssertEqual(JiraMapper.pickTransition(transitions, statusIds: ["10001", "10407"]), "251")
+    @Test func picksTransitionIntoColumn() {
+        #expect(JiraMapper.pickTransition(transitions, statusIds: ["10001", "10407"]) == "251")
     }
 
-    func testNoneWhenColumnUnreachable() {
-        XCTAssertNil(JiraMapper.pickTransition(transitions, statusIds: ["10102"]))
+    @Test func noneWhenColumnUnreachable() {
+        #expect(JiraMapper.pickTransition(transitions, statusIds: ["10102"]) == nil)
     }
 }
 
-final class JiraEventsTests: XCTestCase {
+struct JiraEventsTests {
     private let start = ISO8601DateFormatter().date(from: "2026-10-08T10:00:00+07:00")!
     private let assigneesField = "customfield_10700"
 
@@ -313,41 +308,41 @@ final class JiraEventsTests: XCTestCase {
         return (result.events, result.state)
     }
 
-    func testNotifiesNewAssignmentOnce() {
+    @Test func notifiesNewAssignmentOnce() {
         let (events, next) = detect([issue()], state())
-        XCTAssertEqual(events.map(\.kind), [.assigned])
-        XCTAssertEqual(events.first?.message, "You were added to: Dev Zone")
-        XCTAssertEqual(detect([issue()], next).0, [])
+        #expect(events.map(\.kind) == [.assigned])
+        #expect(events.first?.message == "You were added to: Dev Zone")
+        #expect(detect([issue()], next).0 == [])
     }
 
-    func testForgetsRemovedAssignment() {
+    @Test func forgetsRemovedAssignment() {
         let (_, next) = detect([issue(assignees: ["tony"])], state(known: ["FAL-1"]))
-        XCTAssertFalse(next.knownAssigned.contains("FAL-1"))
+        #expect(!next.knownAssigned.contains("FAL-1"))
     }
 
-    func testNotifiesCommentOnMyTaskOnce() {
+    @Test func notifiesCommentOnMyTaskOnce() {
         let mine = issue(comments: [comment()])
         let (events, next) = detect([mine], state(known: ["FAL-1"]))
-        XCTAssertEqual(events.map(\.kind), [.comment])
-        XCTAssertEqual(events.first?.title, "FAL-1 · Dev Zone")
-        XCTAssertEqual(events.first?.message, "Tony: ok")
-        XCTAssertEqual(detect([mine], next).0, [])
+        #expect(events.map(\.kind) == [.comment])
+        #expect(events.first?.title == "FAL-1 · Dev Zone")
+        #expect(events.first?.message == "Tony: ok")
+        #expect(detect([mine], next).0 == [])
     }
 
-    func testNotifiesMentionOnOtherTask() {
+    @Test func notifiesMentionOnOtherTask() {
         let other = issue(assignees: ["tony"], comments: [comment(body: "nhờ [~truongnn] xem")])
-        XCTAssertEqual(detect([other], state()).0.map(\.kind), [.mention])
+        #expect(detect([other], state()).0.map(\.kind) == [.mention])
     }
 
-    func testNotifiesCloudMention() {
+    @Test func notifiesCloudMention() {
         let other = issue(assignees: ["tony"], comments: [comment(body: "hi [~accountid:5b10ac]")])
-        XCTAssertEqual(detect([other], state(), me: "5b10ac").0.map(\.kind), [.mention])
+        #expect(detect([other], state(), me: "5b10ac").0.map(\.kind) == [.mention])
     }
 
-    func testIgnoresOwnOldAndUnrelatedComments() {
+    @Test func ignoresOwnOldAndUnrelatedComments() {
         let comments = [comment("1", author: "truongnn"), comment("2", created: "2026-10-08T09:00:00.000+0700")]
         let (mine, _) = detect([issue(comments: comments)], state(known: ["FAL-1"]))
         let (other, _) = detect([issue(assignees: ["tony"], comments: [comment("3")])], state())
-        XCTAssertEqual(mine + other, [])
+        #expect(mine + other == [])
     }
 }

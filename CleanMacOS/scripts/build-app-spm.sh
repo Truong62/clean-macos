@@ -34,6 +34,7 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Frameworks" "$APP/Contents/Resourc
 cp "$BIN/CleanMacOS" "$APP/Contents/MacOS/"
 install_name_tool -add_rpath @executable_path/../Frameworks "$APP/Contents/MacOS/CleanMacOS"
 ditto "$BIN/Sparkle.framework" "$APP/Contents/Frameworks/Sparkle.framework"
+ditto Sources/Resources/JiraWeb "$APP/Contents/Resources/JiraWeb"
 ditto "$BIN/KeyboardShortcuts_KeyboardShortcuts.bundle" "$APP/Contents/Resources/KeyboardShortcuts_KeyboardShortcuts.bundle"
 
 ICONSET=$(mktemp -d)/AppIcon.iconset
