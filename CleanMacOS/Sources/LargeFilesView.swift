@@ -235,8 +235,15 @@ struct LargeFilesView: View {
                 }.width(30)
 
                 TableColumn("Name", value: \.name) { file in
-                    Text(file.name).fontWeight(.medium).lineLimit(1)
-                }.width(min: 160, ideal: 220)
+                    HStack(spacing: 8) {
+                        FileThumbnail(path: file.path)
+                        Text(file.name).fontWeight(.medium).lineLimit(1)
+                    }
+                    .contextMenu {
+                        Button("Quick Look") { QuickLook.preview(file.path) }
+                        Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: file.path)]) }
+                    }
+                }.width(min: 200, ideal: 260)
 
                 TableColumn("Path") { file in
                     Text(file.path).font(.caption).fontDesign(.monospaced)
