@@ -59,13 +59,24 @@ final class UninstallViewModel: ObservableObject {
         isUninstalling = true
         statusMessage = "Moving \(paths.count) items to Trash..."
 
-        let result = await Task.detached { [cleaner] in cleaner.moveToTrash(paths) }.value
+        var outcomes = await Task.detached { [cleaner] in cleaner.moveToTrash(paths) }.value.deleted
+        let needsAdmin = Set(outcomes.filter { !$0.success && $0.retryableAsAdmin }.map(\.path))
+        if !needsAdmin.isEmpty {
+            statusMessage = "Administrator password needed for \(needsAdmin.count) item(s)..."
+            let artifacts = leftovers.filter { needsAdmin.contains($0.path) }
+            let retried = await Task.detached { [cleaner] in cleaner.moveToTrashPrivileged(artifacts) }.value.deleted
+            outcomes = outcomes.filter { !needsAdmin.contains($0.path) } + retried
+        }
 
         isUninstalling = false
-        if result.failCount > 0 {
-            statusMessage = "Removed \(result.okCount) items (\(result.freedStr)), \(result.failCount) failed (may need admin)"
+        let freed = formatBytes(outcomes.reduce(0) { $0 + $1.freedBytes })
+        if let failure = outcomes.first(where: { !$0.success }) {
+            let failCount = outcomes.filter { !$0.success }.count
+            let error = failure.error ?? "unknown error"
+            let hint = error.contains("not permitted") ? " — allow Clean macOS in System Settings → Privacy & Security → App Management" : ""
+            statusMessage = "\(failCount) item(s) not removed — \(failure.name): \(error)\(hint)"
         } else {
-            statusMessage = "Uninstalled \(app.name) — \(result.freedStr) moved to Trash"
+            statusMessage = "Uninstalled \(app.name) — \(freed) moved to Trash"
         }
 
         // Refresh the app list (the app should be gone) and clear the detail pane.

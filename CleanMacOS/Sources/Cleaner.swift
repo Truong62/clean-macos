@@ -66,7 +66,30 @@ final class CleanerService: Sendable {
         )
     }
 
-    func deletePrivileged(_ artifacts: [Artifact]) -> CleanResult {
+    func moveToTrashPrivileged(_ artifacts: [Artifact]) -> CleanResult {
+        let trash = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".Trash").path
+        return deletePrivileged(artifacts) { path in
+            Self.privilegedTrashCommand(path: path, destination: Self.trashDestination(for: path, in: trash),
+                                        owner: NSUserName())
+        }
+    }
+
+    static func trashDestination(for path: String, in trashDir: String) -> String {
+        let name = (path as NSString).lastPathComponent
+        let candidate = (trashDir as NSString).appendingPathComponent(name)
+        guard FileManager.default.fileExists(atPath: candidate) else { return candidate }
+        let base = (name as NSString).deletingPathExtension
+        let ext = (name as NSString).pathExtension
+        let stamp = UUID().uuidString.prefix(8)
+        return (trashDir as NSString).appendingPathComponent(ext.isEmpty ? "\(base) \(stamp)" : "\(base) \(stamp).\(ext)")
+    }
+
+    static func privilegedTrashCommand(path: String, destination: String, owner: String) -> String {
+        "/bin/mv -n \(shellQuote(path)) \(shellQuote(destination)) && /usr/sbin/chown -R \(shellQuote(owner)) \(shellQuote(destination))"
+    }
+
+    func deletePrivileged(_ artifacts: [Artifact],
+                          command: (String) -> String = { "/bin/rm -rf \(CleanerService.shellQuote($0))" }) -> CleanResult {
         var deleted: [DeleteResult] = []
         var safe: [Artifact] = []
 
@@ -92,7 +115,7 @@ final class CleanerService: Sendable {
             (artifact.path, currentSize(at: artifact.path))
         })
         let script = "#!/bin/sh\n"
-            + safe.map { "/bin/rm -rf \(Self.shellQuote($0.path))" }.joined(separator: "\n")
+            + safe.map { command($0.path) }.joined(separator: "\n")
             + "\n"
         let scriptPath = (NSTemporaryDirectory() as NSString)
             .appendingPathComponent("cleanmacos-\(UUID().uuidString).sh")
