@@ -1,3 +1,4 @@
+#if canImport(XCTest)
 import XCTest
 @testable import CleanMacOS
 
@@ -48,3 +49,4 @@ final class ClipboardHistoryTests: XCTestCase {
         XCTAssertEqual(long.preview.count, 121) // 120 chars + ellipsis
     }
 }
+#endif

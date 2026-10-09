@@ -26,6 +26,7 @@ struct CleanMacOSApp: App {
     @StateObject private var updater = UpdaterViewModel()
     @StateObject private var clipboard = ClipboardViewModel()
     @StateObject private var monitor = SystemMonitor()
+    @StateObject private var jira = JiraViewModel()
     @AppStorage("showMenuBar") private var showMenuBar = true
     @State private var panelController: ClipboardPanelController?
 
@@ -35,6 +36,7 @@ struct CleanMacOSApp: App {
                 .environmentObject(vm)
                 .environmentObject(updater)
                 .environmentObject(clipboard)
+                .environmentObject(jira)
                 .frame(minWidth: 900, minHeight: 600)
                 .onAppear {
                     setAppIcon()

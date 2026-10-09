@@ -1,3 +1,4 @@
+#if canImport(XCTest)
 import XCTest
 @testable import CleanMacOS
 
@@ -13,3 +14,4 @@ final class ClipboardMonitorTests: XCTestCase {
         XCTAssertTrue(ClipboardMonitor.isCapturable("  trimmed but real  "))
     }
 }
+#endif

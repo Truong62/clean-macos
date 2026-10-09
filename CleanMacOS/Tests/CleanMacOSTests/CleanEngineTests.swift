@@ -1,3 +1,4 @@
+#if canImport(XCTest)
 import XCTest
 import Darwin
 @testable import CleanMacOS
@@ -75,3 +76,4 @@ final class CleanEngineTests: XCTestCase {
         )
     }
 }
+#endif

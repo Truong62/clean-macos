@@ -1,3 +1,4 @@
+#if canImport(XCTest)
 import XCTest
 @testable import CleanMacOS
 
@@ -57,3 +58,4 @@ final class ClipboardViewModelTests: XCTestCase {
         XCTAssertTrue(store.load().isEmpty)              // file gone
     }
 }
+#endif

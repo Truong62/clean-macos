@@ -1,3 +1,4 @@
+#if canImport(XCTest)
 import XCTest
 @testable import CleanMacOS
 
@@ -38,3 +39,4 @@ final class ProcessServiceTests: XCTestCase {
         }
     }
 }
+#endif
