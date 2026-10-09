@@ -60,6 +60,8 @@
     <div class="pointer-events-none fixed inset-0 z-[60] overflow-hidden">
       <aside id="panel" tabindex="-1" aria-label="Task detail"
         class="pointer-events-auto invisible absolute inset-y-0 right-0 flex w-full translate-x-full flex-col border-l border-border bg-surface shadow-modal outline-hidden transition-[translate,visibility] duration-[350ms] ease-[cubic-bezier(0.32,0.72,0,1)] sm:w-[28rem] [[data-open=true]_&]:visible [[data-open=true]_&]:translate-x-0 [[data-open=true]_&]:duration-500 motion-reduce:transition-none"></aside>
+      <div id="panel-resizer" role="separator" aria-orientation="vertical" aria-label="Resize task panel" title="Drag to resize · double-click to reset"
+        class="pointer-events-auto invisible absolute inset-y-0 z-10 hidden w-2 cursor-col-resize transition-colors hover:bg-focus/30 active:bg-focus/40 sm:block [[data-open=true]_&]:visible"></div>
     </div>
   </div>
 

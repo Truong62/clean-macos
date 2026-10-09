@@ -189,7 +189,7 @@ actor JiraService {
 
     private func mapper() async throws -> JiraMapper {
         JiraMapper(baseURL: client.baseURL, fields: try await fieldMap(),
-                   userKey: client.authKind == .cloud ? "accountId" : "name")
+                   userKey: client.authKind == .cloud ? "accountId" : "name", pointField: JiraField.point(for: role))
     }
 
     private func object(path: String, query: [String: String] = [:]) async throws -> JiraJSON {
