@@ -872,7 +872,10 @@ async function uploadCommentImages(files) {
   try {
     for (const file of images) {
       const saved = await api.upload(key, file, uniqueAttachmentName(file));
-      insertIntoComment(`${COMMENT_IMAGE_MARKUP(saved.filename)}\n`);
+      const textarea = $('#comment-input');
+      const before = textarea.value.slice(0, textarea.selectionStart ?? textarea.value.length);
+      const needsBreak = before.length > 0 && !before.endsWith('\n');
+      insertIntoComment(`${needsBreak ? '\n' : ''}${COMMENT_IMAGE_MARKUP(saved.filename)}\n`);
     }
     showToast('Image attached — send the comment to post it');
   } catch (error) {
