@@ -122,6 +122,12 @@ const api = {
   move: (key, column) => api.call('POST', `/api/issues/${key}/move`, { column }),
   comment: (key, body) => api.call('POST', `/api/issues/${key}/comment`, { body }),
   users: (query) => api.call('GET', `/api/users?q=${encodeURIComponent(query)}`),
+  async upload(key, file, name) {
+    const response = await fetch(`/api/issues/${key}/attachments?name=${encodeURIComponent(name)}`, { method: 'POST', body: await file.arrayBuffer() });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+    return data;
+  },
 };
 
 function esc(value) {
@@ -663,7 +669,7 @@ function searchPeople(input) {
   }, PEOPLE_SEARCH_DELAY_MS);
 }
 
-const MENTION_PATTERN = /@([\p{L}\p{N}._-]{2,})$/u;
+const MENTION_PATTERN = /@([\p{L}\p{N}._-]+)$/u;
 let mentionTimer;
 
 function searchMention(textarea) {
@@ -767,16 +773,62 @@ function descriptionHtml(d) {
   </section>`;
 }
 
+function commentBubble(c) {
+  const who = c.authorUser || { name: '', displayName: c.author || '', avatar: '' };
+  const isMine = who.name === myName();
+  return `<div class="flex items-start gap-2 py-1.5 ${isMine ? 'flex-row-reverse' : ''}">${avatar(who, 'size-7')}
+    <div class="flex min-w-0 max-w-[85%] flex-col ${isMine ? 'items-end' : 'items-start'}">
+      <p class="px-1 text-xs text-muted">${isMine ? '' : `<span class="font-medium text-foreground">${esc(who.displayName)}</span> · `}${esc(c.created)}</p>
+      <div class="rich mt-0.5 max-w-full overflow-x-auto rounded-2xl px-3 py-2 text-sm ${isMine ? 'rounded-tr-md bg-primary/15' : 'rounded-tl-md bg-foreground/5'}">${c.bodyHtml}</div>
+    </div></div>`;
+}
+
+const COMMENT_IMAGE_MARKUP = (filename) => `!${filename}|thumbnail!`;
+
+function uniqueAttachmentName(file) {
+  const ext = (file.name.match(/\.[^.]+$/) || ['.png'])[0];
+  const base = (file.name.replace(/\.[^.]+$/, '') || 'image').replace(/[^\p{L}\p{N}_-]+/gu, '-');
+  return `${base}-${Date.now()}${ext}`;
+}
+
+function insertIntoComment(text) {
+  const textarea = $('#comment-input');
+  const start = textarea.selectionStart ?? textarea.value.length;
+  textarea.value = textarea.value.slice(0, start) + text + textarea.value.slice(textarea.selectionEnd ?? start);
+  textarea.setSelectionRange(start + text.length, start + text.length);
+  $('[data-action="add-comment"]').disabled = !textarea.value.trim();
+  textarea.focus();
+}
+
+async function uploadCommentImages(files) {
+  const key = state.detail?.key;
+  const images = [...files].filter((f) => f.type.startsWith('image/'));
+  if (!key || !images.length) return;
+  showToast(`Uploading ${images.length} image(s)…`);
+  try {
+    for (const file of images) {
+      const saved = await api.upload(key, file, uniqueAttachmentName(file));
+      insertIntoComment(`${COMMENT_IMAGE_MARKUP(saved.filename)}\n`);
+    }
+    showToast('Image attached — send the comment to post it');
+  } catch (error) {
+    showToast(error.message, true);
+  }
+}
+
 function commentsHtml(d) {
   const comments = d.comments.length
-    ? d.comments.map((c) => `<div class="py-3"><p class="text-sm font-medium">${esc(c.author)} <span class="text-xs font-normal text-muted">${esc(c.created)}</span></p><div class="rich mt-1 text-sm">${c.bodyHtml}</div></div>`).join('')
+    ? `<div class="mt-2 flex flex-col">${d.comments.map(commentBubble).join('')}</div>`
     : '<p class="py-2 text-sm text-muted">No comments yet.</p>';
   return `<section class="border-t border-border pt-5">
     <h3 class="text-sm font-semibold text-foreground">Comments <span class="font-normal tabular-nums text-muted">${d.comments.length || ''}</span></h3>
     ${comments}
     <div class="relative mt-2"><label class="block"><span class="sr-only">Add a comment</span><textarea id="comment-input" rows="3" placeholder="Add a comment — type @ to mention someone" class="${textareaClass}"></textarea></label>
       <ul id="mention-results" hidden class="absolute bottom-full left-0 z-30 mb-1 max-h-64 w-72 overflow-y-auto rounded-xl border border-border bg-surface p-1 shadow-lg"></ul></div>
-    <div class="mt-3 flex justify-end"><button type="button" data-action="add-comment" disabled class="${buttonPrimary}">Comment</button></div>
+    <div class="mt-3 flex items-center justify-end gap-2">
+      <input type="file" id="comment-file" accept="image/*" multiple hidden />
+      <button type="button" data-action="attach-image" aria-label="Attach image" title="Attach image (or paste into the box)" class="${iconButton} mr-auto">${icon('image-plus')}</button>
+      <button type="button" data-action="add-comment" disabled class="${buttonPrimary}">Comment</button></div>
   </section>`;
 }
 
@@ -874,6 +926,7 @@ function toggleDescriptionEdit(isEditing) {
 
 const PANEL_ACTIONS = {
   'edit-description': () => toggleDescriptionEdit(true),
+  'attach-image': () => $('#comment-file').click(),
   'cancel-description': () => renderPanel(state.detail),
   'save-description': () => saveField('description', $('#description-input').value),
   'add-comment': addComment,
@@ -1130,6 +1183,11 @@ function handleInput(event) {
 }
 
 function handleChange(event) {
+  if (event.target.id === 'comment-file') {
+    uploadCommentImages(event.target.files);
+    event.target.value = '';
+    return;
+  }
   const extra = event.target.dataset.extra;
   if (extra && state.detail) return saveField('raw', { [extra]: extraFieldValue(event.target.dataset.kind, event.target.value) });
   const field = event.target.dataset.input;
@@ -1231,6 +1289,11 @@ function bindEvents() {
   document.addEventListener('click', handleClick);
   document.addEventListener('input', handleInput);
   document.addEventListener('change', handleChange);
+  document.addEventListener('paste', (event) => {
+    if (event.target.id !== 'comment-input' || !event.clipboardData?.files.length) return;
+    event.preventDefault();
+    uploadCommentImages(event.clipboardData.files);
+  });
   document.addEventListener('keydown', handleKeydown);
   addEventListener('resize', () => popAnchor && placePop(popAnchor));
   bindBoardDrag();

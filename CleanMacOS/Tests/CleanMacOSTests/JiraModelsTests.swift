@@ -203,17 +203,18 @@ struct JiraDetailTests {
         issue["renderedFields"] = [
             "description": #"<img src="/secure/attachment/1/a.png"><a href="/browse/FAL-1">x</a>"#,
             "comment": ["comments": [["id": "9", "body": #"<a href="/browse/FAL-2">y</a>"#,
-                                      "author": ["displayName": "Tony"], "created": "2026-10-08T10:00:00.000+0700"]]],
+                                      "author": ["name": "tony", "displayName": "Tony"], "created": "2026-10-08T10:00:00.000+0700"]]],
         ]
         issue["transitions"] = [["id": "61", "name": "Waiting To Test", "to": ["id": "10401", "name": "Waiting To Test"]]]
         issue["editmeta"] = ["fields": ["customfield_11203": ["allowedValues": [["value": "SEO"], ["value": "Team"]]]]]
         let detail = JiraFixtures.mapper.detail(issue)
         let html = detail["descriptionHtml"] as? String ?? ""
-        #expect(html.contains(#"src="https://space.avada.net/secure/attachment/1/a.png""#))
+        #expect(html.contains(#"src="/api/file?path=%2Fsecure%2Fattachment%2F1%2Fa.png""#))
         #expect(html.contains(#"href="https://space.avada.net/browse/FAL-1""#))
         #expect(detail["descriptionRaw"] as? String == "h1. Raw")
         let comment = (detail["comments"] as? [JiraJSON])?.first ?? [:]
         #expect(comment["author"] as? String == "Tony")
+        #expect((comment["authorUser"] as? JiraJSON)?["name"] as? String == "tony")
         #expect(comment["created"] as? String == "2026-10-08 10:00")
         #expect((comment["bodyHtml"] as? String ?? "").contains("https://space.avada.net/browse/FAL-2"))
         #expect(detail["transitions"] as? [[String: String]] == [["id": "61", "name": "Waiting To Test", "toId": "10401"]])

@@ -53,15 +53,18 @@ struct JiraClient {
         }
     }
 
-    func requestRaw(method: String = "GET", path: String, query: [String: String] = [:],
-                    body: Any? = nil) async throws -> (data: Data, contentType: String) {
+    func requestRaw(method: String = "GET", path: String, query: [String: String] = [:], body: Any? = nil,
+                    rawBody: (data: Data, contentType: String)? = nil,
+                    headers: [String: String] = [:]) async throws -> (data: Data, contentType: String) {
         var request = URLRequest(url: try makeURL(path: path, query: query), timeoutInterval: Self.timeoutSeconds)
         request.httpMethod = method
         request.setValue(authorizationHeader, forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue(rawBody?.contentType ?? "application/json", forHTTPHeaderField: "Content-Type")
         request.setValue(Self.userAgent, forHTTPHeaderField: "User-Agent")
+        headers.forEach { request.setValue($0.value, forHTTPHeaderField: $0.key) }
         if let body { request.httpBody = try JSONSerialization.data(withJSONObject: body) }
+        if let rawBody { request.httpBody = rawBody.data }
 
         let data: Data
         let response: HTTPURLResponse
@@ -86,6 +89,23 @@ struct JiraClient {
               body: Any? = nil) async throws -> Any? {
         let data = try await request(method: method, path: path, query: query, body: body)
         return data.isEmpty ? nil : try JSONSerialization.jsonObject(with: data)
+    }
+
+    func upload(path: String, filename: String, data: Data, mimeType: String) async throws -> Any? {
+        let boundary = "CleanMacOS-\(UUID().uuidString)"
+        let body = Self.multipartBody(filename: filename, data: data, mimeType: mimeType, boundary: boundary)
+        let result = try await requestRaw(method: "POST", path: path,
+                                          rawBody: (body, "multipart/form-data; boundary=\(boundary)"),
+                                          headers: ["X-Atlassian-Token": "no-check"])
+        return result.data.isEmpty ? nil : try JSONSerialization.jsonObject(with: result.data)
+    }
+
+    static func multipartBody(filename: String, data: Data, mimeType: String, boundary: String) -> Data {
+        let safeName = filename.filter { !"\"\r\n".contains($0) }
+        var body = Data("--\(boundary)\r\nContent-Disposition: form-data; name=\"file\"; filename=\"\(safeName)\"\r\nContent-Type: \(mimeType)\r\n\r\n".utf8)
+        body.append(data)
+        body.append(Data("\r\n--\(boundary)--\r\n".utf8))
+        return body
     }
 
     func makeURL(path: String, query: [String: String]) throws -> URL {
