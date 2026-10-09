@@ -22,61 +22,55 @@ struct JiraMenuBarSection: View {
     @ObservedObject var jira: JiraViewModel
     let open: (String) -> Void
 
+    private var refreshHelp: String {
+        jira.menuUpdatedAt.map { "Refresh · updated \($0.formatted(date: .omitted, time: .shortened))" } ?? "Refresh"
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            JiraSprintHeader(sprint: jira.menu.sprint)
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 4) {
+                JiraSprintTitle(sprint: jira.menu.sprint)
+                Spacer()
+                MenuIconButton(systemImage: "arrow.up.forward.app", help: "Open Jira") { open("") }
+                MenuIconButton(systemImage: "arrow.clockwise", help: refreshHelp) { Task { await jira.refreshMenu() } }
+            }
+            JiraMonthProgress(sprint: jira.menu.sprint)
             if let error = jira.menuError {
-                Text(error).font(.system(size: 12)).foregroundStyle(.secondary)
+                Text(error).font(.system(size: 11.5)).foregroundStyle(.secondary)
             } else if jira.menu.rows.isEmpty {
                 Text(jira.menuUpdatedAt == nil ? "Loading…" : "Nothing open this month 🎉")
-                    .font(.system(size: 12)).foregroundStyle(.secondary)
+                    .font(.system(size: 11.5)).foregroundStyle(.secondary)
             } else {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 10) {
-                        ForEach(JiraTaskGroup.allCases) { group($0) }
-                    }
+                ViewThatFits(in: .vertical) {
+                    taskList
+                    ScrollView { taskList }
                 }
                 .frame(maxHeight: jiraListMaxHeight)
                 .fixedSize(horizontal: false, vertical: true)
             }
-            footer
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
         .task { await jira.refreshMenu() }
+    }
+
+    private var taskList: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            ForEach(JiraTaskGroup.allCases) { group($0) }
+        }
     }
 
     @ViewBuilder
     private func group(_ group: JiraTaskGroup) -> some View {
         let items = jira.menu.rows.filter { $0.group == group }
-        if !items.isEmpty || group == .todo {
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 6) {
-                    Text(group.title.uppercased()).font(.system(size: 10, weight: .semibold)).foregroundStyle(group.color)
-                    Text("\(items.count)").font(.system(size: 10, weight: .semibold)).foregroundStyle(.secondary)
-                }
-                .padding(.horizontal, 8)
+        if !items.isEmpty {
+            VStack(alignment: .leading, spacing: 0) {
+                Text("\(group.title.uppercased()) \(items.count)")
+                    .font(.system(size: 9.5, weight: .semibold)).tracking(0.5).foregroundStyle(group.color)
+                    .padding(.horizontal, 6).padding(.bottom, 2)
                 ForEach(items) { JiraTaskRowView(row: $0, open: open) }
-                if items.isEmpty {
-                    Text("No tasks").font(.system(size: 12)).foregroundStyle(.tertiary)
-                        .padding(.horizontal, 8).padding(.vertical, 4)
-                }
             }
         }
-    }
-
-    private var footer: some View {
-        HStack(spacing: 6) {
-            if let updatedAt = jira.menuUpdatedAt {
-                Text("Updated \(updatedAt.formatted(date: .omitted, time: .shortened))")
-                    .font(.system(size: 11)).foregroundStyle(.secondary)
-            }
-            Spacer()
-            Button("Open Jira") { open("") }
-            Button { Task { await jira.refreshMenu() } } label: { Image(systemName: "arrow.clockwise") }
-                .help("Refresh")
-        }
-        .controlSize(.small)
     }
 }
 
@@ -105,7 +99,7 @@ private struct JiraTaskRowView: View {
                 Text(row.id).font(.system(size: 11).monospacedDigit()).foregroundStyle(.secondary)
                     .frame(width: jiraKeyColumnWidth, alignment: .leading)
                 if row.isBug { Image(systemName: "ladybug.fill").font(.system(size: 10)).foregroundStyle(.red) }
-                Text(row.summary).font(.system(size: 12.5)).lineLimit(1).truncationMode(.tail)
+                Text(row.summary).font(.system(size: 12)).lineLimit(1).truncationMode(.tail)
                 Spacer(minLength: 4)
                 if let app = row.app { JiraAppTag(app: app) }
                 if let points = row.points {
@@ -114,7 +108,7 @@ private struct JiraTaskRowView: View {
                         .background(.quaternary, in: RoundedRectangle(cornerRadius: 4))
                 }
             }
-            .padding(.horizontal, 8).padding(.vertical, 6)
+            .padding(.horizontal, 6).padding(.vertical, 4)
             .background(isHovered ? Color.primary.opacity(0.08) : .clear, in: RoundedRectangle(cornerRadius: 6))
             .contentShape(Rectangle())
         }
@@ -130,42 +124,42 @@ private struct JiraProgressBar: View {
     var body: some View {
         GeometryReader { proxy in
             ZStack(alignment: .leading) {
-                Capsule().fill(Color.green.opacity(0.18))
-                Capsule().fill(LinearGradient(colors: [.green, .mint], startPoint: .leading, endPoint: .trailing))
+                Capsule().fill(Color.orange.opacity(0.18))
+                Capsule().fill(LinearGradient(colors: [.orange, .yellow], startPoint: .leading, endPoint: .trailing))
                     .frame(width: proxy.size.width * min(max(fraction, 0), 1))
             }
         }
-        .frame(height: 6)
+        .frame(height: 4)
     }
 }
 
-private struct JiraSprintHeader: View {
+private struct JiraSprintTitle: View {
     let sprint: JiraSprintStats
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline) {
-                Image(systemName: "checklist").foregroundStyle(.blue.gradient)
-                Text(sprint.name.isEmpty ? "No active sprint" : sprint.name).font(.system(size: 14, weight: .semibold))
-                Spacer()
-                if let daysLeft = sprint.daysLeft {
-                    Text(daysLeft > 0 ? "\(daysLeft) days left" : "Ends today")
-                        .font(.system(size: 11, weight: .medium))
-                        .padding(.horizontal, 7).padding(.vertical, 2)
-                        .background(Color.orange.opacity(daysLeft <= 2 ? 0.2 : 0), in: Capsule())
-                        .foregroundStyle(daysLeft <= 2 ? Color.orange : .secondary)
-                }
+        HStack(spacing: 6) {
+            Image(systemName: "checklist").font(.system(size: 11, weight: .semibold)).foregroundStyle(.orange.gradient)
+            Text(sprint.name.isEmpty ? "No active sprint" : sprint.name).font(.system(size: 12.5, weight: .semibold))
+            if let daysLeft = sprint.daysLeft {
+                Text(daysLeft > 0 ? "· \(daysLeft)d left" : "· ends today")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(daysLeft <= 2 ? Color.orange : .secondary)
             }
-            if sprint.monthTasks > 0 {
+        }
+    }
+}
+
+private struct JiraMonthProgress: View {
+    let sprint: JiraSprintStats
+
+    var body: some View {
+        if sprint.monthTasks > 0 {
+            HStack(spacing: 8) {
                 JiraProgressBar(fraction: Double(sprint.monthDone) / Double(sprint.monthTasks))
-                HStack(spacing: 12) {
-                    Label("\(sprint.monthTasks) tasks", systemImage: "square.stack.3d.up.fill").foregroundStyle(.green)
-                    Label("\(sprint.monthPoints) \(sprint.pointLabel)", systemImage: "bolt.fill").foregroundStyle(.blue)
-                    Label("\(Date().formatted(.dateTime.month(.abbreviated))): \(sprint.monthDone) done",
-                          systemImage: "calendar").foregroundStyle(.purple)
-                }
-                .font(.system(size: 11, weight: .medium))
-                .labelStyle(.titleAndIcon)
+                Text("\(sprint.monthDone)/\(sprint.monthTasks) done · \(sprint.monthPoints) \(sprint.pointLabel) · \(Date().formatted(.dateTime.month(.abbreviated)))")
+                    .font(.system(size: 10.5, weight: .medium).monospacedDigit())
+                    .foregroundStyle(.secondary)
+                    .fixedSize()
             }
         }
     }

@@ -10,22 +10,8 @@ struct MenuBarView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Header
-            HStack {
-                Image(systemName: "sparkles")
-                    .foregroundStyle(.blue.gradient)
-                Text("Clean macOS")
-                    .font(.headline)
-                Spacer()
-                Text(monitor.osVersion)
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
-
+            header
             Divider()
-
             if showsJira {
                 JiraMenuBarSection(jira: jira) { key in
                     openWindow(id: "main")
@@ -33,101 +19,74 @@ struct MenuBarView: View {
                 }
                 Divider()
             }
-
-            // Stats
-            VStack(spacing: 12) {
-                MenuStatRow(
-                    icon: "cpu",
-                    color: .blue,
-                    title: "CPU",
-                    value: String(format: "%.1f%%", monitor.cpuUsage),
-                    percent: monitor.cpuUsage / 100
-                )
-
-                MenuStatRow(
-                    icon: "memorychip",
-                    color: .orange,
-                    title: "Memory",
-                    value: "\(monitor.memUsedStr) / \(monitor.memTotalStr)",
-                    percent: monitor.memPercent / 100
-                )
-
-                MenuStatRow(
-                    icon: "internaldrive.fill",
-                    color: .green,
-                    title: "Disk",
-                    value: "\(monitor.diskUsedStr) / \(monitor.diskTotalStr)",
-                    percent: monitor.diskPercent / 100
-                )
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-
-            Divider()
-
-            // Info rows
-            VStack(spacing: 8) {
-                MenuInfoRow(label: "CPU", value: monitor.cpuName)
-                MenuInfoRow(label: "Free Disk", value: monitor.diskFreeStr)
-                MenuInfoRow(label: "Uptime", value: monitor.uptime)
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
-
-            Divider()
-
-            // Actions
-            VStack(spacing: 4) {
-                Button {
-                    openWindow(id: "main")
-                    DispatchQueue.main.async {
-                        MainWindowController.show()
-                    }
-                } label: {
-                    HStack {
-                        Image(systemName: "macwindow")
-                        Text("Open Clean macOS")
-                        Spacer()
-                    }
-                    .padding(.vertical, 4)
-                }
-                .buttonStyle(.plain)
-
-                Divider()
-
-                Button {
-                    NSApp.terminate(nil)
-                } label: {
-                    HStack {
-                        Image(systemName: "power")
-                        Text("Quit")
-                        Spacer()
-                    }
-                    .padding(.vertical, 4)
-                }
-                .buttonStyle(.plain)
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
+            systemStats
         }
-        .frame(width: showsJira ? 400 : 300)
-        .onAppear {
-            monitor.popoverDidOpen()
+        .frame(width: showsJira ? 380 : 300)
+        .onAppear { monitor.popoverDidOpen() }
+        .onDisappear { monitor.popoverDidClose() }
+    }
+
+    private var header: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "sparkles").foregroundStyle(.orange.gradient)
+            Text("Clean macOS").font(.system(size: 13, weight: .semibold))
+            Spacer()
+            MenuIconButton(systemImage: "macwindow", help: "Open Clean macOS") {
+                openWindow(id: "main")
+                DispatchQueue.main.async { MainWindowController.show() }
+            }
+            MenuIconButton(systemImage: "power", help: "Quit") { NSApp.terminate(nil) }
         }
-        .onDisappear {
-            monitor.popoverDidClose()
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .help(monitor.osVersion)
+    }
+
+    private var systemStats: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 12) {
+                MenuStatColumn(title: "CPU", value: String(format: "%.0f%%", monitor.cpuUsage),
+                               percent: monitor.cpuUsage / 100, color: .blue)
+                MenuStatColumn(title: "RAM", value: monitor.memUsedStr, percent: monitor.memPercent / 100, color: .orange)
+                MenuStatColumn(title: "Disk", value: monitor.diskUsedStr, percent: monitor.diskPercent / 100, color: .green)
+            }
+            Text("\(monitor.cpuName) · \(monitor.diskFreeStr) free · up \(monitor.uptime)")
+                .font(.system(size: 10.5))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .truncationMode(.middle)
         }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
     }
 }
 
-// MARK: - Menu Stat Row
+struct MenuIconButton: View {
+    let systemImage: String
+    let help: String
+    let action: () -> Void
+    @State private var isHovered = false
 
-struct MenuStatRow: View {
-    let icon: String
-    let color: Color
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.system(size: 11, weight: .medium))
+                .frame(width: 22, height: 22)
+                .background(isHovered ? Color.primary.opacity(0.1) : .clear, in: RoundedRectangle(cornerRadius: 6))
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(.secondary)
+        .onHover { isHovered = $0 }
+        .help(help)
+    }
+}
+
+struct MenuStatColumn: View {
     let title: String
     let value: String
     let percent: Double
+    let color: Color
 
     private var barColor: Color {
         if percent > 0.9 { return .red }
@@ -136,55 +95,21 @@ struct MenuStatRow: View {
     }
 
     var body: some View {
-        VStack(spacing: 6) {
-            HStack {
-                Image(systemName: icon)
-                    .foregroundStyle(color.gradient)
-                    .font(.caption)
-                    .frame(width: 16)
-                Text(title)
-                    .font(.caption)
-                    .fontWeight(.medium)
-                Spacer()
-                Text(value)
-                    .font(.caption)
-                    .fontDesign(.rounded)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(barColor)
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text(title).font(.system(size: 10.5, weight: .medium)).foregroundStyle(.secondary)
+                Spacer(minLength: 0)
+                Text(value).font(.system(size: 11, weight: .semibold, design: .rounded)).foregroundStyle(barColor)
+                    .lineLimit(1)
             }
-
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 3)
-                        .fill(Color.gray.opacity(0.15))
-
-                    RoundedRectangle(cornerRadius: 3)
-                        .fill(barColor.gradient)
-                        .frame(width: geo.size.width * min(percent, 1))
+                    Capsule().fill(Color.gray.opacity(0.15))
+                    Capsule().fill(barColor.gradient).frame(width: geo.size.width * min(max(percent, 0), 1))
                 }
             }
-            .frame(height: 6)
+            .frame(height: 4)
         }
-    }
-}
-
-// MARK: - Menu Info Row
-
-struct MenuInfoRow: View {
-    let label: String
-    let value: String
-
-    var body: some View {
-        HStack {
-            Text(label)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            Spacer()
-            Text(value)
-                .font(.caption)
-                .fontDesign(.rounded)
-                .lineLimit(1)
-                .truncationMode(.middle)
-        }
+        .frame(maxWidth: .infinity)
     }
 }
