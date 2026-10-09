@@ -9,6 +9,25 @@
     <!-- Paste new <item> blocks here when releasing (newest first) -->
 
     <item>
+      <title>Version 1.0.15</title>
+      <pubDate>Fri, 09 Oct 2026 11:22:21 +0700</pubDate>
+      <sparkle:version>16</sparkle:version>
+      <sparkle:shortVersionString>1.0.15</sparkle:shortVersionString>
+      <description><![CDATA[
+        <h2>What's new in 1.0.15</h2>
+        <ul>
+          <li><b>Faster update checks</b> — Clean macOS now checks for new versions every hour instead of once a day.</li>
+          <li><b>Update notice</b> — when a new version is out, a notice slides in at the corner of the window with Update / Later.</li>
+          <li><b>Install automatically</b> — new option in Settings → Updates to download and install updates in the background.</li>
+        </ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/Truong62/clean-macos/releases/download/v1.0.15/CleanMacOS-1.0.15.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="ze1iWXoC1Lv+sEQjAsfALiMU7jv4xYBQfJvkx1sGOvVwx3eXLkTVwWbd+KFMF8EgHAzElGFDw7CFSYnp7SA1BQ==" length="3737892" />
+    </item>
+
+    <item>
       <title>Version 1.0.14</title>
       <pubDate>Fri, 09 Oct 2026 11:17:18 +0700</pubDate>
       <sparkle:version>15</sparkle:version>
