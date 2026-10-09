@@ -101,6 +101,23 @@ actor JiraService {
         return try await getIssue(key)
     }
 
+    func updateComment(_ key: String, id: String, body: String) async throws -> JiraJSON {
+        try Self.validate(key: key)
+        try Self.validate(commentId: id)
+        guard !body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw JiraError(status: 400, message: "Comment cannot be empty")
+        }
+        _ = try await client.request(method: "PUT", path: "/rest/api/2/issue/\(key)/comment/\(id)", body: ["body": body])
+        return try await getIssue(key)
+    }
+
+    func deleteComment(_ key: String, id: String) async throws -> JiraJSON {
+        try Self.validate(key: key)
+        try Self.validate(commentId: id)
+        _ = try await client.request(method: "DELETE", path: "/rest/api/2/issue/\(key)/comment/\(id)")
+        return try await getIssue(key)
+    }
+
     func getBoardColumns() async throws -> [JiraJSON] {
         guard let boardId else { throw JiraError(status: 400, message: "Jira board is not set") }
         let config = try await object(path: "/rest/agile/1.0/board/\(boardId)/configuration")
@@ -173,7 +190,9 @@ actor JiraService {
         let mimeType = UTType(filenameExtension: (name as NSString).pathExtension)?.preferredMIMEType ?? "application/octet-stream"
         let result = try await client.upload(path: "/rest/api/2/issue/\(key)/attachments", filename: name, data: data, mimeType: mimeType)
         let saved = (result as? [JiraJSON])?.first
-        return ["filename": saved?["filename"] as? String ?? name, "id": orNull(saved?["id"])]
+        return ["filename": saved?["filename"] as? String ?? name, "id": orNull(saved?["id"]),
+                "file": orNull(JiraMapper.proxiedFile(saved?["content"] as? String)),
+                "thumbnail": orNull(JiraMapper.proxiedFile(saved?["thumbnail"] as? String))]
     }
 
     func searchUsers(_ query: String) async throws -> [JiraJSON] {
@@ -268,6 +287,10 @@ actor JiraService {
             ["id": orNull(sprint["id"]), "name": orNull(sprint["name"]), "state": orNull(sprint["state"]),
              "startDate": orNull(sprint["startDate"]), "endDate": orNull(sprint["endDate"])]
         }
+    }
+
+    private static func validate(commentId: String) throws {
+        guard commentId.wholeMatch(of: #/\d+/#) != nil else { throw JiraError(status: 400, message: "Invalid comment id") }
     }
 
     private static func validate(key: String) throws {
