@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Jira Desk</title>
+  <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.1.11"></script>
+  <style type="text/tailwindcss">
+    @theme inline {
+      --font-sans: var(--app-font);
+      --color-primary: var(--primary);
+      --color-primary-hover: var(--primary-hover);
+      --color-primary-foreground: var(--primary-foreground);
+      --color-link: var(--link);
+      --color-background: var(--background);
+      --color-surface: var(--surface);
+      --color-surface-hover: var(--surface-hover);
+      --color-surface-overlay: var(--surface-overlay);
+      --color-item-hover: var(--item-hover);
+      --color-foreground: var(--foreground);
+      --color-muted: var(--muted);
+      --color-border: var(--border);
+      --color-border-strong: var(--border-strong);
+      --color-secondary: var(--secondary);
+      --color-secondary-hover: var(--secondary-hover);
+      --color-button-hover: var(--button-hover);
+      --color-todo-bg: var(--todo-bg);
+      --color-todo-text: var(--todo-text);
+      --color-progress: var(--progress);
+      --color-progress-bg: var(--progress-bg);
+      --color-progress-text: var(--progress-text);
+      --color-review: var(--review);
+      --color-review-bg: var(--review-bg);
+      --color-review-text: var(--review-text);
+      --color-done: var(--done);
+      --color-done-bg: var(--done-bg);
+      --color-done-text: var(--done-text);
+      --color-warn: var(--warn);
+      --color-warn-bg: var(--warn-bg);
+      --color-warn-text: var(--warn-text);
+      --color-danger-text: var(--danger-text);
+      --border-color-focus: var(--border-focus);
+      --ring-color-focus: var(--ring-focus);
+      --shadow-popover: var(--elevation-popover);
+      --shadow-modal: var(--elevation-modal);
+    }
+  </style>
+</head>
+<body class="bg-background font-sans text-foreground">
+  <div id="app"></div>
+
+  <div id="panel-root" data-open="false">
+    <div data-close-panel class="pointer-events-none fixed inset-0 z-40 bg-black/15 opacity-0 transition-opacity duration-500 [[data-open=true]_&]:pointer-events-auto [[data-open=true]_&]:opacity-100 motion-reduce:transition-none"></div>
+    <div class="pointer-events-none fixed inset-0 z-[60] overflow-hidden">
+      <aside id="panel" tabindex="-1" aria-label="Task detail"
+        class="pointer-events-auto invisible absolute inset-y-0 right-0 flex w-full translate-x-full flex-col border-l border-border bg-surface shadow-modal outline-hidden transition-[translate,visibility] duration-[350ms] ease-[cubic-bezier(0.32,0.72,0,1)] sm:w-[28rem] [[data-open=true]_&]:visible [[data-open=true]_&]:translate-x-0 [[data-open=true]_&]:duration-500 motion-reduce:transition-none"></aside>
+    </div>
+  </div>
+
+  <div id="drawer-root" class="pointer-events-none fixed inset-0 z-[60] overflow-hidden lg:hidden" data-open="false">
+    <div data-close-drawer class="absolute inset-0 bg-black/15 opacity-0 transition-opacity duration-500 [[data-open=true]_&]:pointer-events-auto [[data-open=true]_&]:opacity-100 motion-reduce:transition-none"></div>
+    <aside id="drawer" aria-label="Navigation"
+      class="pointer-events-auto invisible absolute inset-y-0 left-0 flex w-[17.5rem] -translate-x-full flex-col bg-surface shadow-modal transition-[translate,visibility] duration-[350ms] ease-[cubic-bezier(0.32,0.72,0,1)] [[data-open=true]_&]:visible [[data-open=true]_&]:translate-x-0 [[data-open=true]_&]:duration-500 motion-reduce:transition-none"></aside>
+  </div>
+
+  <div id="pop" role="listbox" hidden
+    class="fixed z-[70] min-w-56 origin-top rounded-2xl border border-border bg-surface-overlay p-1 shadow-popover transition-[opacity,scale,translate] duration-150 ease-out data-[state=closed]:-translate-y-1 data-[state=closed]:scale-95 data-[state=closed]:opacity-0 motion-reduce:transition-none"></div>
+
+  <div id="toast" role="status" hidden
+    class="fixed bottom-6 left-1/2 z-[80] flex max-w-[calc(100vw-2rem)] -translate-x-1/2 items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium shadow-popover"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
