@@ -2,35 +2,85 @@ import Foundation
 
 @MainActor
 final class JiraViewModel: ObservableObject {
+    static let menuRefreshInterval: Duration = .seconds(60)
+
     @Published private(set) var service: JiraService?
     @Published private(set) var webURL = JiraRouter.startURL
-    @Published var openRequest: String?
+    @Published private(set) var openRequestCount = 0
+    @Published private(set) var menu = JiraMenuSnapshot()
+    @Published private(set) var menuError: String?
+    @Published private(set) var menuUpdatedAt: Date?
 
     private let keychain: KeychainStore
+    private let kpiStore: JiraKpiStore
+    private var menuLoop: Task<Void, Never>?
+    private lazy var notifier = JiraNotifier { [weak self] key in self?.openFromOutside(issueKey: key) }
 
-    init(keychain: KeychainStore = KeychainStore()) {
+    init(keychain: KeychainStore = KeychainStore(), kpiStore: JiraKpiStore = JiraKpiStore()) {
         self.keychain = keychain
-        reload()
+        self.kpiStore = kpiStore
+        service = Self.makeService(keychain: keychain)
     }
 
     var isConfigured: Bool { service != nil }
 
+    var hasToken: Bool { !(keychain.read() ?? "").isEmpty }
+
     func reload() {
-        service = JiraClient.fromSettings(keychain: keychain).map { JiraService(client: $0) }
+        service = Self.makeService(keychain: keychain)
         webURL = JiraRouter.startURL
+        menu = JiraMenuSnapshot()
+        menuError = nil
+        menuUpdatedAt = nil
+        restartBackgroundWork()
+    }
+
+    func restartBackgroundWork() {
+        menuLoop?.cancel()
+        notifier.stop()
+        guard let service else { return }
+        if JiraSettings.notificationsEnabled { notifier.start(service: service) }
+        if JiraSettings.menuBarEnabled {
+            menuLoop = Task { [weak self] in
+                while !Task.isCancelled {
+                    await self?.refreshMenu()
+                    try? await Task.sleep(for: Self.menuRefreshInterval)
+                }
+            }
+        }
+    }
+
+    func refreshMenu() async {
+        guard let service else { return }
+        do {
+            async let issues = service.listIssues()
+            async let meta = service.getMeta()
+            menu = JiraMenuSnapshot.make(issues: try await issues, meta: try await meta,
+                                         kpi: kpiStore.read()?.issues ?? [:])
+            menuUpdatedAt = Date()
+            menuError = nil
+        } catch let error as JiraError where error.status == 401 {
+            menuError = "Token invalid — open Settings"
+        } catch {
+            menuError = "Offline — \(error.localizedDescription)"
+        }
     }
 
     func open(issueKey: String) {
-        webURL = URL(string: "\(JiraRouter.startURL.absoluteString)#\(issueKey)") ?? JiraRouter.startURL
-        openRequest = issueKey
+        openRequestCount += 1
+        let fragment = issueKey.isEmpty ? "" : "#\(issueKey)"
+        webURL = URL(string: "\(JiraRouter.startURL.absoluteString)?open=\(openRequestCount)\(fragment)") ?? JiraRouter.startURL
+    }
+
+    func openFromOutside(issueKey: String) {
+        MainWindowController.show()
+        open(issueKey: issueKey)
     }
 
     func saveToken(_ token: String) throws {
         let trimmed = token.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.isEmpty { keychain.delete() } else { try keychain.save(trimmed) }
     }
-
-    var hasToken: Bool { !(keychain.read() ?? "").isEmpty }
 
     func testConnection() async -> String {
         guard let client = JiraClient.fromSettings(keychain: keychain) else { return "Fill in domain and token first" }
@@ -40,5 +90,9 @@ final class JiraViewModel: ObservableObject {
         } catch {
             return error.localizedDescription
         }
+    }
+
+    private static func makeService(keychain: KeychainStore) -> JiraService? {
+        JiraClient.fromSettings(keychain: keychain).map { JiraService(client: $0) }
     }
 }

@@ -125,6 +125,27 @@ actor JiraService {
         ]
     }
 
+    func myIdentity() async throws -> String {
+        let me = try await object(path: "/rest/api/2/myself")
+        return me["name"] as? String ?? me["accountId"] as? String ?? ""
+    }
+
+    func assigneesFieldId() async throws -> String {
+        try await fieldMap()[.assignees] ?? "assignee"
+    }
+
+    func myIssueKeys() async throws -> Set<String> {
+        let field = try await assigneesFieldId()
+        let clause = field.hasPrefix("customfield_") ? "cf[\(field.dropFirst("customfield_".count))]" : field
+        let issues = try await search(jql: "project = \(projectKey) AND \(clause) = currentUser()", fields: "key")
+        return Set(issues.compactMap { $0["key"] as? String })
+    }
+
+    func recentlyUpdatedForWatch() async throws -> [JiraJSON] {
+        let field = try await assigneesFieldId()
+        return try await search(jql: "project = \(projectKey) AND updated >= -2m", fields: "summary,comment,\(field)")
+    }
+
     func avatar(query: String) async throws -> (data: Data, contentType: String) {
         try await client.requestRaw(path: "/secure/useravatar", query: JiraMapper.avatarParams(query))
     }
