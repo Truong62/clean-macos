@@ -42,6 +42,7 @@ struct JiraMapper {
             "sprintId": orNull(sprint.id),
             "created": orNull(Self.prefix(f["created"], 10)),
             "updated": orNull(Self.prefix(f["updated"], 10)),
+            "updatedAt": orNull(f["updated"] as? String),
             "resolved": orNull(Self.prefix(f["resolutiondate"], 10).flatMap { $0.isEmpty ? nil : $0 }),
             "dueDate": orNull(f["duedate"] as? String),
             "isBug": Self.isBug(f),
