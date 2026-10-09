@@ -248,7 +248,7 @@ final class ScannerService: Sendable {
             let lock = NSLock()
             var expanded = artifacts
 
-            for index in artifacts.indices where artifacts[index].size >= 104_857_600 {
+            for index in artifacts.indices where Self.shouldDrillDown(artifacts[index], depth: 0) {
                 group.enter()
                 queue.async {
                     semaphore.wait()
@@ -288,11 +288,22 @@ final class ScannerService: Sendable {
             isPersonalData: artifact.isPersonalData,
             sizeIsLowerBound: measurement.didTimeout
         )
-        guard isDirectory.boolValue, measurement.size >= 104_857_600 else { return measured }
+        guard isDirectory.boolValue, Self.shouldDrillDown(measured, depth: 0) else { return measured }
         return Self.addChildren(to: measured)
     }
 
-    private static func addChildren(to artifact: Artifact) -> Artifact {
+    static let drillDownMinBytes: Int64 = 104_857_600
+    static let cacheDrillDownMinBytes: Int64 = 10_485_760
+    static let cacheNestedDrillDownMinBytes: Int64 = 52_428_800
+    static let cacheDrillDownMaxDepth = 3
+
+    private static func shouldDrillDown(_ artifact: Artifact, depth: Int) -> Bool {
+        guard artifact.category == .caches else { return depth == 0 && artifact.size >= drillDownMinBytes }
+        guard depth < cacheDrillDownMaxDepth else { return false }
+        return artifact.size >= (depth == 0 ? cacheDrillDownMinBytes : cacheNestedDrillDownMinBytes)
+    }
+
+    private static func addChildren(to artifact: Artifact, depth: Int = 0) -> Artifact {
         var isDirectory: ObjCBool = false
         guard artifact.reclaim == .deletePath,
               FileManager.default.fileExists(atPath: artifact.path, isDirectory: &isDirectory),
@@ -336,7 +347,9 @@ final class ScannerService: Sendable {
 
         group.wait()
         var result = artifact
-        result.children = children.sorted { $0.size > $1.size }
+        result.children = children
+            .map { shouldDrillDown($0, depth: depth + 1) ? addChildren(to: $0, depth: depth + 1) : $0 }
+            .sorted { $0.size > $1.size }
         return result
     }
 

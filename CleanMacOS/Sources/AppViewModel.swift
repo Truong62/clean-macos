@@ -299,7 +299,11 @@ final class AppViewModel: ObservableObject {
     }
 
     private var allArtifacts: [Artifact] {
-        artifacts.flatMap { [$0] + ($0.children ?? []) }
+        Self.flattened(artifacts)
+    }
+
+    nonisolated static func flattened(_ artifacts: [Artifact]) -> [Artifact] {
+        artifacts.flatMap { [$0] + flattened($0.children ?? []) }
     }
 
     private func refreshedArtifacts(after results: [DeleteResult]) async -> [Artifact] {
