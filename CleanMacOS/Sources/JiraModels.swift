@@ -431,7 +431,21 @@ struct JiraWatchFields: Equatable {
     let reviewers: String?
 
     var jqlFields: String {
-        (["summary", "description", "comment"] + assignees + [reviewers].compactMap { $0 }).joined(separator: ",")
+        (["summary", "updated", "description", "comment"] + assignees + [reviewers].compactMap { $0 }).joined(separator: ",")
+    }
+}
+
+enum JiraChanges {
+    static func changedKeys(_ issues: [JiraJSON], seen: [String: String]) -> (keys: [String], seen: [String: String]) {
+        var current: [String: String] = [:]
+        var keys: [String] = []
+        for issue in issues {
+            guard let key = issue["key"] as? String else { continue }
+            let updated = (issue["fields"] as? JiraJSON)?["updated"] as? String ?? ""
+            current[key] = updated
+            if seen[key] != updated { keys.append(key) }
+        }
+        return (keys, current)
     }
 }
 

@@ -7,7 +7,8 @@ struct JiraView: View {
 
     var body: some View {
         if jira.isConfigured {
-            JiraWebView(url: jira.webURL, router: JiraRouter(service: { [weak jira] in jira?.service }))
+            JiraWebView(url: jira.webURL, router: JiraRouter(service: { [weak jira] in jira?.service }),
+                        remoteChange: jira.remoteChange)
                 .id(jira.service.map(ObjectIdentifier.init))
         } else {
             VStack(spacing: 12) {
@@ -29,10 +30,12 @@ struct JiraView: View {
 struct JiraWebView: NSViewRepresentable {
     let url: URL
     let router: JiraRouter
+    let remoteChange: JiraRemoteChange
 
     final class Coordinator: NSObject, WKUIDelegate, WKNavigationDelegate {
         var handler: JiraSchemeHandler?
         var loadedURL: URL?
+        var lastChangeId = 0
 
         func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration,
                      for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
@@ -71,6 +74,7 @@ struct JiraWebView: NSViewRepresentable {
     func makeNSView(context: Context) -> WKWebView {
         let handler = JiraSchemeHandler(router: router)
         context.coordinator.handler = handler
+        context.coordinator.lastChangeId = remoteChange.id
         let configuration = WKWebViewConfiguration()
         configuration.setURLSchemeHandler(handler, forURLScheme: JiraRouter.scheme)
         let webView = WKWebView(frame: .zero, configuration: configuration)
@@ -81,8 +85,17 @@ struct JiraWebView: NSViewRepresentable {
     }
 
     func updateNSView(_ webView: WKWebView, context: Context) {
+        if context.coordinator.lastChangeId != remoteChange.id {
+            context.coordinator.lastChangeId = remoteChange.id
+            webView.evaluateJavaScript(Self.remoteUpdateScript(remoteChange.keys))
+        }
         guard context.coordinator.loadedURL != url else { return }
         context.coordinator.loadedURL = url
         webView.load(URLRequest(url: url))
+    }
+
+    static func remoteUpdateScript(_ keys: [String]) -> String {
+        let json = (try? JSONSerialization.data(withJSONObject: keys)).map { String(decoding: $0, as: UTF8.self) } ?? "[]"
+        return "void window.jiraRemoteUpdate?.(\(json))"
     }
 }

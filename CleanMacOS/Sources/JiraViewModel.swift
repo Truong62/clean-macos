@@ -1,5 +1,10 @@
 import Foundation
 
+struct JiraRemoteChange: Equatable {
+    let id: Int
+    let keys: [String]
+}
+
 @MainActor
 final class JiraViewModel: ObservableObject {
     static let menuRefreshInterval: Duration = .seconds(60)
@@ -15,7 +20,11 @@ final class JiraViewModel: ObservableObject {
     private var token: String?
     private let kpiStore: JiraKpiStore
     private var menuLoop: Task<Void, Never>?
-    private lazy var notifier = JiraNotifier { [weak self] key in self?.openFromOutside(issueKey: key) }
+    @Published private(set) var remoteChange = JiraRemoteChange(id: 0, keys: [])
+    private lazy var notifier = JiraNotifier(
+        onOpen: { [weak self] key in self?.openFromOutside(issueKey: key) },
+        onChange: { [weak self] keys in self?.publishRemoteChange(keys) }
+    )
 
     init(keychain: KeychainStore = KeychainStore(), kpiStore: JiraKpiStore = JiraKpiStore()) {
         self.keychain = keychain
@@ -41,7 +50,7 @@ final class JiraViewModel: ObservableObject {
         menuLoop?.cancel()
         notifier.stop()
         guard let service else { return }
-        if JiraSettings.notificationsEnabled { notifier.start(service: service) }
+        notifier.start(service: service, postsNotifications: JiraSettings.notificationsEnabled)
         if JiraSettings.menuBarEnabled {
             menuLoop = Task { [weak self] in
                 while !Task.isCancelled {
@@ -50,6 +59,10 @@ final class JiraViewModel: ObservableObject {
                 }
             }
         }
+    }
+
+    private func publishRemoteChange(_ keys: [String]) {
+        remoteChange = JiraRemoteChange(id: remoteChange.id + 1, keys: keys)
     }
 
     func refreshMenu() async {

@@ -12,21 +12,26 @@ final class JiraNotifier: NSObject, UNUserNotificationCenterDelegate {
     static let testMessage = "TruongDepZai"
 
     private let onOpen: (String) -> Void
+    private let onChange: ([String]) -> Void
     private var loop: Task<Void, Never>?
+    private var postsNotifications = false
 
-    init(onOpen: @escaping (String) -> Void) {
+    init(onOpen: @escaping (String) -> Void, onChange: @escaping ([String]) -> Void) {
         self.onOpen = onOpen
+        self.onChange = onChange
     }
 
     private var center: UNUserNotificationCenter? {
         Bundle.main.bundleIdentifier == nil ? nil : .current()
     }
 
-    func start(service: JiraService) {
+    func start(service: JiraService, postsNotifications: Bool) {
         stop()
-        guard let center else { return }
-        center.delegate = self
-        center.requestAuthorization(options: [.alert, .sound]) { _, _ in }
+        self.postsNotifications = postsNotifications
+        if postsNotifications, let center {
+            center.delegate = self
+            center.requestAuthorization(options: [.alert, .sound]) { _, _ in }
+        }
         loop = Task { [weak self] in await self?.watch(service) }
     }
 
@@ -54,6 +59,7 @@ final class JiraNotifier: NSObject, UNUserNotificationCenterDelegate {
 
     private func watch(_ service: JiraService) async {
         var session: Session?
+        var seen: [String: String]?
         while !Task.isCancelled {
             do {
                 if session == nil { session = try await startSession(service) }
@@ -65,7 +71,10 @@ final class JiraNotifier: NSObject, UNUserNotificationCenterDelegate {
                     current.state.since = pollStart.addingTimeInterval(-Self.clockSkew)
                     session = current
                     save(current.state, key: current.storeKey)
-                    result.events.forEach(post)
+                    if postsNotifications { result.events.forEach(post) }
+                    let changes = JiraChanges.changedKeys(issues, seen: seen ?? [:])
+                    if seen != nil, !changes.keys.isEmpty { onChange(changes.keys) }
+                    seen = changes.seen
                 }
             } catch {
                 NSLog("JiraNotifier.watch failed: \(error.localizedDescription)")
