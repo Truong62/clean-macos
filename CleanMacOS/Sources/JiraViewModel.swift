@@ -79,6 +79,22 @@ final class JiraViewModel: ObservableObject {
         open(issueKey: issueKey)
     }
 
+    func importKpi(from url: URL) async -> String {
+        guard let service else { return "Set up Jira first" }
+        do {
+            let csv = try String(contentsOf: url, encoding: .utf8)
+            let data = try await service.importKpi(csv: csv, countedElsewhereJQL: JiraSettings.kpiCountedElsewhereJQL,
+                                                   countedElsewhereMonth: JiraSettings.kpiCountedElsewhereMonth)
+            try kpiStore.write(data)
+            webURL = URL(string: "\(JiraRouter.startURL.absoluteString)?kpi=\(data.syncedAt)-\(data.issues.count)") ?? webURL
+            await refreshMenu()
+            let elsewhere = data.issues.values.filter { $0.source == JiraKpi.countedElsewhereSource }.count
+            return "Imported KPI for \(data.issues.count) tasks (\(elsewhere) counted elsewhere)"
+        } catch {
+            return error.localizedDescription
+        }
+    }
+
     func sendTestNotification() async -> String {
         await notifier.sendTest()
     }

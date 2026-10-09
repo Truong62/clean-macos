@@ -126,6 +126,26 @@ actor JiraService {
         ]
     }
 
+    func importKpi(csv: String, countedElsewhereJQL: String, countedElsewhereMonth: String,
+                   now: Date = Date()) async throws -> JiraKpiData {
+        var issues = JiraKpi.parseRows(JiraCSV.parse(csv), projectKey: projectKey)
+        guard !issues.isEmpty else {
+            throw JiraError(status: 400, message: "No KPI rows found — expected columns: Month (T9 26), …, task link with \(projectKey)-…, Dev point, Tester point")
+        }
+        let jql = countedElsewhereJQL.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !jql.isEmpty {
+            guard countedElsewhereMonth.wholeMatch(of: #/\d{4}-\d{2}/#) != nil else {
+                throw JiraError(status: 400, message: "Counted-elsewhere month must look like 2026-06")
+            }
+            let keys = try await listCountedElsewhereKeys(jql: jql)
+            issues = JiraKpi.addCountedElsewhere(issues, keys: keys, month: countedElsewhereMonth)
+        }
+        let day = ISO8601DateFormatter()
+        day.formatOptions = [.withFullDate]
+        day.timeZone = .current
+        return JiraKpiData(syncedAt: day.string(from: now), issues: issues)
+    }
+
     func searchUsers(_ query: String) async throws -> [JiraJSON] {
         let text = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return [] }

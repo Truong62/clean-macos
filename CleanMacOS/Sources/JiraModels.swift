@@ -293,6 +293,48 @@ enum JiraKpi {
     }
 }
 
+enum JiraCSV {
+    static func parse(_ text: String) -> [[String]] {
+        var rows: [[String]] = []
+        var row: [String] = []
+        var field = ""
+        var inQuotes = false
+        var characters = text.makeIterator()
+        var pending = characters.next()
+        while let character = pending {
+            pending = characters.next()
+            if inQuotes {
+                if character != "\"" {
+                    field.append(character)
+                } else if pending == "\"" {
+                    field.append(character)
+                    pending = characters.next()
+                } else {
+                    inQuotes = false
+                }
+                continue
+            }
+            switch character {
+            case "\"": inQuotes = true
+            case ",":
+                row.append(field)
+                field = ""
+            case "\n", "\r\n", "\r":
+                row.append(field)
+                rows.append(row)
+                row = []
+                field = ""
+            default: field.append(character)
+            }
+        }
+        if !field.isEmpty || !row.isEmpty {
+            row.append(field)
+            rows.append(row)
+        }
+        return rows
+    }
+}
+
 struct JiraWatchFields: Equatable {
     let assignees: [String]
     let reviewers: String?

@@ -8,6 +8,8 @@ struct JiraSettingsForm: View {
     @AppStorage(JiraSettings.projectKeyKey) private var projectKey = ""
     @AppStorage(JiraSettings.appFieldNameKey) private var appFieldName = ""
     @AppStorage(JiraSettings.roleKey) private var role = JiraSettings.Role.dev.rawValue
+    @AppStorage(JiraSettings.kpiCountedElsewhereJQLKey) private var countedElsewhereJQL = ""
+    @AppStorage(JiraSettings.kpiCountedElsewhereMonthKey) private var countedElsewhereMonth = ""
     @AppStorage(JiraSettings.menuBarEnabledKey) private var menuBarEnabled = true
     @AppStorage(JiraSettings.notificationsEnabledKey) private var notificationsEnabled = true
     @State private var boardId = JiraSettings.boardId.map(String.init) ?? ""
@@ -51,6 +53,16 @@ struct JiraSettingsForm: View {
             .pickerStyle(.segmented)
             .frame(width: 300)
         }
+        row("KPI counted elsewhere", "Optional JQL for tasks already counted outside the sheet, and their month") {
+            HStack(spacing: 6) {
+                TextField(#"description ~ "KPI đã tính ở Notion""#, text: $countedElsewhereJQL).textFieldStyle(.roundedBorder)
+                TextField("2026-06", text: $countedElsewhereMonth).textFieldStyle(.roundedBorder).frame(width: 80)
+            }
+            .frame(width: 300)
+        }
+        row("KPI sheet", "Import a CSV export: Month (T9 26), …, task link, Dev point, Tester point") {
+            Button("Import KPI CSV…", action: importKpi).pointerCursor()
+        }
         Toggle(isOn: $menuBarEnabled) { label("Show tasks in menu bar", "Sprint, month progress and your open tasks") }
             .onChange(of: menuBarEnabled) { _, _ in jira.restartBackgroundWork() }
         HStack {
@@ -68,6 +80,18 @@ struct JiraSettingsForm: View {
                 .pointerCursor()
             if isTesting { ProgressView().controlSize(.small) }
             Text(status).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
+        }
+    }
+
+    private func importKpi() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.commaSeparatedText]
+        panel.allowsMultipleSelection = false
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        isTesting = true
+        Task {
+            status = await jira.importKpi(from: url)
+            isTesting = false
         }
     }
 
