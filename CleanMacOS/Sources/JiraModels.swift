@@ -65,6 +65,7 @@ struct JiraMapper {
         detail["descriptionHtml"] = absolutizeLinks(rendered["description"] as? String)
         detail["mergeRequest"] = orNull(value(f, .mergeRequest))
         detail["reporter"] = (f["reporter"] as? JiraJSON).map(user) ?? NSNull()
+        detail["attachments"] = (f["attachment"] as? [JiraJSON] ?? []).map(attachment)
         detail["extraFields"] = extraFields(f, editmeta: editmeta)
         detail["reviewers"] = fields[.reviewers] == nil ? NSNull() : Self.users(value(f, .reviewers)).map(user)
         detail["comments"] = comments.map { comment -> JiraJSON in
@@ -85,6 +86,22 @@ struct JiraMapper {
             "priority": Self.allowedValues(editmeta, fieldId: "priority", labelKey: "name"),
         ]
         return detail
+    }
+
+    func attachment(_ raw: JiraJSON) -> JiraJSON {
+        let content = raw["content"] as? String
+        return ["id": orNull(raw["id"]), "filename": raw["filename"] as? String ?? "",
+                "size": raw["size"] as? Int ?? 0, "mimeType": orNull(raw["mimeType"]),
+                "created": (Self.prefix(raw["created"], 16) ?? "").replacingOccurrences(of: "T", with: " "),
+                "author": orNull((raw["author"] as? JiraJSON)?["displayName"]),
+                "url": orNull(content), "file": orNull(Self.proxiedFile(content)),
+                "thumbnail": orNull(Self.proxiedFile(raw["thumbnail"] as? String))]
+    }
+
+    static func proxiedFile(_ absoluteURL: String?) -> String? {
+        guard let absoluteURL, let components = URLComponents(string: absoluteURL), !components.path.isEmpty else { return nil }
+        let path = components.path + (components.query.map { "?\($0)" } ?? "")
+        return "/api/file?path=\(path.addingPercentEncoding(withAllowedCharacters: queryValueAllowed) ?? path)"
     }
 
     func user(_ raw: JiraJSON) -> JiraJSON {

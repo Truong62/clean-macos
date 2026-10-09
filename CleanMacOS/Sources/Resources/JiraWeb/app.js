@@ -858,6 +858,75 @@ async function togglePreview(button) {
   }
 }
 
+const BYTE_UNITS = ['B', 'KB', 'MB', 'GB'];
+const fileSize = (bytes) => {
+  let size = bytes;
+  let unit = 0;
+  while (size >= 1024 && unit < BYTE_UNITS.length - 1) { size /= 1024; unit += 1; }
+  return `${unit ? size.toFixed(size < 10 ? 2 : 1) : size} ${BYTE_UNITS[unit]}`;
+};
+
+function attachmentCard(a) {
+  const isImage = (a.mimeType || '').startsWith('image/');
+  const preview = isImage
+    ? `<img src="${esc(a.thumbnail || a.file)}" alt="" loading="lazy" class="size-full object-cover" />`
+    : `<span class="flex size-full items-center justify-center text-muted">${icon('file-text', 'size-8')}</span>`;
+  const open = isImage
+    ? `<button type="button" data-lightbox="${esc(a.file)}" data-name="${esc(a.filename)}" aria-label="View ${esc(a.filename)}" class="block h-24 w-full cursor-zoom-in overflow-hidden bg-foreground/5">${preview}</button>`
+    : `<a href="${esc(a.url)}" target="_blank" rel="noopener" aria-label="Open ${esc(a.filename)}" class="block h-24 w-full overflow-hidden bg-foreground/5">${preview}</a>`;
+  return `<li class="overflow-hidden rounded-xl border border-border bg-surface">${open}
+    <div class="px-2 py-1.5"><a href="${esc(a.url)}" target="_blank" rel="noopener" title="${esc(a.filename)}" class="block truncate text-xs font-medium text-link hover:underline">${esc(a.filename)}</a>
+    <p class="truncate text-[11px] text-muted">${esc(a.created)} · ${fileSize(a.size)}</p></div></li>`;
+}
+
+function attachmentsHtml(d) {
+  const items = d.attachments || [];
+  return `<section class="border-t border-border pt-5">
+    <h3 class="text-sm font-semibold text-foreground">Attachments <span class="font-normal tabular-nums text-muted">${items.length || ''}</span></h3>
+    <div data-dropzone class="mt-2 rounded-xl border border-dashed border-border-strong p-3 transition-colors data-[drag-over]:border-focus data-[drag-over]:bg-focus/5">
+      <p class="flex items-center justify-center gap-2 text-sm text-muted">${icon('cloud-upload', 'size-4')}Drop files to attach, or <button type="button" data-action="browse-attachment" class="cursor-pointer text-link hover:underline">browse</button>.</p>
+      <input type="file" id="attachment-file" multiple hidden />
+      <div id="attachment-upload" role="status" hidden class="mt-2 flex items-center justify-center gap-2 text-xs font-medium text-muted"><span class="size-3.5 shrink-0 animate-spin rounded-full border-2 border-foreground/20 border-t-primary"></span><span data-upload-text></span></div>
+      ${items.length ? `<ul class="mt-3 grid grid-cols-[repeat(auto-fill,minmax(8.5rem,1fr))] gap-2">${items.map(attachmentCard).join('')}</ul>` : ''}
+    </div>
+  </section>`;
+}
+
+async function uploadAttachments(files) {
+  const key = state.detail?.key;
+  const list = [...files];
+  if (!key || !list.length) return;
+  const status = $('#attachment-upload');
+  try {
+    for (const [index, file] of list.entries()) {
+      status.hidden = false;
+      status.querySelector('[data-upload-text]').textContent = `Uploading ${index + 1}/${list.length} · ${file.name}…`;
+      await api.upload(key, file, file.name);
+    }
+    const draft = $('#comment-input')?.value || '';
+    const detail = await api.issue(key);
+    if (state.detail?.key === key) renderPanel(detail);
+    if ($('#comment-input')) $('#comment-input').value = draft;
+    showToast(`${key}: ${list.length} file(s) attached`);
+  } catch (error) {
+    showToast(error.message, true);
+    if ($('#attachment-upload')) $('#attachment-upload').hidden = true;
+  }
+}
+
+function openLightbox(src, name) {
+  const box = $('#lightbox');
+  box.querySelector('img').src = src;
+  box.querySelector('[data-lightbox-name]').textContent = name;
+  box.hidden = false;
+}
+
+function closeLightbox() {
+  const box = $('#lightbox');
+  box.hidden = true;
+  box.querySelector('img').removeAttribute('src');
+}
+
 function descriptionHtml(d) {
   return `<section class="border-t border-border pt-5">
     <div class="flex items-center justify-between gap-3"><h3 class="text-sm font-semibold text-foreground">Description</h3><button type="button" data-action="edit-description" class="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-lg px-2.5 text-sm font-medium text-muted outline-hidden transition-colors hover:bg-foreground/5 hover:text-foreground">${icon('pencil', 'size-3.5')}Edit</button></div>
@@ -952,7 +1021,7 @@ function panelHtml(d) {
   return `<div class="border-b border-border px-6 pt-4 pb-4">${panelTopBar(d.key, d.type, d.url)}
       <h2 class="-ml-2.25 mt-1"><textarea data-input="summary" aria-label="Title" class="block w-full resize-none [field-sizing:content] rounded-lg border border-transparent bg-transparent px-2 py-1 text-lg leading-7 font-semibold text-pretty text-foreground outline-hidden transition-colors hover:bg-foreground/5 focus:border-focus focus:ring-2 focus:ring-focus">${esc(d.summary)}</textarea></h2>
     </div>
-    <div class="flex-1 overflow-y-auto px-6 py-6"><div class="flex flex-col gap-6">${warningBanner(d)}${propsHtml(d)}${extraFieldsHtml(d)}${linkedHtml(d)}${descriptionHtml(d)}${commentsHtml(d)}</div></div>`;
+    <div class="flex-1 overflow-y-auto px-6 py-6"><div class="flex flex-col gap-6">${warningBanner(d)}${propsHtml(d)}${extraFieldsHtml(d)}${linkedHtml(d)}${descriptionHtml(d)}${attachmentsHtml(d)}${commentsHtml(d)}</div></div>`;
 }
 
 function panelSkeleton(key) {
@@ -1037,6 +1106,7 @@ function toggleDescriptionEdit(isEditing) {
 const PANEL_ACTIONS = {
   'edit-description': () => toggleDescriptionEdit(true),
   'attach-image': () => $('#comment-file').click(),
+  'browse-attachment': () => $('#attachment-file').click(),
   'cancel-description': () => renderPanel(state.detail),
   'save-description': () => saveField('description', $('#description-input').value),
   'add-comment': addComment,
@@ -1256,6 +1326,8 @@ const CLICK_ACTIONS = [
   ['[data-issue]', (el) => openPanel(el.dataset.issue)],
   ['[data-remove-person]', (el) => savePeople(el.dataset.removePerson, personNames(el.dataset.removePerson).filter((n) => n !== el.dataset.name))],
   ['[data-mention]', (el) => insertMention(el.dataset.mention)],
+  ['[data-lightbox]', (el) => openLightbox(el.dataset.lightbox, el.dataset.name)],
+  ['[data-close-lightbox]', closeLightbox],
   ['[data-format]', (el) => applyWikiFormat(document.getElementById(el.dataset.target), el.dataset.format)],
   ['[data-preview]', (el) => togglePreview(el)],
   ['[data-add-person]', (el) => savePeople(el.dataset.addPerson, [...personNames(el.dataset.addPerson), el.dataset.name])],
@@ -1295,6 +1367,11 @@ function handleInput(event) {
 }
 
 function handleChange(event) {
+  if (event.target.id === 'attachment-file') {
+    uploadAttachments(event.target.files);
+    event.target.value = '';
+    return;
+  }
   if (event.target.id === 'comment-file') {
     uploadCommentImages(event.target.files);
     event.target.value = '';
@@ -1322,6 +1399,7 @@ function handleKeydown(event) {
     return event.target.blur();
   }
   if (event.key !== 'Escape') return;
+  if (!$('#lightbox').hidden) return closeLightbox();
   if (popAnchor) {
     const anchor = popAnchor;
     closePop();
@@ -1409,6 +1487,22 @@ function bindEvents() {
   document.addEventListener('click', handleClick);
   document.addEventListener('input', handleInput);
   document.addEventListener('change', handleChange);
+  const hasFiles = (event) => event.dataTransfer?.types?.includes('Files');
+  document.addEventListener('dragover', (event) => {
+    if (!hasFiles(event)) return;
+    event.preventDefault();
+    document.querySelectorAll('[data-dropzone]').forEach((zone) => zone.toggleAttribute('data-drag-over', zone.contains(event.target)));
+  });
+  document.addEventListener('dragleave', (event) => {
+    if (hasFiles(event) && !event.relatedTarget) document.querySelectorAll('[data-dropzone]').forEach((zone) => zone.removeAttribute('data-drag-over'));
+  });
+  document.addEventListener('drop', (event) => {
+    if (!hasFiles(event)) return;
+    event.preventDefault();
+    document.querySelectorAll('[data-dropzone]').forEach((zone) => zone.removeAttribute('data-drag-over'));
+    if (event.target.closest?.('[data-dropzone]')) uploadAttachments(event.dataTransfer.files);
+    else if (event.target.id === 'comment-input') uploadCommentImages(event.dataTransfer.files);
+  });
   document.addEventListener('paste', (event) => {
     if (event.target.id !== 'comment-input' || !event.clipboardData?.files.length) return;
     event.preventDefault();
