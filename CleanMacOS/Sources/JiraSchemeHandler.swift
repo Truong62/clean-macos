@@ -36,6 +36,7 @@ struct JiraRouter {
         guard path.hasPrefix("/api/") else { return staticFile(path) }
         do {
             if method == "GET", path == "/api/avatar" { return try await avatar(query: query ?? "") }
+            if method == "GET", path == "/api/users" { return .json(try await configuredService().searchUsers(Self.queryValue(query, "q"))) }
             return .json(try await api(method: method, parts: path.split(separator: "/").dropFirst().map(String.init),
                                        body: body))
         } catch let error as JiraError {
@@ -86,6 +87,10 @@ struct JiraRouter {
         }
         let type = UTType(filenameExtension: (relative as NSString).pathExtension)?.preferredMIMEType
         return JiraHTTPResponse(status: 200, contentType: type ?? "application/octet-stream", data: data)
+    }
+
+    static func queryValue(_ query: String?, _ name: String) -> String {
+        URLComponents(string: "?\(query ?? "")")?.queryItems?.first { $0.name == name }?.value ?? ""
     }
 
     static func bodyObject(_ body: Data?) throws -> JiraJSON {

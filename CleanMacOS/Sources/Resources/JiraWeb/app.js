@@ -121,6 +121,7 @@ const api = {
   transition: (key, id) => api.call('POST', `/api/issues/${key}/transition`, { id }),
   move: (key, column) => api.call('POST', `/api/issues/${key}/move`, { column }),
   comment: (key, body) => api.call('POST', `/api/issues/${key}/comment`, { body }),
+  users: (query) => api.call('GET', `/api/users?q=${encodeURIComponent(query)}`),
 };
 
 function esc(value) {
@@ -623,6 +624,49 @@ function warningBanner(d) {
   return `<div role="status" class="flex gap-3 rounded-2xl bg-warn-bg p-4">${icon('triangle-alert', 'mt-0.5 size-5 text-warn-text')}<div class="min-w-0"><p class="text-sm font-medium text-warn-text">${texts.map(esc).join(' · ')}</p></div></div>`;
 }
 
+const PEOPLE_SEARCH_DELAY_MS = 250;
+let peopleSearchTimer;
+
+function peopleEditor(field, users) {
+  const chips = users.map((u) => `<span class="inline-flex items-center gap-1.5 rounded-full bg-foreground/5 py-0.5 pr-1 pl-0.5 text-sm font-medium">${avatar(u, 'size-5')}${esc(u.displayName)}<button type="button" data-remove-person="${field}" data-name="${esc(u.name)}" aria-label="Remove ${esc(u.displayName)}" title="Remove" class="inline-flex size-5 cursor-pointer items-center justify-center rounded-full text-muted hover:bg-foreground/10 hover:text-foreground">${icon('x', 'size-3')}</button></span>`).join('');
+  return `<div class="flex flex-wrap items-center gap-1.5">${chips}<div class="relative">
+    <input type="text" data-person-search="${field}" placeholder="+ Add" autocomplete="off" aria-label="Add person" class="h-7 w-24 rounded-full border border-dashed border-border-strong bg-transparent px-2.5 text-sm font-normal text-foreground outline-hidden transition-all placeholder:text-muted focus:w-48 focus:border-solid focus:border-focus" />
+    <ul data-person-results="${field}" hidden class="absolute top-8 left-0 z-30 max-h-64 w-72 overflow-y-auto rounded-xl border border-border bg-surface p-1 shadow-lg"></ul>
+  </div></div>`;
+}
+
+function personNames(field) {
+  return (state.detail?.[field] || []).map((u) => u.name);
+}
+
+function savePeople(field, names) {
+  return saveField(field, [...new Set(names)]);
+}
+
+function searchPeople(input) {
+  const field = input.dataset.personSearch;
+  const list = document.querySelector(`[data-person-results="${field}"]`);
+  const query = input.value.trim();
+  clearTimeout(peopleSearchTimer);
+  if (!query) { list.hidden = true; return; }
+  peopleSearchTimer = setTimeout(async () => {
+    try {
+      const taken = new Set(personNames(field));
+      const users = (await api.users(query)).filter((u) => !taken.has(u.name));
+      list.innerHTML = users.length
+        ? users.map((u) => `<li><button type="button" data-add-person="${field}" data-name="${esc(u.name)}" class="flex w-full cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm hover:bg-item-hover">${avatar(u, 'size-6')}<span class="min-w-0 truncate">${esc(u.displayName)}</span><span class="ml-auto truncate text-xs text-muted">${esc(u.name)}</span></button></li>`).join('')
+        : '<li class="px-2 py-1.5 text-sm text-muted">No matching people</li>';
+      list.hidden = false;
+    } catch (error) {
+      showToast(error.message, true);
+    }
+  }, PEOPLE_SEARCH_DELAY_MS);
+}
+
+function closePeopleResults(except) {
+  document.querySelectorAll('[data-person-results]').forEach((list) => { if (list !== except) list.hidden = true; });
+}
+
 function propsHtml(d) {
   return `<dl class="@container flex flex-col gap-3">
     ${detailRow('Status', selectTrigger('status', statusBadge(d.status)))}
@@ -632,8 +676,8 @@ function propsHtml(d) {
     ${detailRow('Sprint', selectTrigger('sprintId', esc(d.sprint || 'No sprint'), !d.sprint))}
     ${detailRow('Due date', selectTrigger('dueDate', d.dueDate ? formatLongDate(d.dueDate) : 'Pick a date', !d.dueDate))}
     ${detailRow('Merge request', `<input type="url" data-input="mergeRequest" value="${esc(d.mergeRequest || '')}" placeholder="https://…/merge_requests/…" aria-label="Merge request" class="h-11 w-full rounded-xl border border-border-strong bg-surface px-3 text-base font-normal text-foreground outline-hidden transition-colors placeholder:text-muted focus:border-focus focus:ring-2 focus:ring-focus md:h-10 md:text-sm" />`)}
-    ${detailRow('Assignees', d.assignees.length ? `<span class="flex flex-wrap gap-x-3 gap-y-1.5">${d.assignees.map(personLabel).join('')}</span>` : dash)}
-    ${detailRow('Reviewers', d.reviewers.length ? esc(d.reviewers.join(', ')) : dash)}
+    ${detailRow('Assignees', peopleEditor('assignees', d.assignees))}
+    ${d.reviewers ? detailRow('Reviewers', peopleEditor('reviewers', d.reviewers)) : ''}
     ${detailRow('Created', `<span class="tabular-nums">${formatLongDate(d.created)}</span> <span class="font-normal text-muted">· updated ${formatDate(d.updated)}</span>`)}
   </dl>`;
 }
@@ -984,6 +1028,8 @@ const CLICK_ACTIONS = [
   ['[data-retry]', loadAll],
   ['[data-action]', (el) => PANEL_ACTIONS[el.dataset.action]?.()],
   ['[data-issue]', (el) => openPanel(el.dataset.issue)],
+  ['[data-remove-person]', (el) => savePeople(el.dataset.removePerson, personNames(el.dataset.removePerson).filter((n) => n !== el.dataset.name))],
+  ['[data-add-person]', (el) => savePeople(el.dataset.addPerson, [...personNames(el.dataset.addPerson), el.dataset.name])],
 ];
 
 function handleClick(event) {
@@ -995,6 +1041,7 @@ function handleClick(event) {
     return opener.dataset.filter ? openFilter(opener, opener.dataset.filter) : openField(opener, opener.dataset.field);
   }
   closePop();
+  closePeopleResults(target.closest('[data-person-results]'));
   for (const [selector, run] of CLICK_ACTIONS) {
     const el = target.closest(selector);
     if (el) return run(el);
@@ -1009,6 +1056,8 @@ function handleInput(event) {
   } else if (target.id === 'search') {
     state.query = target.value;
     render();
+  } else if (target.matches('[data-person-search]')) {
+    searchPeople(target);
   } else if (target.id === 'comment-input') {
     $('[data-action="add-comment"]').disabled = !target.value.trim();
   }

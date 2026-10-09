@@ -68,6 +68,20 @@ struct JiraRouterTests {
         #expect(try json(response)["error"] as? String == "'column' is required")
     }
 
+    @Test func userSearchQueriesJiraAndMapsUsers() async throws {
+        let transport = FakeJiraTransport { request -> (Int, Any?) in
+            if request.url!.path == "/rest/api/2/field" { return (200, [JiraJSON]()) }
+            return (200, [["name": "tony", "displayName": "Tony Nguyen", "avatarUrls": ["48x48": "https://x/secure/useravatar?avatarId=7"]]])
+        }
+        let response = try await router(transport).handle(method: "GET", path: "/api/users", query: "q=to%20ny", body: nil)
+        #expect(response.status == 200)
+        let users = try #require(try JSONSerialization.jsonObject(with: response.data) as? [JiraJSON])
+        #expect(users.first?["name"] as? String == "tony")
+        #expect(users.first?["displayName"] as? String == "Tony Nguyen")
+        let search = try #require(transport.requests.first { $0.url!.path == "/rest/api/2/user/search" })
+        #expect(URLComponents(url: search.url!, resolvingAgainstBaseURL: false)?.queryItems?.first { $0.name == "username" }?.value == "to ny")
+    }
+
     @Test func jiraErrorStatusIsForwarded() async throws {
         let transport = FakeJiraTransport { _ in (401, ["errorMessages": ["Bad token"]]) }
         let response = try await router(transport).handle(method: "GET", path: "/api/issues/FAL-1", query: nil, body: nil)

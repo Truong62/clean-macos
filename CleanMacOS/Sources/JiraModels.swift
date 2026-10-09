@@ -7,11 +7,13 @@ struct JiraMapper {
     typealias FieldBuilder = (id: (JiraFieldMap) -> String?, build: (Any?) throws -> Any)
 
     static let avatarKeys = ["ownerId", "avatarId", "size"]
+    static let userFieldChanges: [String: JiraField] = ["assignees": .assignees, "reviewers": .reviewers]
     static let missingAppWarning = "missing_falcon_app"
     static let doneWithoutDevPointWarning = "done_without_dev_point"
 
     let baseURL: String
     let fields: JiraFieldMap
+    var userKey = "name"
 
     func summary(_ issue: JiraJSON) -> JiraJSON {
         let f = issue["fields"] as? JiraJSON ?? [:]
@@ -60,7 +62,7 @@ struct JiraMapper {
         detail["descriptionRaw"] = f["description"] as? String ?? ""
         detail["descriptionHtml"] = absolutizeLinks(rendered["description"] as? String)
         detail["mergeRequest"] = orNull(value(f, .mergeRequest))
-        detail["reviewers"] = Self.users(value(f, .reviewers)).map { $0["displayName"] as? String ?? "" }
+        detail["reviewers"] = fields[.reviewers] == nil ? NSNull() : Self.users(value(f, .reviewers)).map(user)
         detail["comments"] = comments.map { comment -> JiraJSON in
             let created = Self.prefix(comment["created"], 16) ?? ""
             return ["id": orNull(comment["id"]),
@@ -93,12 +95,17 @@ struct JiraMapper {
 
     func updateFields(_ changes: JiraJSON) throws -> JiraJSON {
         guard !changes.isEmpty else { throw JiraError(status: 400, message: "No changes to update") }
-        let unknown = changes.keys.filter { Self.fieldBuilders[$0] == nil }.sorted()
+        let unknown = changes.keys.filter { Self.fieldBuilders[$0] == nil && Self.userFieldChanges[$0] == nil }.sorted()
         guard unknown.isEmpty else {
             throw JiraError(status: 400, message: "Unsupported fields: \(unknown.joined(separator: ", "))")
         }
         var update: JiraJSON = [:]
         for (name, raw) in changes {
+            if let field = Self.userFieldChanges[name] {
+                let (id, value) = try usersUpdate(name, field, raw)
+                update[id] = value
+                continue
+            }
             let builder = Self.fieldBuilders[name]!
             guard let id = builder.id(fields) else {
                 throw JiraError(status: 400, message: "Field \(name) is not configured for this Jira")
@@ -106,6 +113,16 @@ struct JiraMapper {
             update[id] = try builder.build(raw)
         }
         return update
+    }
+
+    private func usersUpdate(_ name: String, _ field: JiraField, _ raw: Any?) throws -> (id: String, value: Any) {
+        guard let names = raw as? [String] else { throw JiraError(status: 400, message: "\(name) must be a list of users") }
+        guard let id = fields[field] ?? (field == .assignees ? "assignee" : nil) else {
+            throw JiraError(status: 400, message: "Field \(name) is not configured for this Jira")
+        }
+        let users = names.map { [userKey: $0] }
+        guard id == "assignee" else { return (id, users) }
+        return (id, users.first ?? NSNull())
     }
 
     private func value(_ fieldValues: JiraJSON, _ field: JiraField) -> Any? {

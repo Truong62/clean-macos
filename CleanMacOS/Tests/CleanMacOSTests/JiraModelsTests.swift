@@ -260,6 +260,36 @@ struct JiraUpdateFieldsTests {
         #expect(throws: (any Error).self) { try mapper.updateFields([:]) }
     }
 
+    @Test func setsMultiUserAssigneesByName() throws {
+        assertJSONEqual(try mapper.updateFields(["assignees": ["truongnn", "tony"]]),
+                        ["customfield_10700": [["name": "truongnn"], ["name": "tony"]]])
+        assertJSONEqual(try mapper.updateFields(["assignees": [String]()]), ["customfield_10700": [JiraJSON]()])
+    }
+
+    @Test func cloudAssigneesUseAccountId() throws {
+        let cloud = JiraMapper(baseURL: JiraFixtures.baseURL, fields: JiraFixtures.avadaFields, userKey: "accountId")
+        assertJSONEqual(try cloud.updateFields(["assignees": ["5b10ac"]]), ["customfield_10700": [["accountId": "5b10ac"]]])
+    }
+
+    @Test func singleAssigneeFieldTakesFirstUserOrNull() throws {
+        let single = JiraMapper(baseURL: JiraFixtures.baseURL, fields: JiraFieldMap(ids: [.assignees: "assignee"]))
+        assertJSONEqual(try single.updateFields(["assignees": ["tony", "x"]]), ["assignee": ["name": "tony"]])
+        assertJSONEqual(try single.updateFields(["assignees": [String]()]), ["assignee": NSNull()])
+    }
+
+    @Test func setsReviewers() throws {
+        assertJSONEqual(try mapper.updateFields(["reviewers": ["tony"]]), ["customfield_10900": [["name": "tony"]]])
+    }
+
+    @Test func rejectsReviewersWhenFieldMissing() {
+        let bare = JiraMapper(baseURL: JiraFixtures.baseURL, fields: JiraFieldMap(ids: [.assignees: "assignee"]))
+        #expect(throws: (any Error).self) { try bare.updateFields(["reviewers": ["tony"]]) }
+    }
+
+    @Test func rejectsNonListAssignees() {
+        #expect(throws: (any Error).self) { try mapper.updateFields(["assignees": "tony"]) }
+    }
+
     @Test func rejectsUnconfiguredField() {
         let bare = JiraMapper(baseURL: JiraFixtures.baseURL, fields: JiraFieldMap(ids: [.assignees: "assignee"]))
         #expect(throws: (any Error).self) { try bare.updateFields(["falconApp": "SEO"]) }

@@ -3,6 +3,7 @@ import Foundation
 /// Jira use cases behind the web UI's `/api/*` routes (port of jira-desk `IssueService`).
 actor JiraService {
     static let pageSize = 1000
+    static let userSearchLimit = 20
     static let detailExpand = "renderedFields,transitions,editmeta"
     static let sprintStates = "active,future"
     static let standardListFields = ["summary", "status", "issuetype", "priority", "created", "updated",
@@ -125,6 +126,16 @@ actor JiraService {
         ]
     }
 
+    func searchUsers(_ query: String) async throws -> [JiraJSON] {
+        let text = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return [] }
+        let param = client.authKind == .cloud ? "query" : "username"
+        let users = try await client.json(path: "/rest/api/2/user/search",
+                                          query: [param: text, "maxResults": "\(Self.userSearchLimit)"]) as? [JiraJSON] ?? []
+        let mapper = try await mapper()
+        return users.map(mapper.user)
+    }
+
     func myIdentity() async throws -> String {
         let me = try await object(path: "/rest/api/2/myself")
         return me["name"] as? String ?? me["accountId"] as? String ?? ""
@@ -157,7 +168,8 @@ actor JiraService {
     }
 
     private func mapper() async throws -> JiraMapper {
-        JiraMapper(baseURL: client.baseURL, fields: try await fieldMap())
+        JiraMapper(baseURL: client.baseURL, fields: try await fieldMap(),
+                   userKey: client.authKind == .cloud ? "accountId" : "name")
     }
 
     private func object(path: String, query: [String: String] = [:]) async throws -> JiraJSON {
