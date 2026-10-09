@@ -14,6 +14,7 @@ struct JiraMapper {
     let baseURL: String
     let fields: JiraFieldMap
     var userKey = "name"
+    var pointField = JiraField.devPoint
 
     func summary(_ issue: JiraJSON) -> JiraJSON {
         let f = issue["fields"] as? JiraJSON ?? [:]
@@ -21,7 +22,7 @@ struct JiraMapper {
         let status = f["status"] as? JiraJSON ?? [:]
         let sprint = Self.parseLastSprint(value(f, .sprint))
         let app = Self.optionValue(value(f, .app))
-        let devPoint = Self.optionValue(value(f, .devPoint))
+        let devPoint = Self.optionValue(value(f, pointField))
         let isDone = (status["statusCategory"] as? JiraJSON)?["key"] as? String == "done"
         var rolePoints: JiraJSON = [:]
         for role in JiraSettings.Role.allCases {
@@ -62,6 +63,8 @@ struct JiraMapper {
         detail["descriptionRaw"] = f["description"] as? String ?? ""
         detail["descriptionHtml"] = absolutizeLinks(rendered["description"] as? String)
         detail["mergeRequest"] = orNull(value(f, .mergeRequest))
+        detail["reporter"] = (f["reporter"] as? JiraJSON).map(user) ?? NSNull()
+        detail["extraFields"] = extraFields(f, editmeta: editmeta)
         detail["reviewers"] = fields[.reviewers] == nil ? NSNull() : Self.users(value(f, .reviewers)).map(user)
         detail["comments"] = comments.map { comment -> JiraJSON in
             let created = Self.prefix(comment["created"], 16) ?? ""
@@ -76,7 +79,7 @@ struct JiraMapper {
         }
         detail["options"] = [
             "falconApp": Self.allowedValues(editmeta, fieldId: fields[.app]),
-            "devPoint": Self.allowedValues(editmeta, fieldId: fields[.devPoint]),
+            "devPoint": Self.allowedValues(editmeta, fieldId: fields[pointField]),
             "priority": Self.allowedValues(editmeta, fieldId: "priority", labelKey: "name"),
         ]
         return detail
@@ -95,24 +98,79 @@ struct JiraMapper {
 
     func updateFields(_ changes: JiraJSON) throws -> JiraJSON {
         guard !changes.isEmpty else { throw JiraError(status: 400, message: "No changes to update") }
-        let unknown = changes.keys.filter { Self.fieldBuilders[$0] == nil && Self.userFieldChanges[$0] == nil }.sorted()
+        let unknown = changes.keys.filter {
+            Self.fieldBuilders[$0] == nil && Self.userFieldChanges[$0] == nil && $0 != Self.rawChange
+        }.sorted()
         guard unknown.isEmpty else {
             throw JiraError(status: 400, message: "Unsupported fields: \(unknown.joined(separator: ", "))")
         }
         var update: JiraJSON = [:]
         for (name, raw) in changes {
+            if name == Self.rawChange {
+                try rawUpdate(raw).forEach { update[$0.key] = $0.value }
+                continue
+            }
             if let field = Self.userFieldChanges[name] {
                 let (id, value) = try usersUpdate(name, field, raw)
                 update[id] = value
                 continue
             }
             let builder = Self.fieldBuilders[name]!
-            guard let id = builder.id(fields) else {
+            guard let id = name == "devPoint" ? fields[pointField] : builder.id(fields) else {
                 throw JiraError(status: 400, message: "Field \(name) is not configured for this Jira")
             }
             update[id] = try builder.build(raw)
         }
         return update
+    }
+
+    private func rawUpdate(_ raw: Any?) throws -> JiraJSON {
+        guard let values = raw as? JiraJSON else { throw JiraError(status: 400, message: "raw must be an object") }
+        for id in values.keys where id.wholeMatch(of: #/customfield_\d+/#) == nil {
+            throw JiraError(status: 400, message: "Only custom fields can be updated directly: \(id)")
+        }
+        return values
+    }
+
+    private func extraFields(_ values: JiraJSON, editmeta: JiraJSON) -> [JiraJSON] {
+        let meta = editmeta["fields"] as? JiraJSON ?? [:]
+        let mapped: [JiraField] = [.sprint, .assignees, .app, pointField, .mergeRequest, .reviewers]
+        let handled = Set(Self.panelSystemFields + mapped.compactMap { fields[$0] })
+        return meta.compactMap { id, raw -> JiraJSON? in
+            guard !handled.contains(id), let field = raw as? JiraJSON,
+                  let kind = Self.extraKind(field["schema"] as? JiraJSON ?? [:]) else { return nil }
+            return ["id": id, "name": field["name"] as? String ?? id, "kind": kind.rawValue,
+                    "value": extraValue(values[id], kind),
+                    "options": Self.allowedValues(editmeta, fieldId: id)]
+        }
+        .sorted { ($0["name"] as? String ?? "") < ($1["name"] as? String ?? "") }
+    }
+
+    private func extraValue(_ raw: Any?, _ kind: ExtraKind) -> Any {
+        switch kind {
+        case .option: return orNull(Self.optionValue(raw))
+        case .users: return Self.users(raw).map(user)
+        case .number: return orNull(raw as? NSNumber)
+        case .text, .url, .date: return orNull(raw as? String)
+        }
+    }
+
+    enum ExtraKind: String {
+        case option, text, url, number, date, users
+    }
+
+    static let rawChange = "raw"
+    static let panelSystemFields = ["summary", "description", "comment", "issuelinks", "priority", "duedate", "attachment"]
+
+    static func extraKind(_ schema: JiraJSON) -> ExtraKind? {
+        switch (schema["type"] as? String, schema["items"] as? String) {
+        case ("option", _): return .option
+        case ("string", _): return (schema["custom"] as? String ?? "").hasSuffix(":url") ? .url : .text
+        case ("number", _): return .number
+        case ("date", _): return .date
+        case ("user", _), ("array", "user"): return .users
+        default: return nil
+        }
     }
 
     private func usersUpdate(_ name: String, _ field: JiraField, _ raw: Any?) throws -> (id: String, value: Any) {

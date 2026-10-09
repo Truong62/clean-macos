@@ -667,6 +667,36 @@ function closePeopleResults(except) {
   document.querySelectorAll('[data-person-results]').forEach((list) => { if (list !== except) list.hidden = true; });
 }
 
+const extraInputClass = 'h-10 w-full rounded-xl border border-border-strong bg-surface px-3 text-sm font-normal text-foreground outline-hidden transition-colors placeholder:text-muted focus:border-focus focus:ring-2 focus:ring-focus';
+
+function extraFieldInput(f) {
+  const attrs = `data-extra="${f.id}" data-kind="${f.kind}" aria-label="${esc(f.name)}" class="${extraInputClass}"`;
+  const value = esc(f.value ?? '');
+  if (f.kind === 'option') {
+    return `<select ${attrs}><option value="">None</option>${f.options.map((o) => `<option value="${esc(o)}" ${o === f.value ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select>`;
+  }
+  if (f.kind === 'users') return f.value.length ? `<span class="flex flex-wrap gap-x-3 gap-y-1.5">${f.value.map(personLabel).join('')}</span>` : dash;
+  if (f.kind === 'url') {
+    const open = f.value ? `<a href="${value}" target="_blank" rel="noopener" title="Open link" aria-label="Open ${esc(f.name)}" class="${iconButton} shrink-0">${icon('external-link')}</a>` : '';
+    return `<span class="flex items-center gap-1"><input type="url" ${attrs} value="${value}" placeholder="https://…" />${open}</span>`;
+  }
+  const type = { number: 'number', date: 'date' }[f.kind] || 'text';
+  return `<input type="${type}" ${type === 'number' ? 'step="any"' : ''} ${attrs} value="${value}" />`;
+}
+
+function extraFieldValue(kind, raw) {
+  if (kind === 'option') return raw ? { value: raw } : null;
+  if (kind === 'number') return raw === '' ? null : Number(raw);
+  return raw || null;
+}
+
+function extraFieldsHtml(d) {
+  const fields = d.extraFields || [];
+  if (!fields.length) return '';
+  return `<section class="border-t border-border pt-5"><h3 class="text-sm font-semibold text-foreground">More fields</h3>
+    <dl class="@container mt-3 flex flex-col gap-3">${fields.map((f) => detailRow(esc(f.name), extraFieldInput(f))).join('')}</dl></section>`;
+}
+
 function propsHtml(d) {
   return `<dl class="@container flex flex-col gap-3">
     ${detailRow('Status', selectTrigger('status', statusBadge(d.status)))}
@@ -678,6 +708,7 @@ function propsHtml(d) {
     ${detailRow('Merge request', `<input type="url" data-input="mergeRequest" value="${esc(d.mergeRequest || '')}" placeholder="https://…/merge_requests/…" aria-label="Merge request" class="h-11 w-full rounded-xl border border-border-strong bg-surface px-3 text-base font-normal text-foreground outline-hidden transition-colors placeholder:text-muted focus:border-focus focus:ring-2 focus:ring-focus md:h-10 md:text-sm" />`)}
     ${detailRow('Assignees', peopleEditor('assignees', d.assignees))}
     ${d.reviewers ? detailRow('Reviewers', peopleEditor('reviewers', d.reviewers)) : ''}
+    ${detailRow('Reporter', d.reporter ? personLabel(d.reporter) : dash)}
     ${detailRow('Created', `<span class="tabular-nums">${formatLongDate(d.created)}</span> <span class="font-normal text-muted">· updated ${formatDate(d.updated)}</span>`)}
   </dl>`;
 }
@@ -727,7 +758,7 @@ function panelHtml(d) {
   return `<div class="border-b border-border px-6 pt-4 pb-4">${panelTopBar(d.key, d.type, d.url)}
       <h2 class="-ml-2.25 mt-1"><textarea data-input="summary" aria-label="Title" class="block w-full resize-none [field-sizing:content] rounded-lg border border-transparent bg-transparent px-2 py-1 text-lg leading-7 font-semibold text-pretty text-foreground outline-hidden transition-colors hover:bg-foreground/5 focus:border-focus focus:ring-2 focus:ring-focus">${esc(d.summary)}</textarea></h2>
     </div>
-    <div class="flex-1 overflow-y-auto px-6 py-6"><div class="flex flex-col gap-6">${warningBanner(d)}${propsHtml(d)}${linkedHtml(d)}${descriptionHtml(d)}${commentsHtml(d)}</div></div>`;
+    <div class="flex-1 overflow-y-auto px-6 py-6"><div class="flex flex-col gap-6">${warningBanner(d)}${propsHtml(d)}${extraFieldsHtml(d)}${linkedHtml(d)}${descriptionHtml(d)}${commentsHtml(d)}</div></div>`;
 }
 
 function panelSkeleton(key) {
@@ -1064,6 +1095,8 @@ function handleInput(event) {
 }
 
 function handleChange(event) {
+  const extra = event.target.dataset.extra;
+  if (extra && state.detail) return saveField('raw', { [extra]: extraFieldValue(event.target.dataset.kind, event.target.value) });
   const field = event.target.dataset.input;
   if (!field || !state.detail) return;
   const value = event.target.value;
@@ -1116,6 +1149,49 @@ function bindBoardDrag() {
   });
 }
 
+const PANEL_WIDTH_KEY = 'jira.panelWidth';
+const PANEL_DEFAULT_WIDTH = 448;
+const PANEL_MIN_WIDTH = 360;
+const LIST_MIN_WIDTH = 320;
+const SMALL_SCREEN_WIDTH = 640;
+let panelWidth = PANEL_DEFAULT_WIDTH;
+
+function applyPanelWidth(width) {
+  if (window.innerWidth < SMALL_SCREEN_WIDTH) {
+    $('#panel').style.width = '';
+    return;
+  }
+  panelWidth = Math.round(Math.min(Math.max(width, PANEL_MIN_WIDTH), Math.max(PANEL_MIN_WIDTH, window.innerWidth - LIST_MIN_WIDTH)));
+  $('#panel').style.width = `${panelWidth}px`;
+  $('#panel-resizer').style.right = `${panelWidth - 4}px`;
+}
+
+function savePanelWidth() {
+  try { localStorage.setItem(PANEL_WIDTH_KEY, String(panelWidth)); } catch {}
+}
+
+function bindPanelResize() {
+  let saved = 0;
+  try { saved = Number(localStorage.getItem(PANEL_WIDTH_KEY)) || 0; } catch {}
+  applyPanelWidth(saved || PANEL_DEFAULT_WIDTH);
+  const resizer = $('#panel-resizer');
+  resizer.addEventListener('pointerdown', (event) => {
+    event.preventDefault();
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    const move = (e) => applyPanelWidth(window.innerWidth - e.clientX);
+    addEventListener('pointermove', move);
+    addEventListener('pointerup', () => {
+      removeEventListener('pointermove', move);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      savePanelWidth();
+    }, { once: true });
+  });
+  resizer.addEventListener('dblclick', () => { applyPanelWidth(PANEL_DEFAULT_WIDTH); savePanelWidth(); });
+  addEventListener('resize', () => applyPanelWidth(panelWidth));
+}
+
 function bindEvents() {
   document.addEventListener('click', handleClick);
   document.addEventListener('input', handleInput);
@@ -1123,6 +1199,7 @@ function bindEvents() {
   document.addEventListener('keydown', handleKeydown);
   addEventListener('resize', () => popAnchor && placePop(popAnchor));
   bindBoardDrag();
+  bindPanelResize();
   new MutationObserver(() => { if (window.lucide && document.querySelector('i[data-lucide]')) lucide.createIcons(); })
     .observe(document.body, { childList: true, subtree: true });
 }
