@@ -89,3 +89,78 @@ struct JiraAttachmentListTests {
         #expect(attachments[1]["thumbnail"] is NSNull)
     }
 }
+
+struct JiraLinkRewriteTests {
+    private let mapper = JiraFixtures.mapper
+
+    @Test func absoluteJiraImagesGoThroughTheProxy() {
+        let html = #"<a href="https://space.avada.net/secure/attachment/17479/17479_saturn.jpg"><img src="https://space.avada.net/secure/thumbnail/17479/_thumb_17479.png"/></a>"#
+        #expect(mapper.absolutizeLinks(html) ==
+            #"<a href="https://space.avada.net/secure/attachment/17479/17479_saturn.jpg"><img src="/api/file?path=%2Fsecure%2Fthumbnail%2F17479%2F_thumb_17479.png"/></a>"#)
+    }
+
+    @Test func otherLinksStayAbsoluteOrUntouched() {
+        #expect(mapper.absolutizeLinks(#"<img src="https://space.avada.net/images/icons/x.png">"#) == #"<img src="https://space.avada.net/images/icons/x.png">"#)
+        #expect(mapper.absolutizeLinks(#"<img src="https://cdn.example.com/a.png">"#) == #"<img src="https://cdn.example.com/a.png">"#)
+        #expect(mapper.absolutizeLinks(#"<a href="/browse/FAL-1">x</a>"#) == #"<a href="https://space.avada.net/browse/FAL-1">x</a>"#)
+        #expect(mapper.absolutizeLinks(#"<a href="//cdn.example.com/x">x</a>"#) == #"<a href="//cdn.example.com/x">x</a>"#)
+    }
+
+    @Test func uploadReturnsProxiedPreviewLinks() async throws {
+        let transport = FakeJiraTransport { _ in (200, [[
+            "filename": "shot.png", "id": "9",
+            "content": "https://jira.example.com/secure/attachment/9/shot.png",
+            "thumbnail": "https://jira.example.com/secure/thumbnail/9/_thumb_9.png",
+        ]]) }
+        let service = JiraService(client: transport.client(), projectKey: "FAL", boardId: nil, role: .dev, appFieldName: "", fieldOverrides: [:])
+        let saved = try await service.addAttachment("FAL-1", filename: "shot.png", data: Data("PNG".utf8))
+        #expect(saved["thumbnail"] as? String == "/api/file?path=%2Fsecure%2Fthumbnail%2F9%2F_thumb_9.png")
+        #expect(saved["file"] as? String == "/api/file?path=%2Fsecure%2Fattachment%2F9%2Fshot.png")
+    }
+}
+
+struct JiraCommentEditTests {
+    private func router(_ transport: FakeJiraTransport) -> JiraRouter {
+        let service = JiraService(client: transport.client(), projectKey: "FAL", boardId: nil, role: .dev, appFieldName: "", fieldOverrides: [:])
+        return JiraRouter(service: { service }, kpiStore: JiraKpiStore(fileURL: URL(fileURLWithPath: "/nonexistent")), webRoot: nil)
+    }
+
+    private func transport() -> FakeJiraTransport {
+        FakeJiraTransport { request -> (Int, Any?) in
+            if request.url!.path == "/rest/api/2/field" { return (200, [JiraJSON]()) }
+            if request.httpMethod == "GET" { return (200, JiraFixtures.makeIssue()) }
+            return (request.httpMethod == "DELETE" ? 204 : 200, nil)
+        }
+    }
+
+    @Test func detailKeepsRawCommentMarkupForEditing() {
+        var issue = JiraFixtures.makeIssue(["comment": ["comments": [["id": "9", "body": "hi [~tony]"]]]])
+        issue["renderedFields"] = ["comment": ["comments": [["id": "9", "body": "<p>hi Tony</p>", "author": ["name": "truongnn"], "created": "2026-10-08T10:00:00.000+0700"]]]]
+        let comment = (JiraFixtures.mapper.detail(issue)["comments"] as? [JiraJSON])?.first
+        #expect(comment?["bodyRaw"] as? String == "hi [~tony]")
+    }
+
+    @Test func editCommentPutsNewBody() async throws {
+        let fake = transport()
+        let response = await router(fake).handle(method: "PUT", path: "/api/issues/FAL-1/comment/9", query: nil,
+                                                 body: try JSONSerialization.data(withJSONObject: ["body": "updated"]))
+        #expect(response.status == 200)
+        let put = try #require(fake.requests.first { $0.httpMethod == "PUT" })
+        #expect(put.url?.path == "/rest/api/2/issue/FAL-1/comment/9")
+        #expect(try JSONSerialization.jsonObject(with: put.httpBody!) as? [String: String] == ["body": "updated"])
+    }
+
+    @Test func deleteCommentCallsJiraDelete() async throws {
+        let fake = transport()
+        let response = await router(fake).handle(method: "DELETE", path: "/api/issues/FAL-1/comment/9", query: nil, body: nil)
+        #expect(response.status == 200)
+        #expect(fake.requests.contains { $0.httpMethod == "DELETE" && $0.url?.path == "/rest/api/2/issue/FAL-1/comment/9" })
+    }
+
+    @Test func rejectsNonNumericCommentId() async {
+        let fake = transport()
+        let response = await router(fake).handle(method: "DELETE", path: "/api/issues/FAL-1/comment/..%2Fx", query: nil, body: nil)
+        #expect(response.status == 400)
+        #expect(!fake.requests.contains { $0.httpMethod == "DELETE" })
+    }
+}

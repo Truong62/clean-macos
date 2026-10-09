@@ -122,6 +122,8 @@ const api = {
   move: (key, column) => api.call('POST', `/api/issues/${key}/move`, { column }),
   comment: (key, body) => api.call('POST', `/api/issues/${key}/comment`, { body }),
   users: (query) => api.call('GET', `/api/users?q=${encodeURIComponent(query)}`),
+  editComment: (key, id, body) => api.call('PUT', `/api/issues/${key}/comment/${id}`, { body }),
+  deleteComment: (key, id) => api.call('DELETE', `/api/issues/${key}/comment/${id}`),
   render: (markup, issueKey) => api.call('POST', '/api/render', { markup, issueKey }),
   async upload(key, file, name) {
     const response = await fetch(`/api/issues/${key}/attachments?name=${encodeURIComponent(name)}`, { method: 'POST', body: await file.arrayBuffer() });
@@ -683,7 +685,7 @@ function searchMention(textarea) {
     try {
       const users = await api.users(match[1]);
       list.innerHTML = users.length
-        ? users.map((u) => `<li><button type="button" data-mention="${esc(u.name)}" class="flex w-full cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm hover:bg-item-hover data-active:bg-item-hover data-active:ring-1 data-active:ring-focus">${avatar(u, 'size-6')}<span class="min-w-0 truncate">${esc(u.displayName)}</span><span class="ml-auto truncate text-xs text-muted">${esc(u.name)}</span></button></li>`).join('')
+        ? users.map((u) => `<li><button type="button" data-mention="${esc(u.name)}" data-display="${esc(u.displayName)}" class="flex w-full cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm hover:bg-item-hover data-active:bg-item-hover data-active:ring-1 data-active:ring-focus">${avatar(u, 'size-6')}<span class="min-w-0 truncate">${esc(u.displayName)}</span><span class="ml-auto truncate text-xs text-muted">${esc(u.name)}</span></button></li>`).join('')
         : '<li class="px-2 py-1.5 text-sm text-muted">No matching people</li>';
       list.hidden = false;
       setActiveOption(list, 0);
@@ -693,13 +695,15 @@ function searchMention(textarea) {
   }, PEOPLE_SEARCH_DELAY_MS);
 }
 
-function insertMention(name) {
+function insertMention(name, displayName) {
   const textarea = $('#comment-input');
-  const before = textarea.value.slice(0, textarea.selectionStart).replace(MENTION_PATTERN, `[~${name}] `);
+  const label = `@${displayName || name}`;
+  compose.mentions.set(label, name);
+  const before = textarea.value.slice(0, textarea.selectionStart).replace(MENTION_PATTERN, `${label} `);
   textarea.value = before + textarea.value.slice(textarea.selectionStart);
   textarea.setSelectionRange(before.length, before.length);
   $('#mention-results').hidden = true;
-  $('[data-action="add-comment"]').disabled = !textarea.value.trim();
+  updateCommentButton();
   textarea.focus();
 }
 
@@ -851,7 +855,8 @@ async function togglePreview(button) {
   if (showing) return textarea.focus();
   preview.innerHTML = '<p class="text-muted">Rendering…</p>';
   try {
-    const { html } = await api.render(textarea.value, state.detail?.key || '');
+    const markup = textarea.id === 'comment-input' ? composeBody() : textarea.value;
+    const { html } = await api.render(markup, state.detail?.key || '');
     preview.innerHTML = html || '<p class="text-muted">Nothing to preview.</p>';
   } catch (error) {
     preview.innerHTML = `<p class="text-danger-text">${esc(error.message)}</p>`;
@@ -903,10 +908,8 @@ async function uploadAttachments(files) {
       status.querySelector('[data-upload-text]').textContent = `Uploading ${index + 1}/${list.length} · ${file.name}…`;
       await api.upload(key, file, file.name);
     }
-    const draft = $('#comment-input')?.value || '';
     const detail = await api.issue(key);
     if (state.detail?.key === key) renderPanel(detail);
-    if ($('#comment-input')) $('#comment-input').value = draft;
     showToast(`${key}: ${list.length} file(s) attached`);
   } catch (error) {
     showToast(error.message, true);
@@ -941,11 +944,50 @@ function descriptionHtml(d) {
 function commentBubble(c) {
   const who = c.authorUser || { name: '', displayName: c.author || '', avatar: '' };
   const isMine = who.name === myName();
-  return `<div class="flex items-start gap-2 py-1.5 ${isMine ? 'flex-row-reverse' : ''}">${avatar(who, 'size-7')}
-    <div class="flex min-w-0 max-w-[85%] flex-col ${isMine ? 'items-end' : 'items-start'}">
+  const actions = isMine ? `<div class="mt-0.5 flex gap-3 px-1 text-xs text-muted opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+      <button type="button" data-edit-comment="${esc(c.id)}" class="cursor-pointer hover:text-foreground">Edit</button>
+      <button type="button" data-delete-comment="${esc(c.id)}" class="cursor-pointer hover:text-danger-text data-[confirm]:font-semibold data-[confirm]:text-danger-text data-[confirm]:opacity-100">Delete</button></div>` : '';
+  return `<div class="group flex items-start gap-2 py-1.5 ${isMine ? 'flex-row-reverse' : ''}">${avatar(who, 'size-7')}
+    <div class="flex min-w-0 max-w-[85%] flex-col ${isMine ? 'items-end' : 'items-start'}" data-comment="${esc(c.id)}">
       <p class="px-1 text-xs text-muted">${isMine ? '' : `<span class="font-medium text-foreground">${esc(who.displayName)}</span> · `}${esc(c.created)}</p>
-      <div class="rich mt-0.5 max-w-full overflow-x-auto rounded-2xl px-3 py-2 text-sm ${isMine ? 'rounded-tr-md bg-primary/15' : 'rounded-tl-md bg-foreground/5'}">${c.bodyHtml}</div>
+      <div data-comment-body class="rich mt-0.5 max-w-full overflow-x-auto rounded-2xl px-3 py-2 text-sm ${isMine ? 'rounded-tr-md bg-primary/15' : 'rounded-tl-md bg-foreground/5'}">${c.bodyHtml}</div>
+      ${actions}
     </div></div>`;
+}
+
+const COMMENT_DELETE_CONFIRM_MS = 4000;
+
+function startEditComment(id) {
+  const comment = state.detail?.comments.find((c) => String(c.id) === id);
+  const container = document.querySelector(`[data-comment="${CSS.escape(id)}"]`);
+  if (!comment || !container) return;
+  container.classList.add('w-full');
+  container.querySelector('[data-comment-body]').outerHTML = `<div class="mt-0.5 w-full" data-comment-editor="${esc(id)}">
+    <textarea rows="4" data-comment-edit-input class="${textareaClass}">${esc(comment.bodyRaw || '')}</textarea>
+    <div class="mt-2 flex justify-end gap-2"><button type="button" data-cancel-comment-edit class="${buttonSecondary}">Cancel</button><button type="button" data-save-comment="${esc(id)}" class="${buttonPrimary}">Save</button></div></div>`;
+  container.querySelector('[data-edit-comment]')?.parentElement.remove();
+  container.querySelector('[data-comment-edit-input]').focus();
+}
+
+function saveCommentEdit(id) {
+  const key = state.detail.key;
+  const body = document.querySelector(`[data-comment-editor="${CSS.escape(id)}"] textarea`).value;
+  return runWrite(() => api.editComment(key, id, body), `${key}: comment updated`);
+}
+
+function deleteCommentWithConfirm(button) {
+  if (!button.hasAttribute('data-confirm')) {
+    button.setAttribute('data-confirm', '');
+    button.textContent = 'Confirm delete';
+    setTimeout(() => {
+      if (!button.isConnected) return;
+      button.removeAttribute('data-confirm');
+      button.textContent = 'Delete';
+    }, COMMENT_DELETE_CONFIRM_MS);
+    return;
+  }
+  const key = state.detail.key;
+  return runWrite(() => api.deleteComment(key, button.dataset.deleteComment), `${key}: comment deleted`);
 }
 
 const COMMENT_IMAGE_MARKUP = (filename) => `!${filename}|thumbnail!`;
@@ -956,13 +998,35 @@ function uniqueAttachmentName(file) {
   return `${base}-${Date.now()}${ext}`;
 }
 
-function insertIntoComment(text) {
-  const textarea = $('#comment-input');
-  const start = textarea.selectionStart ?? textarea.value.length;
-  textarea.value = textarea.value.slice(0, start) + text + textarea.value.slice(textarea.selectionEnd ?? start);
-  textarea.setSelectionRange(start + text.length, start + text.length);
-  $('[data-action="add-comment"]').disabled = !textarea.value.trim();
-  textarea.focus();
+const compose = { key: null, mentions: new Map(), images: [], uploading: false };
+
+function resetCompose(key) {
+  Object.assign(compose, { key, mentions: new Map(), images: [], uploading: false });
+}
+
+function composeBody() {
+  let text = $('#comment-input')?.value || '';
+  for (const [label, name] of compose.mentions) text = text.split(label).join(`[~${name}]`);
+  const images = compose.images.map((image) => COMMENT_IMAGE_MARKUP(image.filename));
+  if (!images.length) return text;
+  const separator = text.trim() && !text.endsWith('\n') ? '\n' : '';
+  return `${text}${separator}${images.join('\n')}`;
+}
+
+function updateCommentButton() {
+  const button = $('[data-action="add-comment"]');
+  if (button) button.disabled = compose.uploading || !($('#comment-input').value.trim() || compose.images.length);
+}
+
+function renderComposeImages() {
+  const box = $('#comment-images');
+  if (!box) return;
+  box.innerHTML = compose.images.map((image, index) => `<div class="group relative size-16 overflow-hidden rounded-lg border border-border bg-foreground/5" title="${esc(image.filename)}">
+    ${image.preview ? `<img src="${esc(image.preview)}" alt="" class="size-full object-cover" />` : `<span class="flex size-full items-center justify-center text-muted">${icon('image')}</span>`}
+    <button type="button" data-remove-image="${index}" aria-label="Remove ${esc(image.filename)}" title="Remove" class="absolute top-0.5 right-0.5 inline-flex size-5 cursor-pointer items-center justify-center rounded-full bg-black/60 text-white opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100">${icon('x', 'size-3')}</button>
+  </div>`).join('');
+  box.hidden = !compose.images.length;
+  updateCommentButton();
 }
 
 function setUploadProgress(text) {
@@ -970,7 +1034,8 @@ function setUploadProgress(text) {
   if (!status) return;
   status.hidden = !text;
   status.querySelector('[data-upload-text]').textContent = text || '';
-  $('[data-action="add-comment"]').disabled = Boolean(text) || !$('#comment-input').value.trim();
+  compose.uploading = Boolean(text);
+  updateCommentButton();
 }
 
 async function uploadCommentImages(files) {
@@ -981,10 +1046,8 @@ async function uploadCommentImages(files) {
     for (const [index, file] of images.entries()) {
       setUploadProgress(`Uploading ${index + 1}/${images.length} · ${file.name || 'pasted image'}…`);
       const saved = await api.upload(key, file, uniqueAttachmentName(file));
-      const textarea = $('#comment-input');
-      const before = textarea.value.slice(0, textarea.selectionStart ?? textarea.value.length);
-      const needsBreak = before.length > 0 && !before.endsWith('\n');
-      insertIntoComment(`${needsBreak ? '\n' : ''}${COMMENT_IMAGE_MARKUP(saved.filename)}\n`);
+      if (compose.key === key) compose.images.push({ filename: saved.filename, preview: saved.thumbnail || saved.file });
+      renderComposeImages();
     }
     showToast('Image attached — send the comment to post it');
   } catch (error) {
@@ -1003,6 +1066,7 @@ function commentsHtml(d) {
     ${comments}
     <div class="relative mt-2">${formatToolbar('comment-input')}<label class="block"><span class="sr-only">Add a comment</span><textarea id="comment-input" rows="3" placeholder="Add a comment — type @ to mention someone" class="${editorTextareaClass}"></textarea></label>
       <div id="comment-upload" role="status" hidden class="mt-2 flex items-center gap-2 rounded-lg bg-foreground/5 px-3 py-2 text-xs font-medium text-muted"><span class="size-3.5 shrink-0 animate-spin rounded-full border-2 border-foreground/20 border-t-primary"></span><span data-upload-text></span></div>
+      <div id="comment-images" hidden class="mt-2 flex flex-wrap gap-2"></div>
       <ul id="mention-results" hidden class="absolute bottom-full left-0 z-30 mb-1 max-h-64 w-72 overflow-y-auto rounded-xl border border-border bg-surface p-1 shadow-lg"></ul></div>
     <div class="mt-3 flex items-center justify-end gap-2">
       <input type="file" id="comment-file" accept="image/*" multiple hidden />
@@ -1035,8 +1099,12 @@ function panelError(key, message) {
 }
 
 function renderPanel(detail) {
+  const draft = compose.key === detail.key ? ($('#comment-input')?.value || '') : '';
+  if (compose.key !== detail.key) resetCompose(detail.key);
   state.detail = detail;
   $('#panel').innerHTML = panelHtml(detail);
+  if (draft) $('#comment-input').value = draft;
+  renderComposeImages();
 }
 
 function setPanelOpen(isOpen) {
@@ -1092,9 +1160,14 @@ function transitionTo(id) {
 }
 
 function addComment() {
-  const body = $('#comment-input').value;
+  const body = composeBody();
   const key = state.detail.key;
-  return runWrite(() => api.comment(key, body), `${key}: comment added`);
+  return runWrite(async () => {
+    const detail = await api.comment(key, body);
+    resetCompose(key);
+    $('#comment-input').value = '';
+    return detail;
+  }, `${key}: comment added`);
 }
 
 function toggleDescriptionEdit(isEditing) {
@@ -1325,7 +1398,12 @@ const CLICK_ACTIONS = [
   ['[data-action]', (el) => PANEL_ACTIONS[el.dataset.action]?.()],
   ['[data-issue]', (el) => openPanel(el.dataset.issue)],
   ['[data-remove-person]', (el) => savePeople(el.dataset.removePerson, personNames(el.dataset.removePerson).filter((n) => n !== el.dataset.name))],
-  ['[data-mention]', (el) => insertMention(el.dataset.mention)],
+  ['[data-mention]', (el) => insertMention(el.dataset.mention, el.dataset.display)],
+  ['[data-edit-comment]', (el) => startEditComment(el.dataset.editComment)],
+  ['[data-save-comment]', (el) => saveCommentEdit(el.dataset.saveComment)],
+  ['[data-cancel-comment-edit]', () => renderPanel(state.detail)],
+  ['[data-delete-comment]', (el) => deleteCommentWithConfirm(el)],
+  ['[data-remove-image]', (el) => { compose.images.splice(Number(el.dataset.removeImage), 1); renderComposeImages(); }],
   ['[data-lightbox]', (el) => openLightbox(el.dataset.lightbox, el.dataset.name)],
   ['[data-close-lightbox]', closeLightbox],
   ['[data-format]', (el) => applyWikiFormat(document.getElementById(el.dataset.target), el.dataset.format)],
@@ -1335,6 +1413,12 @@ const CLICK_ACTIONS = [
 
 function handleClick(event) {
   const target = event.target;
+  const imageLink = target.closest('.rich a[file-preview-type="image"]');
+  if (imageLink) {
+    event.preventDefault();
+    const path = decodeURIComponent(new URL(imageLink.href).pathname);
+    return openLightbox(`/api/file?path=${encodeURIComponent(path)}`, imageLink.getAttribute('file-preview-title') || '');
+  }
   if (!pop.hidden && pop.contains(target)) return handlePopClick(target);
   const opener = target.closest('[data-filter], [data-field]');
   if (opener) {
@@ -1361,7 +1445,7 @@ function handleInput(event) {
   } else if (target.matches('[data-person-search]')) {
     searchPeople(target);
   } else if (target.id === 'comment-input') {
-    $('[data-action="add-comment"]').disabled = !target.value.trim();
+    updateCommentButton();
     searchMention(target);
   }
 }

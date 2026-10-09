@@ -68,9 +68,13 @@ struct JiraMapper {
         detail["attachments"] = (f["attachment"] as? [JiraJSON] ?? []).map(attachment)
         detail["extraFields"] = extraFields(f, editmeta: editmeta)
         detail["reviewers"] = fields[.reviewers] == nil ? NSNull() : Self.users(value(f, .reviewers)).map(user)
+        let rawBodies = Dictionary(((f["comment"] as? JiraJSON)?["comments"] as? [JiraJSON] ?? []).compactMap { raw in
+            (raw["id"] as? String).map { ($0, raw["body"] as? String ?? "") }
+        }, uniquingKeysWith: { first, _ in first })
         detail["comments"] = comments.map { comment -> JiraJSON in
             let created = Self.prefix(comment["created"], 16) ?? ""
             return ["id": orNull(comment["id"]),
+                    "bodyRaw": orNull((comment["id"] as? String).flatMap { rawBodies[$0] }),
                     "author": orNull((comment["author"] as? JiraJSON)?["displayName"]),
                     "authorUser": (comment["author"] as? JiraJSON).map(user) ?? NSNull(),
                     "created": created.replacingOccurrences(of: "T", with: " "),
@@ -112,8 +116,11 @@ struct JiraMapper {
     }
 
     func absolutizeLinks(_ html: String?) -> String {
-        (html ?? "").replacing(#/(src|href)="(\/[^"]*)"/#) { match in
-            let path = String(match.2)
+        (html ?? "").replacing(#/(src|href)="([^"]*)"/#) { match in
+            let original = "\(match.1)=\"\(match.2)\""
+            let value = String(match.2)
+            let path = value.hasPrefix(baseURL + "/") ? String(value.dropFirst(baseURL.count)) : value
+            guard path.hasPrefix("/"), !path.hasPrefix("//") else { return original }
             guard match.1 == "src", path.hasPrefix("/secure/") else { return "\(match.1)=\"\(baseURL)\(path)\"" }
             let raw = path.replacingOccurrences(of: "&amp;", with: "&")
             return "src=\"/api/file?path=\(raw.addingPercentEncoding(withAllowedCharacters: Self.queryValueAllowed) ?? raw)\""
