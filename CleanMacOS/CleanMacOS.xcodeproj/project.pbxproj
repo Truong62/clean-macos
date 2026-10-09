@@ -62,6 +62,7 @@
 		D88B4E695DB8B335B73DD84C /* DisplayModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86A59D9525758B79812B76C7 /* DisplayModels.swift */; };
 		DF5BB4CFC044C4495AE40D9B /* ClipboardPanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100DBFE54165F72538F16CF5 /* ClipboardPanelView.swift */; };
 		EB2804A3FF935E9CF1A4AE3F /* SystemMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 146D7CD67B5D337110ABE8C9 /* SystemMonitor.swift */; };
+		EC4CBF72FCB53432FB5C1E03 /* FileThumbnail.swift in Sources */ = {isa = PBXBuildFile; fileRef = 905A24394C7E6C4E7AE06DF2 /* FileThumbnail.swift */; };
 		EDEDBA4471C081E934012941 /* JiraClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9021792973FD87DC3FDF424 /* JiraClient.swift */; };
 		F25497E5A5FCBDEB50858F3C /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 185CCDDE3D43CD6FEF6FDA72 /* SettingsView.swift */; };
 		F27D29FB6807060B945F8EC4 /* ClipboardSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 586232A2D65D100703262AB1 /* ClipboardSettings.swift */; };
@@ -108,6 +109,7 @@
 		86A59D9525758B79812B76C7 /* DisplayModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DisplayModels.swift; sourceTree = "<group>"; };
 		874D5290194904D2B767669A /* JiraView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JiraView.swift; sourceTree = "<group>"; };
 		8B132021AA2508B2000D6D63 /* Cleaner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Cleaner.swift; sourceTree = "<group>"; };
+		905A24394C7E6C4E7AE06DF2 /* FileThumbnail.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileThumbnail.swift; sourceTree = "<group>"; };
 		90B7181574359261F04305FF /* DockerService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DockerService.swift; sourceTree = "<group>"; };
 		938603F095D5C03621C2C879 /* PasteService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasteService.swift; sourceTree = "<group>"; };
 		9832301F93D2207402FD0D3F /* DisplayService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DisplayService.swift; sourceTree = "<group>"; };
@@ -183,6 +185,7 @@
 				ED308EBDE68AC23F9837A5B5 /* DisplaysView.swift */,
 				869943FA6706D69B21CE1402 /* DisplaysViewModel.swift */,
 				90B7181574359261F04305FF /* DockerService.swift */,
+				905A24394C7E6C4E7AE06DF2 /* FileThumbnail.swift */,
 				E1FC8128FEE8FEEE7743FF7B /* GlobalShortcuts.swift */,
 				519973CA3556535EDD116B2C /* HomeView.swift */,
 				E9021792973FD87DC3FDF424 /* JiraClient.swift */,
@@ -231,7 +234,7 @@
 			);
 			sourceTree = "<group>";
 		};
-		"TEMP_FCBDB913-8DDD-455D-8FB0-60983BA1C0F2" /* Resources */ = {
+		"TEMP_DBF30F79-378E-464D-B97A-C05B6EFD65B0" /* Resources */ = {
 			isa = PBXGroup;
 			children = (
 			);
@@ -336,6 +339,7 @@
 				B10E97CB352C07091C8C5EEA /* DisplaysView.swift in Sources */,
 				86F8FF339B20317441EBBA6D /* DisplaysViewModel.swift in Sources */,
 				ADB833098DB19DD1D86A7454 /* DockerService.swift in Sources */,
+				EC4CBF72FCB53432FB5C1E03 /* FileThumbnail.swift in Sources */,
 				B94D5E73B6A99CD323DB3DA8 /* GlobalShortcuts.swift in Sources */,
 				171CB18E3F33997A33D09624 /* HomeView.swift in Sources */,
 				EDEDBA4471C081E934012941 /* JiraClient.swift in Sources */,
@@ -382,13 +386,13 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 10;
+				CURRENT_PROJECT_VERSION = 11;
 				INFOPLIST_FILE = Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.0.9;
+				MARKETING_VERSION = 1.0.10;
 				PRODUCT_BUNDLE_IDENTIFIER = click.ngoctruong.CleanMacOS;
 				SDKROOT = macosx;
 				SWIFT_VERSION = 5.9;
@@ -456,13 +460,13 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 10;
+				CURRENT_PROJECT_VERSION = 11;
 				INFOPLIST_FILE = Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.0.9;
+				MARKETING_VERSION = 1.0.10;
 				PRODUCT_BUNDLE_IDENTIFIER = click.ngoctruong.CleanMacOS;
 				SDKROOT = macosx;
 				SWIFT_VERSION = 5.9;

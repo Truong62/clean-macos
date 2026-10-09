@@ -9,6 +9,29 @@
     <!-- Paste new <item> blocks here when releasing (newest first) -->
 
     <item>
+      <title>Version 1.0.10</title>
+      <pubDate>Fri, 09 Oct 2026 10:14:23 +0700</pubDate>
+      <sparkle:version>11</sparkle:version>
+      <sparkle:shortVersionString>1.0.10</sparkle:shortVersionString>
+      <description><![CDATA[
+        <h2>What's new in 1.0.10</h2>
+        <ul>
+          <li><b>New icon</b> — black, white and orange, now the same size as other apps in the Dock.</li>
+          <li><b>Granular cache cleaning</b> — Clean Disk breaks caches down per app and up to 3 levels deep (e.g. Chrome → profile → cache), so you can delete just the part you want.</li>
+          <li><b>Thumbnails in Large Files</b> — see what each file is at a glance; right-click for Quick Look or Show in Finder.</li>
+          <li><b>Uninstall fixed for protected apps</b> — apps installed by the App Store or an installer now ask for your administrator password and go to the Trash instead of silently failing.</li>
+          <li><b>Jira notifications never miss</b> — catches up after sleep or restart, covers all projects, reviewer assignments and mentions in descriptions or edited comments; new "Send Test" button.</li>
+          <li><b>Compact menu bar</b> — smaller popover with sprint, tasks and system stats at a glance; new "Open at login" option.</li>
+          <li><b>Security</b> — the Jira view no longer loads scripts from the internet.</li>
+        </ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/Truong62/clean-macos/releases/download/v1.0.10/CleanMacOS-1.0.10.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="ksKeIfB/9YhhUs87PqK869xxmLuntvelD21bV0w5e6AY/SuC3wrLG9OhSg93e8RNwhrb2HF+YsGHC4Lk6k/ACQ==" length="3655254" />
+    </item>
+
+    <item>
       <title>Version 1.0.9</title>
       <pubDate>Fri, 09 Oct 2026 09:46:10 +0700</pubDate>
       <sparkle:version>10</sparkle:version>
