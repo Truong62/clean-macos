@@ -5,6 +5,8 @@ import UserNotifications
 final class JiraNotifier: NSObject, UNUserNotificationCenterDelegate {
     static let pollInterval: Duration = .seconds(10)
     nonisolated static let issueKeyInfo = "key"
+    static let testTitle = "Clean macOS · Jira"
+    static let testMessage = "TruongDepZai"
 
     private let onOpen: (String) -> Void
     private var loop: Task<Void, Never>?
@@ -23,6 +25,16 @@ final class JiraNotifier: NSObject, UNUserNotificationCenterDelegate {
         center.delegate = self
         center.requestAuthorization(options: [.alert, .sound]) { _, _ in }
         loop = Task { [weak self] in await self?.watch(service) }
+    }
+
+    func sendTest() async -> String {
+        guard let center else { return "Notifications only work in the installed app" }
+        center.delegate = self
+        guard (try? await center.requestAuthorization(options: [.alert, .sound])) == true else {
+            return "Notifications are off — allow Clean macOS in System Settings → Notifications"
+        }
+        post(JiraEvent(kind: .assigned, key: "", title: Self.testTitle, message: Self.testMessage))
+        return "Test notification sent"
     }
 
     func stop() {
