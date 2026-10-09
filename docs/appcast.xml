@@ -9,6 +9,24 @@
     <!-- Paste new <item> blocks here when releasing (newest first) -->
 
     <item>
+      <title>Version 1.0.18</title>
+      <pubDate>Fri, 09 Oct 2026 11:52:54 +0700</pubDate>
+      <sparkle:version>19</sparkle:version>
+      <sparkle:shortVersionString>1.0.18</sparkle:shortVersionString>
+      <description><![CDATA[
+        <h2>What's new in 1.0.18</h2>
+        <ul>
+          <li><b>Live Jira updates</b> — new comments and changes made by others appear in the open task within about 10 seconds, no reload needed. If you're typing or editing, only the comment list updates so nothing you type is lost.</li>
+          <li><b>Task list stays fresh</b> — rows for changed tasks update automatically.</li>
+        </ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/Truong62/clean-macos/releases/download/v1.0.18/CleanMacOS-1.0.18.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="vA93E0HFhw6m2QekmGzJhuP76WJ2NIOCHiCypt483MF8/cvtVIFgTHIzgw2ZOveQQX1mEVcQYgQ3h+kk8PEYCg==" length="3800318" />
+    </item>
+
+    <item>
       <title>Version 1.0.17</title>
       <pubDate>Fri, 09 Oct 2026 11:39:20 +0700</pubDate>
       <sparkle:version>18</sparkle:version>
