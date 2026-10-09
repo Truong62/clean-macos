@@ -9,6 +9,25 @@
     <!-- Paste new <item> blocks here when releasing (newest first) -->
 
     <item>
+      <title>Version 1.0.9</title>
+      <pubDate>Fri, 09 Oct 2026 09:46:10 +0700</pubDate>
+      <sparkle:version>10</sparkle:version>
+      <sparkle:shortVersionString>1.0.9</sparkle:shortVersionString>
+      <description><![CDATA[
+        <h2>What's new in 1.0.9</h2>
+        <ul>
+          <li><b>New Jira tab</b> — your Jira tasks inside Clean macOS: table and board, filters, task details, comments, KPI months. Set it up in Settings → Jira (domain + token).</li>
+          <li><b>Jira in the menu bar</b> — current sprint, days left, this month's progress and your Doing / Review / To do tasks; click a task to open it.</li>
+          <li><b>Jira notifications</b> — when you're added to a task, someone comments on your task, or mentions you.</li>
+        </ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/Truong62/clean-macos/releases/download/v1.0.9/CleanMacOS-1.0.9.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="Lh7YkTZouILJE2wQbiauNV1qAtN+LD2ebn6zVJX4EzBxhsxs4b2W78FEitY9UXqrDeq0OU2n1JqIyflwOQY+DA==" length="4361389" />
+    </item>
+
+    <item>
       <title>Version 1.0.8</title>
       <pubDate>Fri, 09 Oct 2026 09:19:20 +0700</pubDate>
       <sparkle:version>9</sparkle:version>
