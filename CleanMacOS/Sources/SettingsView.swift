@@ -1,4 +1,5 @@
 import SwiftUI
+import ServiceManagement
 import KeyboardShortcuts
 
 struct SettingsView: View {
@@ -9,6 +10,7 @@ struct SettingsView: View {
     @AppStorage(ClipboardSettings.maxItemsKey) private var clipboardMaxItems = ClipboardSettings.defaultMaxItems
     @AppStorage(ClipboardSettings.skipConcealedKey) private var clipboardSkipConcealed = false
     @State private var accessibilityTrusted = PasteService.isAccessibilityTrusted
+    @State private var opensAtLogin = SMAppService.mainApp.status == .enabled
 
     var body: some View {
         ScrollView {
@@ -85,6 +87,24 @@ struct SettingsView: View {
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
+                    }
+
+                    Toggle(isOn: $opensAtLogin) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Open at login")
+                                .fontWeight(.medium)
+                            Text("Keep the menu bar and Jira notifications running after restart")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .onChange(of: opensAtLogin) { _, isOn in
+                        do {
+                            try isOn ? SMAppService.mainApp.register() : SMAppService.mainApp.unregister()
+                        } catch {
+                            NSLog("SettingsView.openAtLogin failed: \(error.localizedDescription)")
+                        }
+                        opensAtLogin = SMAppService.mainApp.status == .enabled
                     }
                 }
 

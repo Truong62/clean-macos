@@ -130,20 +130,26 @@ actor JiraService {
         return me["name"] as? String ?? me["accountId"] as? String ?? ""
     }
 
-    func assigneesFieldId() async throws -> String {
-        try await fieldMap()[.assignees] ?? "assignee"
+    func watchFields() async throws -> JiraWatchFields {
+        let map = try await fieldMap()
+        let assignees = [map[.assignees], "assignee"].compactMap { $0 }
+        return JiraWatchFields(assignees: assignees.reduce(into: []) { if !$0.contains($1) { $0.append($1) } },
+                               reviewers: map[.reviewers])
     }
 
-    func myIssueKeys() async throws -> Set<String> {
-        let field = try await assigneesFieldId()
-        let clause = field.hasPrefix("customfield_") ? "cf[\(field.dropFirst("customfield_".count))]" : field
-        let issues = try await search(jql: "project = \(projectKey) AND \(clause) = currentUser()", fields: "key")
-        return Set(issues.compactMap { $0["key"] as? String })
+    func myKeys(inAnyOf fieldIds: [String]) async throws -> Set<String> {
+        guard !fieldIds.isEmpty else { return [] }
+        let clause = fieldIds.map { "\(Self.jqlName($0)) = currentUser()" }.joined(separator: " OR ")
+        return Set(try await search(jql: clause, fields: "key").compactMap { $0["key"] as? String })
     }
 
-    func recentlyUpdatedForWatch() async throws -> [JiraJSON] {
-        let field = try await assigneesFieldId()
-        return try await search(jql: "project = \(projectKey) AND updated >= -2m", fields: "summary,comment,\(field)")
+    func issuesUpdated(since: Date, fields: JiraWatchFields, now: Date = Date()) async throws -> [JiraJSON] {
+        let minutes = max(1, Int((now.timeIntervalSince(since) / 60).rounded(.up)))
+        return try await search(jql: "updated >= -\(minutes)m ORDER BY updated DESC", fields: fields.jqlFields)
+    }
+
+    static func jqlName(_ fieldId: String) -> String {
+        fieldId.hasPrefix("customfield_") ? "cf[\(fieldId.dropFirst("customfield_".count))]" : fieldId
     }
 
     func avatar(query: String) async throws -> (data: Data, contentType: String) {

@@ -276,17 +276,27 @@ enum JiraKpi {
     }
 }
 
-/// What the notification poller remembers between polls.
-struct JiraWatchState: Equatable {
+struct JiraWatchFields: Equatable {
+    let assignees: [String]
+    let reviewers: String?
+
+    var jqlFields: String {
+        (["summary", "description", "comment"] + assignees + [reviewers].compactMap { $0 }).joined(separator: ",")
+    }
+}
+
+struct JiraWatchState: Codable, Equatable {
     var knownAssigned: Set<String>
-    var seenComments: Set<String>
+    var knownReviewing: Set<String>
+    var notifiedComments: Set<String> = []
+    var mentionedIn: Set<String> = []
     var since: Date
 }
 
-/// A notification-worthy change on a Jira issue.
 struct JiraEvent: Equatable {
     enum Kind: String {
         case assigned
+        case reviewer
         case comment
         case mention
     }
@@ -297,7 +307,6 @@ struct JiraEvent: Equatable {
     let message: String
 }
 
-/// Pure event detection (port of jira-desk `notifications.detect_events`).
 enum JiraEvents {
     static let commentPreviewChars = 120
     private static let jiraTimeFormatter: DateFormatter = {
@@ -307,48 +316,69 @@ enum JiraEvents {
         return formatter
     }()
 
-    static func detect(_ issues: [JiraJSON], me: String, assigneesField: String,
+    static func detect(_ issues: [JiraJSON], me: String, fields: JiraWatchFields,
                        state: JiraWatchState) -> (events: [JiraEvent], state: JiraWatchState) {
         var events: [JiraEvent] = []
         var next = state
         for issue in issues {
             let key = issue["key"] as? String ?? ""
-            let fields = issue["fields"] as? JiraJSON ?? [:]
-            let isMine = JiraMapper.users(fields[assigneesField]).contains { identity($0) == me }
-            if isMine && !next.knownAssigned.contains(key) {
-                events.append(JiraEvent(kind: .assigned, key: key, title: key,
-                                        message: "You were added to: \(fields["summary"] as? String ?? "")"))
+            let values = issue["fields"] as? JiraJSON ?? [:]
+            let summary = values["summary"] as? String ?? ""
+            let isMine = fields.assignees.contains { includes(values[$0], me) }
+            let isReviewer = fields.reviewers.map { includes(values[$0], me) } ?? false
+            if track(key, isMine, in: &next.knownAssigned) {
+                events.append(JiraEvent(kind: .assigned, key: key, title: key, message: "You were added to: \(summary)"))
             }
-            if isMine { next.knownAssigned.insert(key) } else { next.knownAssigned.remove(key) }
-            for comment in (fields["comment"] as? JiraJSON)?["comments"] as? [JiraJSON] ?? [] {
-                if isRelevant(comment, me: me, isMine: isMine, state: state) {
-                    events.append(commentEvent(key: key, fields: fields, comment: comment, isMine: isMine))
-                }
-                if let id = comment["id"] as? String { next.seenComments.insert(id) }
+            if track(key, isReviewer, in: &next.knownReviewing) {
+                events.append(JiraEvent(kind: .reviewer, key: key, title: key,
+                                        message: "You were added as reviewer: \(summary)"))
+            }
+            if track(key, mentions(values["description"] as? String ?? "", me), in: &next.mentionedIn) {
+                events.append(JiraEvent(kind: .mention, key: key, title: "\(key) · \(summary)",
+                                        message: "You were mentioned in the description"))
+            }
+            for comment in (values["comment"] as? JiraJSON)?["comments"] as? [JiraJSON] ?? [] {
+                guard let id = comment["id"] as? String, !next.notifiedComments.contains(id),
+                      isRelevant(comment, me: me, isMine: isMine || isReviewer, since: state.since) else { continue }
+                next.notifiedComments.insert(id)
+                events.append(commentEvent(key: key, summary: summary, comment: comment, isMine: isMine || isReviewer))
             }
         }
         return (events, next)
+    }
+
+    private static func track(_ key: String, _ isOn: Bool, in known: inout Set<String>) -> Bool {
+        guard isOn else {
+            known.remove(key)
+            return false
+        }
+        return known.insert(key).inserted
+    }
+
+    private static func includes(_ users: Any?, _ me: String) -> Bool {
+        JiraMapper.users(users).contains { identity($0) == me }
     }
 
     private static func identity(_ user: JiraJSON) -> String? {
         user["name"] as? String ?? user["accountId"] as? String
     }
 
-    private static func isRelevant(_ comment: JiraJSON, me: String, isMine: Bool, state: JiraWatchState) -> Bool {
-        guard let id = comment["id"] as? String, !state.seenComments.contains(id),
-              identity(comment["author"] as? JiraJSON ?? [:]) != me,
-              let created = (comment["created"] as? String).flatMap(jiraTimeFormatter.date(from:)),
-              created > state.since else { return false }
-        let body = comment["body"] as? String ?? ""
-        return isMine || body.contains("[~\(me)]") || body.contains("[~accountid:\(me)]")
+    private static func mentions(_ text: String, _ me: String) -> Bool {
+        text.contains("[~\(me)]") || text.contains("[~accountid:\(me)]")
     }
 
-    private static func commentEvent(key: String, fields: JiraJSON, comment: JiraJSON, isMine: Bool) -> JiraEvent {
+    private static func isRelevant(_ comment: JiraJSON, me: String, isMine: Bool, since: Date) -> Bool {
+        guard identity(comment["author"] as? JiraJSON ?? [:]) != me else { return false }
+        let times = ["created", "updated"].compactMap { (comment[$0] as? String).flatMap(jiraTimeFormatter.date(from:)) }
+        guard times.contains(where: { $0 > since }) else { return false }
+        return isMine || mentions(comment["body"] as? String ?? "", me)
+    }
+
+    private static func commentEvent(key: String, summary: String, comment: JiraJSON, isMine: Bool) -> JiraEvent {
         let body = comment["body"] as? String ?? ""
         let preview = body.split(whereSeparator: \.isWhitespace).joined(separator: " ").prefix(commentPreviewChars)
         let author = (comment["author"] as? JiraJSON)?["displayName"] as? String ?? ""
-        return JiraEvent(kind: isMine ? .comment : .mention, key: key,
-                         title: "\(key) · \(fields["summary"] as? String ?? "")",
+        return JiraEvent(kind: isMine ? .comment : .mention, key: key, title: "\(key) · \(summary)",
                          message: "\(author): \(preview)")
     }
 }

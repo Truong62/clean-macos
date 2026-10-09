@@ -4,6 +4,9 @@ import UserNotifications
 @MainActor
 final class JiraNotifier: NSObject, UNUserNotificationCenterDelegate {
     static let pollInterval: Duration = .seconds(10)
+    static let clockSkew: TimeInterval = 120
+    static let maxCatchUp: TimeInterval = 7 * 24 * 3600
+    static let stateKeyPrefix = "jira.watchState."
     nonisolated static let issueKeyInfo = "key"
     static let testTitle = "Clean macOS · Jira"
     static let testMessage = "TruongDepZai"
@@ -42,24 +45,58 @@ final class JiraNotifier: NSObject, UNUserNotificationCenterDelegate {
         loop = nil
     }
 
+    private struct Session {
+        let me: String
+        let fields: JiraWatchFields
+        let storeKey: String
+        var state: JiraWatchState
+    }
+
     private func watch(_ service: JiraService) async {
-        var watcher: (me: String, field: String, state: JiraWatchState)?
+        var session: Session?
         while !Task.isCancelled {
             do {
-                if let current = watcher {
-                    let issues = try await service.recentlyUpdatedForWatch()
-                    let result = JiraEvents.detect(issues, me: current.me, assigneesField: current.field, state: current.state)
-                    watcher?.state = result.state
+                if session == nil { session = try await startSession(service) }
+                if var current = session {
+                    let pollStart = Date()
+                    let issues = try await service.issuesUpdated(since: current.state.since, fields: current.fields)
+                    let result = JiraEvents.detect(issues, me: current.me, fields: current.fields, state: current.state)
+                    current.state = result.state
+                    current.state.since = pollStart.addingTimeInterval(-Self.clockSkew)
+                    session = current
+                    save(current.state, key: current.storeKey)
                     result.events.forEach(post)
-                } else {
-                    watcher = (try await service.myIdentity(), try await service.assigneesFieldId(),
-                               JiraWatchState(knownAssigned: try await service.myIssueKeys(), seenComments: [], since: Date()))
                 }
             } catch {
                 NSLog("JiraNotifier.watch failed: \(error.localizedDescription)")
             }
             try? await Task.sleep(for: Self.pollInterval)
         }
+    }
+
+    private func startSession(_ service: JiraService) async throws -> Session {
+        let me = try await service.myIdentity()
+        let fields = try await service.watchFields()
+        let storeKey = "\(Self.stateKeyPrefix)\(JiraSettings.domain)|\(me)"
+        let oldest = Date().addingTimeInterval(-Self.maxCatchUp)
+        if var saved = load(key: storeKey) {
+            saved.since = max(saved.since, oldest)
+            return Session(me: me, fields: fields, storeKey: storeKey, state: saved)
+        }
+        let reviewing = try? await service.myKeys(inAnyOf: [fields.reviewers].compactMap { $0 })
+        let state = JiraWatchState(knownAssigned: try await service.myKeys(inAnyOf: fields.assignees),
+                                   knownReviewing: reviewing ?? [],
+                                   since: Date().addingTimeInterval(-Self.clockSkew))
+        save(state, key: storeKey)
+        return Session(me: me, fields: fields, storeKey: storeKey, state: state)
+    }
+
+    private func load(key: String) -> JiraWatchState? {
+        UserDefaults.standard.data(forKey: key).flatMap { try? JSONDecoder().decode(JiraWatchState.self, from: $0) }
+    }
+
+    private func save(_ state: JiraWatchState, key: String) {
+        UserDefaults.standard.set(try? JSONEncoder().encode(state), forKey: key)
     }
 
     private func post(_ event: JiraEvent) {

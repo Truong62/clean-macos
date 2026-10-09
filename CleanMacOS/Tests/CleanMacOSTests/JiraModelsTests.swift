@@ -284,27 +284,32 @@ struct JiraPickTransitionTests {
 
 struct JiraEventsTests {
     private let start = ISO8601DateFormatter().date(from: "2026-10-08T10:00:00+07:00")!
-    private let assigneesField = "customfield_10700"
+    private let fields = JiraWatchFields(assignees: ["customfield_10700", "assignee"], reviewers: "customfield_10900")
 
-    private func issue(key: String = "FAL-1", assignees: [String] = ["truongnn"], comments: [JiraJSON] = []) -> JiraJSON {
+    private func issue(key: String = "FAL-1", assignees: [String] = ["truongnn"], assignee: String? = nil,
+                       reviewers: [String] = [], description: String = "", comments: [JiraJSON] = []) -> JiraJSON {
         ["key": key, "fields": [
             "summary": "Dev Zone",
-            assigneesField: assignees.map { ["name": $0] },
+            "description": description,
+            "customfield_10700": assignees.map { ["name": $0] },
+            "assignee": assignee.map { ["name": $0] as JiraJSON } as Any,
+            "customfield_10900": reviewers.map { ["name": $0] },
             "comment": ["comments": comments],
         ] as JiraJSON]
     }
 
-    private func comment(_ id: String = "9", author: String = "tony",
-                         created: String = "2026-10-08T10:05:00.000+0700", body: String = "ok") -> JiraJSON {
-        ["id": id, "author": ["name": author, "displayName": author.capitalized], "created": created, "body": body]
+    private func comment(_ id: String = "9", author: String = "tony", created: String = "2026-10-08T10:05:00.000+0700",
+                         updated: String? = nil, body: String = "ok") -> JiraJSON {
+        ["id": id, "author": ["name": author, "displayName": author.capitalized], "created": created,
+         "updated": updated ?? created, "body": body]
     }
 
-    private func state(known: Set<String> = [], seen: Set<String> = []) -> JiraWatchState {
-        JiraWatchState(knownAssigned: known, seenComments: seen, since: start)
+    private func state(known: Set<String> = [], reviewing: Set<String> = []) -> JiraWatchState {
+        JiraWatchState(knownAssigned: known, knownReviewing: reviewing, since: start)
     }
 
     private func detect(_ issues: [JiraJSON], _ state: JiraWatchState, me: String = "truongnn") -> ([JiraEvent], JiraWatchState) {
-        let result = JiraEvents.detect(issues, me: me, assigneesField: assigneesField, state: state)
+        let result = JiraEvents.detect(issues, me: me, fields: fields, state: state)
         return (result.events, result.state)
     }
 
@@ -315,9 +320,22 @@ struct JiraEventsTests {
         #expect(detect([issue()], next).0 == [])
     }
 
-    @Test func forgetsRemovedAssignment() {
-        let (_, next) = detect([issue(assignees: ["tony"])], state(known: ["FAL-1"]))
-        #expect(!next.knownAssigned.contains("FAL-1"))
+    @Test func standardAssigneeCountsAsMine() {
+        #expect(detect([issue(key: "OPS-7", assignees: [], assignee: "truongnn")], state()).0.map(\.kind) == [.assigned])
+    }
+
+    @Test func forgetsRemovedAssignmentAndNotifiesAgainWhenReAdded() {
+        let (_, removed) = detect([issue(assignees: ["tony"])], state(known: ["FAL-1"]))
+        #expect(!removed.knownAssigned.contains("FAL-1"))
+        #expect(detect([issue()], removed).0.map(\.kind) == [.assigned])
+    }
+
+    @Test func notifiesWhenAddedAsReviewerOnce() {
+        let reviewing = issue(assignees: ["tony"], reviewers: ["truongnn"])
+        let (events, next) = detect([reviewing], state())
+        #expect(events.map(\.kind) == [.reviewer])
+        #expect(events.first?.message == "You were added as reviewer: Dev Zone")
+        #expect(detect([reviewing], next).0 == [])
     }
 
     @Test func notifiesCommentOnMyTaskOnce() {
@@ -327,6 +345,11 @@ struct JiraEventsTests {
         #expect(events.first?.title == "FAL-1 · Dev Zone")
         #expect(events.first?.message == "Tony: ok")
         #expect(detect([mine], next).0 == [])
+    }
+
+    @Test func notifiesCommentOnTaskIReview() {
+        let reviewing = issue(assignees: ["tony"], reviewers: ["truongnn"], comments: [comment()])
+        #expect(detect([reviewing], state(reviewing: ["FAL-1"])).0.map(\.kind) == [.comment])
     }
 
     @Test func notifiesMentionOnOtherTask() {
@@ -339,10 +362,40 @@ struct JiraEventsTests {
         #expect(detect([other], state(), me: "5b10ac").0.map(\.kind) == [.mention])
     }
 
+    @Test func notifiesMentionAddedByEditingOldComment() {
+        let edited = comment(created: "2026-10-08T09:00:00.000+0700", updated: "2026-10-08T10:06:00.000+0700",
+                             body: "cc [~truongnn]")
+        let (events, next) = detect([issue(assignees: ["tony"], comments: [edited])], state())
+        #expect(events.map(\.kind) == [.mention])
+        #expect(detect([issue(assignees: ["tony"], comments: [edited])], next).0 == [])
+    }
+
+    @Test func notifiesDescriptionMentionOnceUntilRemoved() {
+        let mentioned = issue(assignees: ["tony"], description: "Owner: [~truongnn]")
+        let (events, next) = detect([mentioned], state())
+        #expect(events.map(\.kind) == [.mention])
+        #expect(events.first?.message == "You were mentioned in the description")
+        #expect(detect([mentioned], next).0 == [])
+        let (_, cleared) = detect([issue(assignees: ["tony"])], next)
+        #expect(detect([mentioned], cleared).0.map(\.kind) == [.mention])
+    }
+
     @Test func ignoresOwnOldAndUnrelatedComments() {
         let comments = [comment("1", author: "truongnn"), comment("2", created: "2026-10-08T09:00:00.000+0700")]
         let (mine, _) = detect([issue(comments: comments)], state(known: ["FAL-1"]))
         let (other, _) = detect([issue(assignees: ["tony"], comments: [comment("3")])], state())
         #expect(mine + other == [])
+    }
+
+    @Test func jqlFieldsIncludeEverythingDetectionReads() {
+        #expect(fields.jqlFields == "summary,description,comment,customfield_10700,assignee,customfield_10900")
+    }
+
+    @Test func stateRoundTripsThroughJSON() throws {
+        var original = state(known: ["FAL-1"], reviewing: ["FAL-2"])
+        original.notifiedComments = ["9"]
+        original.mentionedIn = ["FAL-3"]
+        let decoded = try JSONDecoder().decode(JiraWatchState.self, from: JSONEncoder().encode(original))
+        #expect(decoded == original)
     }
 }
