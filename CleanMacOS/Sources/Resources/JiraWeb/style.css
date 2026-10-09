@@ -1,0 +1,132 @@
+:root {
+  color-scheme: light;
+  --app-font: "Inter", ui-sans-serif, system-ui, sans-serif;
+
+  --primary: #1f74c9;
+  --primary-hover: color-mix(in oklab, var(--primary) 85%, var(--surface));
+  --primary-foreground: #ffffff;
+  --link: var(--primary);
+
+  --background: #f7f7f5;
+  --surface: #ffffff;
+  --surface-overlay: #ffffff;
+  --foreground: #37352f;
+  --muted: #6b6a65;
+  --border: #f3f3f1;
+  --border-strong: #e9e9e7;
+
+  --item-hover: #f7f7f5;
+  --secondary: #efefed;
+  --secondary-hover: #e7e7e4;
+  --surface-hover: #fbfbfa;
+  --button-hover-surface: #f1f1ef;
+  --button-hover-page: #e3e3e0;
+  --button-hover: var(--button-hover-page);
+
+  --ring-focus: color-mix(in srgb, var(--primary) 14%, transparent);
+  --border-focus: var(--primary);
+  --elevation-popover: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --elevation-modal: 0 8px 30px rgba(15, 15, 15, 0.12);
+
+  --todo-bg: #f1f1ef;
+  --todo-text: #5f5e5a;
+  --progress-bg: #e7f3f8;
+  --progress: #337ea9;
+  --progress-text: #28678c;
+  --review-bg: #f3eef9;
+  --review: #9065b0;
+  --review-text: #6b45a0;
+  --done-bg: #edf3ec;
+  --done: #448361;
+  --done-text: #376c4f;
+  --warn-bg: #fbecdd;
+  --warn: #d9730d;
+  --warn-text: #9a520a;
+  --danger: #d44c47;
+  --danger-text: #b93a35;
+
+  --app-bg-l: 0.95;
+  --app-bg-c: 0.045;
+  --app-text-l: 0.45;
+  --app-text-c: 0.13;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --link: #5ea3ea;
+    --background: #191919;
+    --surface: #202020;
+    --surface-overlay: #252525;
+    --foreground: #e6e6e4;
+    --muted: #9b9a97;
+    --border: rgb(255 255 255 / 0.07);
+    --border-strong: #2f2f2f;
+    --item-hover: rgb(255 255 255 / 0.05);
+    --secondary: #2c2c2c;
+    --secondary-hover: #333333;
+    --surface-hover: #242424;
+    --button-hover-surface: rgb(255 255 255 / 0.08);
+    --button-hover-page: rgb(255 255 255 / 0.08);
+    --border-focus: color-mix(in srgb, var(--primary) 70%, transparent);
+    --elevation-popover: 0 10px 15px -3px rgb(0 0 0 / 0.5), 0 4px 6px -4px rgb(0 0 0 / 0.5);
+    --elevation-modal: 0 8px 30px rgba(0, 0, 0, 0.5);
+    --todo-bg: #2a2a2a;
+    --todo-text: #b4b3b0;
+    --progress-bg: #1c2b35;
+    --progress-text: #6cb0d8;
+    --review-bg: #2d2438;
+    --review-text: #c3a6ea;
+    --done-bg: #1f2e25;
+    --done-text: #7cbf97;
+    --warn-bg: #3b2a1b;
+    --warn-text: #f0a35b;
+    --danger-text: #f08a86;
+
+    --app-bg-l: 0.31;
+    --app-bg-c: 0.07;
+    --app-text-l: 0.86;
+    --app-text-c: 0.09;
+  }
+}
+
+[data-app] {
+  --hue: 0;
+  --chroma: 0;
+  background: oklch(var(--app-bg-l) calc(var(--app-bg-c) * var(--chroma)) var(--hue));
+  color: oklch(var(--app-text-l) calc(var(--app-text-c) * var(--chroma)) var(--hue));
+}
+[data-app="SEO"] { --hue: 180; --chroma: 1; }
+[data-app="Blog"] { --hue: 350; --chroma: 1; }
+[data-app="AEO"] { --hue: 275; --chroma: 1; }
+[data-app="APC"] { --hue: 45; --chroma: 1; }
+[data-app="Speed"] { --hue: 130; --chroma: 1; }
+[data-app="Team"] { --hue: 250; --chroma: 0.3; }
+[data-app="Feed"] { --hue: 90; --chroma: 1; }
+[data-app="Ads"] { --hue: 15; --chroma: 1; }
+[data-app="Pixels"] { --hue: 215; --chroma: 1; }
+[data-app="Canva"] { --hue: 305; --chroma: 1; }
+
+* { --scrollbar-thumb: transparent; }
+*:hover { --scrollbar-thumb: color-mix(in srgb, var(--foreground) 16%, transparent); }
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 9999px; }
+@supports not selector(::-webkit-scrollbar) {
+  * { scrollbar-width: thin; scrollbar-color: transparent transparent; }
+  *:hover { scrollbar-color: color-mix(in srgb, var(--foreground) 18%, transparent) transparent; }
+}
+.scrollbar-clean { scrollbar-width: none; }
+.scrollbar-clean::-webkit-scrollbar { display: none; }
+.bg-surface *, .bg-surface-overlay * { --button-hover: var(--button-hover-surface); }
+body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+
+.rich { overflow-wrap: anywhere; }
+.rich > * + * { margin-top: 0.5rem; }
+.rich ul { list-style: disc; padding-left: 1.25rem; }
+.rich ol { list-style: decimal; padding-left: 1.25rem; }
+.rich li + li { margin-top: 0.25rem; }
+.rich a { color: var(--link); text-underline-offset: 3px; }
+.rich a:hover { text-decoration: underline; }
+.rich img { max-width: 100%; }
+.rich pre { overflow-x: auto; white-space: pre-wrap; }
