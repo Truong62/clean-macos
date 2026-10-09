@@ -36,9 +36,13 @@ struct JiraRouter {
         guard path.hasPrefix("/api/") else { return staticFile(path) }
         do {
             if method == "GET", path == "/api/avatar" { return try await avatar(query: query ?? "") }
+            if method == "GET", path == "/api/file" {
+                let file = try await configuredService().file(path: Self.queryValue(query, "path"))
+                return JiraHTTPResponse(status: 200, contentType: file.contentType, data: file.data)
+            }
             if method == "GET", path == "/api/users" { return .json(try await configuredService().searchUsers(Self.queryValue(query, "q"))) }
             return .json(try await api(method: method, parts: path.split(separator: "/").dropFirst().map(String.init),
-                                       body: body))
+                                       query: query, body: body))
         } catch let error as JiraError {
             return .error(error.message, status: error.status)
         } catch {
@@ -56,7 +60,7 @@ struct JiraRouter {
         return service
     }
 
-    private func api(method: String, parts: [String], body: Data?) async throws -> Any {
+    private func api(method: String, parts: [String], query: String?, body: Data?) async throws -> Any {
         if method == "GET", parts == ["kpi"] { return try kpi() }
         let service = try configuredService()
         let input = { (key: String) in try Self.bodyField(body, key) }
@@ -67,6 +71,8 @@ struct JiraRouter {
         case ("PATCH", 2, "issues", let key?): return try await service.updateIssue(key, changes: try Self.bodyObject(body))
         case ("POST", 3, "issues", "transition"): return try await service.transitionIssue(parts[1], transitionId: try input("id"))
         case ("POST", 3, "issues", "move"): return try await service.moveIssue(parts[1], column: try input("column"))
+        case ("POST", 3, "issues", "attachments"):
+            return try await service.addAttachment(parts[1], filename: Self.queryValue(query, "name"), data: body ?? Data())
         case ("POST", 3, "issues", "comment"): return try await service.addComment(parts[1], body: try input("body"))
         default: throw JiraError(status: 404, message: "No route for \(method) /api/\(parts.joined(separator: "/"))")
         }

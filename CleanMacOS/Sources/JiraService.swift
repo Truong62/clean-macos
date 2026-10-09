@@ -1,4 +1,5 @@
 import Foundation
+import UniformTypeIdentifiers
 
 /// Jira use cases behind the web UI's `/api/*` routes (port of jira-desk `IssueService`).
 actor JiraService {
@@ -144,6 +145,28 @@ actor JiraService {
         day.formatOptions = [.withFullDate]
         day.timeZone = .current
         return JiraKpiData(syncedAt: day.string(from: now), issues: issues)
+    }
+
+    static let fileProxyPrefixes = ["/secure/attachment/", "/secure/thumbnail/", "/secure/useravatar", "/secure/projectavatar"]
+
+    func file(path: String) async throws -> (data: Data, contentType: String) {
+        guard let components = URLComponents(string: path.addingPercentEncoding(withAllowedCharacters: .urlFragmentAllowed) ?? path),
+              Self.fileProxyPrefixes.contains(where: components.path.hasPrefix),
+              !components.path.contains("..") else {
+            throw JiraError(status: 400, message: "Only Jira attachments can be loaded")
+        }
+        let query = Dictionary((components.queryItems ?? []).map { ($0.name, $0.value ?? "") }, uniquingKeysWith: { first, _ in first })
+        return try await client.requestRaw(path: components.percentEncodedPath, query: query)
+    }
+
+    func addAttachment(_ key: String, filename: String, data: Data) async throws -> JiraJSON {
+        try Self.validate(key: key)
+        let name = filename.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty, !data.isEmpty else { throw JiraError(status: 400, message: "Attachment name and content are required") }
+        let mimeType = UTType(filenameExtension: (name as NSString).pathExtension)?.preferredMIMEType ?? "application/octet-stream"
+        let result = try await client.upload(path: "/rest/api/2/issue/\(key)/attachments", filename: name, data: data, mimeType: mimeType)
+        let saved = (result as? [JiraJSON])?.first
+        return ["filename": saved?["filename"] as? String ?? name, "id": orNull(saved?["id"])]
     }
 
     func searchUsers(_ query: String) async throws -> [JiraJSON] {

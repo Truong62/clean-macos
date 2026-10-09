@@ -70,6 +70,7 @@ struct JiraMapper {
             let created = Self.prefix(comment["created"], 16) ?? ""
             return ["id": orNull(comment["id"]),
                     "author": orNull((comment["author"] as? JiraJSON)?["displayName"]),
+                    "authorUser": (comment["author"] as? JiraJSON).map(user) ?? NSNull(),
                     "created": created.replacingOccurrences(of: "T", with: " "),
                     "bodyHtml": absolutizeLinks(comment["body"] as? String)]
         }
@@ -93,8 +94,15 @@ struct JiraMapper {
     }
 
     func absolutizeLinks(_ html: String?) -> String {
-        (html ?? "").replacing(#/(src|href)="\//#) { match in "\(match.1)=\"\(baseURL)/" }
+        (html ?? "").replacing(#/(src|href)="(\/[^"]*)"/#) { match in
+            let path = String(match.2)
+            guard match.1 == "src", path.hasPrefix("/secure/") else { return "\(match.1)=\"\(baseURL)\(path)\"" }
+            let raw = path.replacingOccurrences(of: "&amp;", with: "&")
+            return "src=\"/api/file?path=\(raw.addingPercentEncoding(withAllowedCharacters: Self.queryValueAllowed) ?? raw)\""
+        }
     }
+
+    static let queryValueAllowed = CharacterSet(charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~")
 
     func updateFields(_ changes: JiraJSON) throws -> JiraJSON {
         guard !changes.isEmpty else { throw JiraError(status: 400, message: "No changes to update") }
