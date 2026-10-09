@@ -9,6 +9,26 @@
     <!-- Paste new <item> blocks here when releasing (newest first) -->
 
     <item>
+      <title>Version 1.0.13</title>
+      <pubDate>Fri, 09 Oct 2026 11:04:48 +0700</pubDate>
+      <sparkle:version>14</sparkle:version>
+      <sparkle:shortVersionString>1.0.13</sparkle:shortVersionString>
+      <description><![CDATA[
+        <h2>What's new in 1.0.13</h2>
+        <ul>
+          <li><b>Formatting toolbar</b> — bold, italic, underline, strikethrough, headings, lists, code, quotes and links for Jira descriptions and comments, with ⌘B / ⌘I / ⌘U.</li>
+          <li><b>Preview</b> — see a description or comment exactly as Jira will show it before saving.</li>
+          <li><b>Richer display</b> — headings, code blocks, quotes, tables and panels look like they do in Jira.</li>
+          <li><b>Fix</b> — the image button in comments now opens the file picker.</li>
+        </ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/Truong62/clean-macos/releases/download/v1.0.13/CleanMacOS-1.0.13.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="HMx8rcJKgnLfgWz6K2MZAMGYNQXGrFkQ27ilY+kC2TLsfAU8ltqt6Tm/l7/FOLy65bP42l13QRSexHNNad8mBA==" length="3715721" />
+    </item>
+
+    <item>
       <title>Version 1.0.12</title>
       <pubDate>Fri, 09 Oct 2026 10:53:02 +0700</pubDate>
       <sparkle:version>13</sparkle:version>
