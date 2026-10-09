@@ -9,6 +9,26 @@
     <!-- Paste new <item> blocks here when releasing (newest first) -->
 
     <item>
+      <title>Version 1.0.14</title>
+      <pubDate>Fri, 09 Oct 2026 11:17:18 +0700</pubDate>
+      <sparkle:version>15</sparkle:version>
+      <sparkle:shortVersionString>1.0.14</sparkle:shortVersionString>
+      <description><![CDATA[
+        <h2>What's new in 1.0.14</h2>
+        <ul>
+          <li><b>Attachments</b> — see a task's files as thumbnails, drag and drop or browse to attach, click an image to view it full size.</li>
+          <li><b>Upload progress</b> — a clear loading indicator while images and files upload.</li>
+          <li><b>Keyboard picking</b> — use ↑ ↓ and Enter to choose people in @mentions and the Add-person box.</li>
+          <li><b>Fix</b> — images added to comments now show up in Jira (they go on their own line).</li>
+        </ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/Truong62/clean-macos/releases/download/v1.0.14/CleanMacOS-1.0.14.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="kFf0tFHlKND35S+kgxuk1/TurFoqlks0zdH7IQ/KGPgjywlK132iz93aiY/Vn/PWZXsbFN0zWHVl0BLcqjkNDg==" length="3719702" />
+    </item>
+
+    <item>
       <title>Version 1.0.13</title>
       <pubDate>Fri, 09 Oct 2026 11:04:48 +0700</pubDate>
       <sparkle:version>14</sparkle:version>
