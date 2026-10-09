@@ -661,9 +661,10 @@ function searchPeople(input) {
       const taken = new Set(personNames(field));
       const users = (await api.users(query)).filter((u) => !taken.has(u.name));
       list.innerHTML = users.length
-        ? users.map((u) => `<li><button type="button" data-add-person="${field}" data-name="${esc(u.name)}" class="flex w-full cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm hover:bg-item-hover">${avatar(u, 'size-6')}<span class="min-w-0 truncate">${esc(u.displayName)}</span><span class="ml-auto truncate text-xs text-muted">${esc(u.name)}</span></button></li>`).join('')
+        ? users.map((u) => `<li><button type="button" data-add-person="${field}" data-name="${esc(u.name)}" class="flex w-full cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm hover:bg-item-hover data-active:bg-item-hover data-active:ring-1 data-active:ring-focus">${avatar(u, 'size-6')}<span class="min-w-0 truncate">${esc(u.displayName)}</span><span class="ml-auto truncate text-xs text-muted">${esc(u.name)}</span></button></li>`).join('')
         : '<li class="px-2 py-1.5 text-sm text-muted">No matching people</li>';
       list.hidden = false;
+      setActiveOption(list, 0);
     } catch (error) {
       showToast(error.message, true);
     }
@@ -682,9 +683,10 @@ function searchMention(textarea) {
     try {
       const users = await api.users(match[1]);
       list.innerHTML = users.length
-        ? users.map((u) => `<li><button type="button" data-mention="${esc(u.name)}" class="flex w-full cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm hover:bg-item-hover">${avatar(u, 'size-6')}<span class="min-w-0 truncate">${esc(u.displayName)}</span><span class="ml-auto truncate text-xs text-muted">${esc(u.name)}</span></button></li>`).join('')
+        ? users.map((u) => `<li><button type="button" data-mention="${esc(u.name)}" class="flex w-full cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm hover:bg-item-hover data-active:bg-item-hover data-active:ring-1 data-active:ring-focus">${avatar(u, 'size-6')}<span class="min-w-0 truncate">${esc(u.displayName)}</span><span class="ml-auto truncate text-xs text-muted">${esc(u.name)}</span></button></li>`).join('')
         : '<li class="px-2 py-1.5 text-sm text-muted">No matching people</li>';
       list.hidden = false;
+      setActiveOption(list, 0);
     } catch (error) {
       showToast(error.message, true);
     }
@@ -699,6 +701,36 @@ function insertMention(name) {
   $('#mention-results').hidden = true;
   $('[data-action="add-comment"]').disabled = !textarea.value.trim();
   textarea.focus();
+}
+
+function setActiveOption(list, index) {
+  const options = [...list.querySelectorAll('button')];
+  options.forEach((option, i) => option.toggleAttribute('data-active', i === index));
+  options[index]?.scrollIntoView({ block: 'nearest' });
+}
+
+function handleOptionKeys(event, list) {
+  if (!list || list.hidden) return false;
+  if (event.key === 'Escape') {
+    event.preventDefault();
+    list.hidden = true;
+    return true;
+  }
+  const options = [...list.querySelectorAll('button')];
+  if (!options.length) return false;
+  const current = options.findIndex((option) => option.hasAttribute('data-active'));
+  if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+    event.preventDefault();
+    const step = event.key === 'ArrowDown' ? 1 : -1;
+    setActiveOption(list, (current + step + options.length) % options.length);
+    return true;
+  }
+  if (event.key === 'Enter' || event.key === 'Tab') {
+    event.preventDefault();
+    (options[current] || options[0]).click();
+    return true;
+  }
+  return false;
 }
 
 function closePeopleResults(except) {
@@ -864,13 +896,21 @@ function insertIntoComment(text) {
   textarea.focus();
 }
 
+function setUploadProgress(text) {
+  const status = $('#comment-upload');
+  if (!status) return;
+  status.hidden = !text;
+  status.querySelector('[data-upload-text]').textContent = text || '';
+  $('[data-action="add-comment"]').disabled = Boolean(text) || !$('#comment-input').value.trim();
+}
+
 async function uploadCommentImages(files) {
   const key = state.detail?.key;
   const images = [...files].filter((f) => f.type.startsWith('image/'));
   if (!key || !images.length) return;
-  showToast(`Uploading ${images.length} image(s)…`);
   try {
-    for (const file of images) {
+    for (const [index, file] of images.entries()) {
+      setUploadProgress(`Uploading ${index + 1}/${images.length} · ${file.name || 'pasted image'}…`);
       const saved = await api.upload(key, file, uniqueAttachmentName(file));
       const textarea = $('#comment-input');
       const before = textarea.value.slice(0, textarea.selectionStart ?? textarea.value.length);
@@ -880,6 +920,8 @@ async function uploadCommentImages(files) {
     showToast('Image attached — send the comment to post it');
   } catch (error) {
     showToast(error.message, true);
+  } finally {
+    setUploadProgress('');
   }
 }
 
@@ -891,6 +933,7 @@ function commentsHtml(d) {
     <h3 class="text-sm font-semibold text-foreground">Comments <span class="font-normal tabular-nums text-muted">${d.comments.length || ''}</span></h3>
     ${comments}
     <div class="relative mt-2">${formatToolbar('comment-input')}<label class="block"><span class="sr-only">Add a comment</span><textarea id="comment-input" rows="3" placeholder="Add a comment — type @ to mention someone" class="${editorTextareaClass}"></textarea></label>
+      <div id="comment-upload" role="status" hidden class="mt-2 flex items-center gap-2 rounded-lg bg-foreground/5 px-3 py-2 text-xs font-medium text-muted"><span class="size-3.5 shrink-0 animate-spin rounded-full border-2 border-foreground/20 border-t-primary"></span><span data-upload-text></span></div>
       <ul id="mention-results" hidden class="absolute bottom-full left-0 z-30 mb-1 max-h-64 w-72 overflow-y-auto rounded-xl border border-border bg-surface p-1 shadow-lg"></ul></div>
     <div class="mt-3 flex items-center justify-end gap-2">
       <input type="file" id="comment-file" accept="image/*" multiple hidden />
@@ -1266,6 +1309,9 @@ function handleChange(event) {
 }
 
 function handleKeydown(event) {
+  if (event.target.id === 'comment-input' && handleOptionKeys(event, $('#mention-results'))) return;
+  if (event.target.matches?.('[data-person-search]')
+    && handleOptionKeys(event, document.querySelector(`[data-person-results="${event.target.dataset.personSearch}"]`))) return;
   const shortcut = (event.metaKey || event.ctrlKey) && WIKI_SHORTCUTS[event.key.toLowerCase()];
   if (shortcut && ['description-input', 'comment-input'].includes(event.target.id)) {
     event.preventDefault();
