@@ -3,14 +3,18 @@ import SwiftUI
 struct ContentView: View {
     @EnvironmentObject var vm: AppViewModel
     @EnvironmentObject var jira: JiraViewModel
+    @EnvironmentObject var updater: UpdaterViewModel
     @State private var currentPage: SidebarPage = .home
 
     var body: some View {
-        if vm.needsPermission {
-            PermissionView()
-        } else {
-            mainContent
+        Group {
+            if vm.needsPermission {
+                PermissionView()
+            } else {
+                mainContent
+            }
         }
+        .overlay(alignment: .bottomTrailing) { UpdateAvailableToast(updater: updater) }
     }
 
     private var mainContent: some View {
