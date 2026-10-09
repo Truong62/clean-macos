@@ -147,6 +147,13 @@ actor JiraService {
         return JiraKpiData(syncedAt: day.string(from: now), issues: issues)
     }
 
+    func renderWiki(_ markup: String, issueKey: String) async throws -> JiraJSON {
+        let body: JiraJSON = ["rendererType": "atlassian-wiki-renderer", "unrenderedMarkup": markup, "issueKey": issueKey]
+        let html = try await client.request(method: "POST", path: "/rest/api/1.0/render", body: body)
+        let linker = JiraMapper(baseURL: client.baseURL, fields: JiraFieldMap(ids: [:]))
+        return ["html": linker.absolutizeLinks(String(decoding: html, as: UTF8.self))]
+    }
+
     static let fileProxyPrefixes = ["/secure/attachment/", "/secure/thumbnail/", "/secure/useravatar", "/secure/projectavatar"]
 
     func file(path: String) async throws -> (data: Data, contentType: String) {
