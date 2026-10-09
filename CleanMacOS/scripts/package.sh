@@ -27,17 +27,22 @@ SIGN_TOOL=".build/artifacts/sparkle/Sparkle/bin/sign_update"
 
 # xcodebuild needs full Xcode; fall back to /Applications/Xcode.app if the
 # active developer dir is the Command Line Tools.
-if ! xcode-select -p | grep -q "Xcode.app"; then
+if ! xcode-select -p | grep -q "Xcode.app" && [ -d /Applications/Xcode.app ]; then
   export DEVELOPER_DIR="/Applications/Xcode.app/Contents/Developer"
 fi
 
 [ -x "$SIGN_TOOL" ] || { echo "ERROR: $SIGN_TOOL missing — run 'swift build' once."; exit 1; }
 
-echo "==> Generating project & building Release..."
-xcodegen generate
-xcodebuild -project CleanMacOS.xcodeproj -scheme CleanMacOS \
-  -configuration Release -derivedDataPath .build/dd build 2>&1 | tail -3
-APP=$(find .build/dd/Build/Products/Release -maxdepth 1 -name "*.app" | head -1)
+if [ -n "${DEVELOPER_DIR:-}" ] || xcode-select -p | grep -q "Xcode.app"; then
+  echo "==> Generating project & building Release..."
+  xcodegen generate
+  xcodebuild -project CleanMacOS.xcodeproj -scheme CleanMacOS \
+    -configuration Release -derivedDataPath .build/dd build 2>&1 | tail -3
+  APP=$(find .build/dd/Build/Products/Release -maxdepth 1 -name "*.app" | head -1)
+else
+  echo "==> No Xcode — building Release with SwiftPM..."
+  APP=$(./scripts/build-app-spm.sh | tail -1)
+fi
 [ -n "$APP" ] || { echo "ERROR: build produced no .app"; exit 1; }
 
 echo "==> Verifying embedded version matches ${VERSION}..."
