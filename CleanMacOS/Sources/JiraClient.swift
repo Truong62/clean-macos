@@ -33,8 +33,8 @@ struct JiraClient {
         self.transport = transport
     }
 
-    static func fromSettings(keychain: KeychainStore = KeychainStore()) -> JiraClient? {
-        guard !JiraSettings.domain.isEmpty, let token = keychain.read(), !token.isEmpty else { return nil }
+    static func fromSettings(token: String?) -> JiraClient? {
+        guard !JiraSettings.domain.isEmpty, let token, !token.isEmpty else { return nil }
         if JiraSettings.authKind == .cloud && JiraSettings.email.isEmpty { return nil }
         return JiraClient(baseURL: JiraSettings.domain, authKind: JiraSettings.authKind,
                           email: JiraSettings.email, token: token)
