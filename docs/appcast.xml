@@ -9,6 +9,26 @@
     <!-- Paste new <item> blocks here when releasing (newest first) -->
 
     <item>
+      <title>Version 1.0.17</title>
+      <pubDate>Fri, 09 Oct 2026 11:39:20 +0700</pubDate>
+      <sparkle:version>18</sparkle:version>
+      <sparkle:shortVersionString>1.0.17</sparkle:shortVersionString>
+      <description><![CDATA[
+        <h2>What's new in 1.0.17</h2>
+        <ul>
+          <li><b>Friendlier comment box</b> — mentions show as @Name and attached images as thumbnails under the box; Clean macOS converts them to Jira syntax when you send. Drafts are kept while you edit other fields.</li>
+          <li><b>Edit and delete comments</b> — hover your own comment for Edit · Delete (delete asks you to click twice).</li>
+          <li><b>Comment images fixed</b> — images in comments now load inside the app; click one to view it full size.</li>
+          <li><b>Release history fixed</b> — the popover no longer collapses while loading.</li>
+        </ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/Truong62/clean-macos/releases/download/v1.0.17/CleanMacOS-1.0.17.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="xpg4sCYgFn9plE4BDU7BZartGo5C435kpia7uh/JrtSEC2pg4hD2aCkv3ZCqKaZpSOatBwNoT0Z1vKeH6+cWBg==" length="3790893" />
+    </item>
+
+    <item>
       <title>Version 1.0.16</title>
       <pubDate>Fri, 09 Oct 2026 11:27:44 +0700</pubDate>
       <sparkle:version>17</sparkle:version>
