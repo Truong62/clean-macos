@@ -9,6 +9,26 @@
     <!-- Paste new <item> blocks here when releasing (newest first) -->
 
     <item>
+      <title>Version 1.0.19</title>
+      <pubDate>Mon, 12 Oct 2026 10:19:15 +0700</pubDate>
+      <sparkle:version>20</sparkle:version>
+      <sparkle:shortVersionString>1.0.19</sparkle:shortVersionString>
+      <description><![CDATA[
+        <h2>What's new in 1.0.19</h2>
+        <ul>
+          <li><b>Jira lists in the sidebar</b> — Sprint, Doing, All tasks, Done (with counts) and Table/Board now sit right under Jira in the app sidebar.</li>
+          <li><b>Reply to bugs without leaving the task</b> — click a linked bug to see its latest comments and reply inline (⌘↩ to send). The ↗ button opens the bug, with a back button to the parent task.</li>
+          <li><b>Clearer sub-tasks</b> — rounded tree lines connect sub-tasks to their parent in the table.</li>
+          <li><b>Easier Jira setup</b> — without a token, the Jira tab shows the connect form right there.</li>
+        </ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/Truong62/clean-macos/releases/download/v1.0.19/CleanMacOS-1.0.19.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="CyxrFt41kOQ6qqOvY2f1S1u4BebvEM6cSqFHGw7Tg4/t1W7xL11gV9Xl2THCdPxjEGNQFQ9Gj7WIjnBI6oPKBQ==" length="3836641" />
+    </item>
+
+    <item>
       <title>Version 1.0.18</title>
       <pubDate>Fri, 09 Oct 2026 11:52:54 +0700</pubDate>
       <sparkle:version>19</sparkle:version>
