@@ -2,6 +2,7 @@ import SwiftUI
 
 struct JiraSettingsForm: View {
     @EnvironmentObject var jira: JiraViewModel
+    var showsAdvanced = true
     @AppStorage(JiraSettings.domainKey) private var domain = ""
     @AppStorage(JiraSettings.authKindKey) private var authKind = JiraSettings.AuthKind.server.rawValue
     @AppStorage(JiraSettings.emailKey) private var email = ""
@@ -43,6 +44,18 @@ struct JiraSettingsForm: View {
         row("Board ID", "Agile board for columns and sprints (number in the board URL)") {
             TextField("10030", text: $boardId).textFieldStyle(.roundedBorder).frame(width: 300)
         }
+        if showsAdvanced { advancedRows }
+        HStack {
+            Button(showsAdvanced ? "Save & Test Connection" : "Connect", action: saveAndTest)
+                .buttonStyle(.borderedProminent)
+                .disabled(isTesting)
+                .pointerCursor()
+            if isTesting { ProgressView().controlSize(.small) }
+            Text(status).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
+        }
+    }
+
+    @ViewBuilder private var advancedRows: some View {
         row("App field", "Custom field shown as the app tag (optional)") {
             TextField("Falcon App", text: $appFieldName).textFieldStyle(.roundedBorder).frame(width: 300)
         }
@@ -73,13 +86,6 @@ struct JiraSettingsForm: View {
             Spacer()
             Button("Send Test") { Task { status = await jira.sendTestNotification() } }
                 .pointerCursor()
-        }
-        HStack {
-            Button("Save & Test Connection", action: saveAndTest)
-                .disabled(isTesting)
-                .pointerCursor()
-            if isTesting { ProgressView().controlSize(.small) }
-            Text(status).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
         }
     }
 

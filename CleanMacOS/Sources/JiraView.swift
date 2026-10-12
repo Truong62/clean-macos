@@ -8,21 +8,35 @@ struct JiraView: View {
     var body: some View {
         if jira.isConfigured {
             JiraWebView(url: jira.webURL, router: JiraRouter(service: { [weak jira] in jira?.service }),
-                        remoteChange: jira.remoteChange)
+                        remoteChange: jira.remoteChange, navRequest: jira.navRequest,
+                        onNav: { [weak jira] nav in jira?.updateNav(nav) })
                 .id(jira.service.map(ObjectIdentifier.init))
         } else {
-            VStack(spacing: 12) {
-                Image(systemName: "checklist")
-                    .font(.system(size: 40))
-                    .foregroundStyle(.blue.gradient)
-                Text("Set up Jira").font(.title2).fontWeight(.bold)
-                Text("Enter your Jira domain and API token in Settings.")
-                    .foregroundStyle(.secondary)
-                Button("Open Settings", action: openSettings)
-                    .buttonStyle(.borderedProminent)
-                    .pointerCursor()
+            ScrollView {
+                VStack(spacing: 20) {
+                    VStack(spacing: 8) {
+                        Image(systemName: "checklist")
+                            .font(.system(size: 40))
+                            .foregroundStyle(.blue.gradient)
+                        Text("Connect Jira").font(.title2).fontWeight(.bold)
+                        Text("Server: Jira profile → Personal Access Tokens. Cloud: id.atlassian.com → API tokens.")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+                    VStack(alignment: .leading, spacing: 16) {
+                        JiraSettingsForm(showsAdvanced: false)
+                    }
+                    .padding(18)
+                    .frame(maxWidth: 560)
+                    .glassCard(cornerRadius: 20)
+                    Button("More options in Settings", action: openSettings)
+                        .buttonStyle(.link)
+                        .pointerCursor()
+                }
+                .padding(32)
+                .frame(maxWidth: .infinity)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 }
@@ -31,11 +45,21 @@ struct JiraWebView: NSViewRepresentable {
     let url: URL
     let router: JiraRouter
     let remoteChange: JiraRemoteChange
+    var navRequest = JiraNavRequest(id: 0, list: nil, view: nil)
+    var onNav: (JiraNav) -> Void = { _ in }
 
-    final class Coordinator: NSObject, WKUIDelegate, WKNavigationDelegate {
+    static let navMessageName = "jiraNav"
+
+    final class Coordinator: NSObject, WKUIDelegate, WKNavigationDelegate, WKScriptMessageHandler {
         var handler: JiraSchemeHandler?
         var loadedURL: URL?
         var lastChangeId = 0
+        var lastNavRequestId = 0
+        var onNav: (JiraNav) -> Void = { _ in }
+
+        func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
+            if let nav = JiraNav(message: message.body) { onNav(nav) }
+        }
 
         func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration,
                      for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
@@ -71,12 +95,18 @@ struct JiraWebView: NSViewRepresentable {
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 
+    static func dismantleNSView(_ webView: WKWebView, coordinator: Coordinator) {
+        webView.configuration.userContentController.removeScriptMessageHandler(forName: navMessageName)
+    }
+
     func makeNSView(context: Context) -> WKWebView {
         let handler = JiraSchemeHandler(router: router)
         context.coordinator.handler = handler
         context.coordinator.lastChangeId = remoteChange.id
+        context.coordinator.lastNavRequestId = navRequest.id
         let configuration = WKWebViewConfiguration()
         configuration.setURLSchemeHandler(handler, forURLScheme: JiraRouter.scheme)
+        configuration.userContentController.add(context.coordinator, name: Self.navMessageName)
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.setValue(false, forKey: "drawsBackground")
         webView.uiDelegate = context.coordinator
@@ -85,6 +115,11 @@ struct JiraWebView: NSViewRepresentable {
     }
 
     func updateNSView(_ webView: WKWebView, context: Context) {
+        context.coordinator.onNav = onNav
+        if context.coordinator.lastNavRequestId != navRequest.id {
+            context.coordinator.lastNavRequestId = navRequest.id
+            webView.evaluateJavaScript(navRequest.script)
+        }
         if context.coordinator.lastChangeId != remoteChange.id {
             context.coordinator.lastChangeId = remoteChange.id
             webView.evaluateJavaScript(Self.remoteUpdateScript(remoteChange.keys))
