@@ -21,6 +21,8 @@ final class JiraViewModel: ObservableObject {
     private let kpiStore: JiraKpiStore
     private var menuLoop: Task<Void, Never>?
     @Published private(set) var remoteChange = JiraRemoteChange(id: 0, keys: [])
+    @Published private(set) var nav = JiraNav()
+    @Published private(set) var navRequest = JiraNavRequest(id: 0, list: nil, view: nil)
     private lazy var notifier = JiraNotifier(
         onOpen: { [weak self] key in self?.openFromOutside(issueKey: key) },
         onChange: { [weak self] keys in self?.publishRemoteChange(keys) }
@@ -59,6 +61,16 @@ final class JiraViewModel: ObservableObject {
                 }
             }
         }
+    }
+
+    func updateNav(_ nav: JiraNav) {
+        if self.nav != nav { self.nav = nav }
+    }
+
+    func selectNav(list: String? = nil, view: String? = nil) {
+        if let list { nav.list = list }
+        if let view { nav.view = view }
+        navRequest = JiraNavRequest(id: navRequest.id + 1, list: list, view: view)
     }
 
     private func publishRemoteChange(_ keys: [String]) {

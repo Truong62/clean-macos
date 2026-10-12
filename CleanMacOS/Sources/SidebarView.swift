@@ -40,6 +40,9 @@ struct SidebarView: View {
                 SidebarItem(icon: "checklist", label: "Jira", color: .blue, isSelected: currentPage == .jira) {
                     currentPage = .jira
                 }
+                if currentPage == .jira {
+                    JiraSidebarSection()
+                }
                 SidebarItem(icon: "display.2", label: "Displays", color: .purple, isSelected: currentPage == .displays) {
                     currentPage = .displays
                 }

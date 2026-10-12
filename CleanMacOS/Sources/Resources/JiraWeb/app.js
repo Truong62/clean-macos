@@ -72,6 +72,10 @@ const FILTER_VALUE = {
 const FILTER_NAMES = Object.keys(FILTER_VALUE);
 const noNegation = () => Object.fromEntries(FILTER_NAMES.map((name) => [name, false]));
 const TREE_INDENT_PX = 20;
+const TREE_CELL_PAD_PX = 16;
+const TREE_TOGGLE_PX = 20;
+const TREE_LEAF_REACH_PX = 12;
+const TREE_CURVE_RADIUS_PX = 6;
 const DROP_CLASSES = 'rounded-2xl data-[drop=true]:outline-2 data-[drop=true]:outline-offset-2 data-[drop=true]:outline-dashed data-[drop=true]:outline-primary';
 
 const state = {
@@ -95,6 +99,7 @@ const state = {
   hideDone: false,
   sort: DEFAULT_SORT,
   panelKey: null,
+  panelTrail: [],
   detail: null,
   calendarMonth: null,
 };
@@ -293,12 +298,13 @@ function treeRows(issues) {
   const { keys, children } = childrenByParent(issues);
   const rows = [];
   const visited = new Set();
-  const walk = (issue, depth, isShown) => {
+  const walk = (issue, depth, isShown, rails = [], isLast = true) => {
     if (visited.has(issue.key)) return;
     visited.add(issue.key);
     const kids = children.get(issue.key) || [];
-    if (isShown) rows.push({ issue, depth, kids });
-    kids.forEach((kid) => walk(kid, depth + 1, isShown && isExpanded(issue.key, kids)));
+    if (isShown) rows.push({ issue, depth, kids, rails, isLast });
+    const kidRails = depth ? [...rails, !isLast] : [];
+    kids.forEach((kid, index) => walk(kid, depth + 1, isShown && isExpanded(issue.key, kids), kidRails, index === kids.length - 1));
   };
   issues.filter((i) => !keys.has(i.parentKey)).forEach((i) => walk(i, 0, true));
   issues.forEach((i) => walk(i, 0, true));
@@ -310,6 +316,20 @@ function treeToggle({ issue, depth, kids }) {
   if (!kids.length) return `${indent}<span class="size-5 shrink-0"></span>`;
   const isOpen = isExpanded(issue.key, kids);
   return `${indent}<button type="button" data-toggle="${issue.key}" aria-expanded="${isOpen}" aria-label="${isOpen ? 'Collapse' : 'Expand'} ${issue.key}" class="grid size-5 shrink-0 cursor-pointer place-items-center rounded-md text-muted outline-hidden hover:bg-foreground/10 hover:text-foreground">${icon('chevron-right', `size-4 transition-transform ${isOpen ? 'rotate-90' : ''}`)}</button>`;
+}
+
+const treeLineX = (level) => TREE_CELL_PAD_PX + level * TREE_INDENT_PX + TREE_TOGGLE_PX / 2;
+const treeLine = (style) => `<span aria-hidden="true" class="pointer-events-none absolute border-(--tree-line)" style="${style}"></span>`;
+const treeRail = (x, top = '-1px') => treeLine(`left:${x}px;top:${top};bottom:0;border-left-width:1px`);
+
+function treeGuides({ issue, depth, kids, rails = [], isLast }) {
+  const railLines = rails.map((isOn, level) => (isOn ? treeRail(treeLineX(level)) : '')).join('');
+  const elbowX = treeLineX(depth - 1);
+  const reach = TREE_TOGGLE_PX / 2 + (kids.length ? 0 : TREE_LEAF_REACH_PX);
+  const curve = treeLine(`left:${elbowX}px;top:-1px;height:calc(50% + 1px);width:${reach}px;border-left-width:1px;border-bottom-width:1px;border-bottom-left-radius:${TREE_CURVE_RADIUS_PX}px`);
+  const elbow = depth ? (isLast ? '' : treeRail(elbowX)) + curve : '';
+  const stub = kids.length && isExpanded(issue.key, kids) ? treeRail(treeLineX(depth), `calc(50% + ${TREE_TOGGLE_PX / 2}px)`) : '';
+  return railLines + elbow + stub;
 }
 
 function childCounts(kids) {
@@ -333,7 +353,7 @@ const devPointCell = (issue) => (issue.devPoint ? `<span class="tabular-nums">${
 
 const CELL_RENDERERS = {
   key: (i) => `<td class="whitespace-nowrap px-4 py-3 text-sm tabular-nums text-muted">${i.key}</td>`,
-  summary: (i, row) => `<td class="max-w-0 px-4 py-3"><div class="flex min-w-0 items-center gap-1.5">${treeToggle(row)}<span class="truncate font-medium ${row.depth ? 'text-foreground/85' : 'text-foreground'}" title="${esc(i.summary)}">${esc(i.summary)}</span>${rowExtras(row)}</div></td>`,
+  summary: (i, row) => `<td class="relative max-w-0 px-4 py-3">${treeGuides(row)}<div class="flex min-w-0 items-center gap-1.5">${treeToggle(row)}<span class="truncate font-medium ${row.depth ? 'text-foreground/85' : 'text-foreground'}" title="${esc(i.summary)}">${esc(i.summary)}</span>${rowExtras(row)}</div></td>`,
   status: (i) => `<td class="whitespace-nowrap px-4 py-3">${statusBadge(i.status)}</td>`,
   assignees: (i) => `<td class="whitespace-nowrap px-4 py-3">${avatarStack(i.assignees)}</td>`,
   falconApp: (i) => `<td class="whitespace-nowrap px-4 py-3">${appCell(i)}</td>`,
@@ -511,6 +531,25 @@ function smartListLink(list) {
   return navLink({ attr: `data-list="${list.id}"`, label: esc(listLabel(list)), iconName: list.icon, isActive: state.list === list.id, count, countClass, tile: TONE_TILE[list.tone] });
 }
 
+const nativeNav = window.webkit?.messageHandlers?.jiraNav;
+
+function postNativeNav() {
+  if (!nativeNav) return;
+  const isCounting = !isLoading() && !isError();
+  nativeNav.postMessage({
+    list: state.list,
+    view: state.view,
+    lists: SMART_LISTS.map((list) => ({ id: list.id, label: listLabel(list), count: isCounting ? listIssues(list).length : null })),
+    views: VIEWS.map(({ id, label }) => ({ id, label, count: null })),
+  });
+}
+
+window.jiraSetNav = ({ list, view }) => {
+  if (SMART_LISTS.some((l) => l.id === list)) state.list = list;
+  if (VIEWS.some((v) => v.id === view)) state.view = view;
+  render();
+};
+
 function navHtml() {
   const views = VIEWS.map((view) => navLink({ attr: `data-view="${view.id}"`, label: view.label, iconName: view.icon, isActive: state.view === view.id })).join('');
   const groupLabel = (text) => `<p class="flex h-10 items-center px-3 text-xs font-medium uppercase tracking-wide text-muted">${text}</p>`;
@@ -550,7 +589,7 @@ function headerMeta(issues) {
 
 function headerHtml(issues) {
   return `<header class="flex h-16 shrink-0 items-center gap-3 border-b border-border bg-surface px-4 sm:px-6">
-    <button type="button" data-open-drawer aria-label="Open menu" class="-ml-1 inline-flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-lg text-muted outline-hidden hover:bg-foreground/5 hover:text-foreground lg:hidden">${icon('menu')}</button>
+    ${nativeNav ? '' : `<button type="button" data-open-drawer aria-label="Open menu" class="-ml-1 inline-flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-lg text-muted outline-hidden hover:bg-foreground/5 hover:text-foreground lg:hidden">${icon('menu')}</button>`}
     <h1 class="shrink-0 text-base font-semibold text-foreground">${esc(listLabel(currentList()))}</h1>
     ${headerMeta(issues)}
     <span class="ml-auto"></span>
@@ -560,7 +599,7 @@ function headerHtml(issues) {
 
 function layoutHtml(issues) {
   return `<div class="flex min-h-screen">
-    <aside class="sticky top-0 hidden h-screen w-60 shrink-0 flex-col bg-surface lg:flex">${navHtml()}</aside>
+    ${nativeNav ? '' : `<aside class="sticky top-0 hidden h-screen w-60 shrink-0 flex-col bg-surface lg:flex">${navHtml()}</aside>`}
     <div class="flex min-w-0 flex-1 flex-col">${headerHtml(issues)}
       <div class="flex flex-1 flex-col gap-4 p-4 sm:p-6">${filterRow()}<div class="min-w-0">${VIEW_RENDERERS[state.view](issues)}</div></div>
     </div>
@@ -580,6 +619,7 @@ function render() {
   const caret = active?.id === 'search' ? active.selectionStart : null;
   $('#app').innerHTML = state.phase === 'auth' ? authPage() : layoutHtml(visibleIssues());
   $('#drawer').innerHTML = navHtml();
+  postNativeNav();
   if (caret === null) return;
   const search = $('#search');
   search.focus();
@@ -791,12 +831,95 @@ function linkedItem(issue) {
   return `<li><button type="button" data-issue="${issue.key}" class="flex w-full cursor-pointer items-center gap-2 rounded-xl px-2 py-2 text-left text-sm outline-hidden transition-colors hover:bg-item-hover">${icon(issue.isBug ? 'bug' : 'square-check', `size-4 ${issue.isBug ? 'text-danger-text' : 'text-muted'}`)}<span class="shrink-0 tabular-nums text-muted">${issue.key}</span><span class="min-w-0 flex-1 truncate text-foreground">${esc(issue.summary)}</span>${statusBadge(issue.status)}</button></li>`;
 }
 
+const LINKED_PREVIEW_COMMENTS = 3;
+const linked = { open: new Set(), details: new Map(), failed: new Set() };
+
+function linkedIssueLabel(issue) {
+  return `${icon(issue.isBug ? 'bug' : 'square-check', `size-4 ${issue.isBug ? 'text-danger-text' : 'text-muted'}`)}<span class="shrink-0 tabular-nums text-muted">${issue.key}</span><span class="min-w-0 flex-1 truncate text-foreground">${esc(issue.summary)}</span>`;
+}
+
+function linkedCommentCount(key) {
+  const count = linked.details.get(key)?.comments.length;
+  return count ? `<span title="${count} comments" class="inline-flex shrink-0 items-center gap-1 rounded-full bg-foreground/5 px-1.5 py-0.5 text-xs font-medium tabular-nums text-muted">${icon('message-circle', 'size-3')}${count}</span>` : '';
+}
+
+function linkedThread(key) {
+  const detail = linked.details.get(key);
+  if (linked.failed.has(key)) return `<p class="px-3 pb-3 text-sm text-danger-text">Cannot load ${key}. <button type="button" data-linked-toggle="${key}" data-retry-linked class="cursor-pointer font-medium underline">Retry</button></p>`;
+  if (!detail) return `<div class="flex flex-col gap-2 px-3 pb-3" aria-busy="true">${skeleton('w-3/4')}${skeleton('w-1/2')}</div>`;
+  const hidden = detail.comments.length - LINKED_PREVIEW_COMMENTS;
+  const more = hidden > 0 ? `<button type="button" data-issue="${key}" class="cursor-pointer self-start px-1 py-1 text-xs font-medium text-link hover:underline">View ${hidden} earlier ${hidden === 1 ? 'comment' : 'comments'}</button>` : '';
+  const list = detail.comments.length ? detail.comments.slice(-LINKED_PREVIEW_COMMENTS).map((c) => commentBubble(c, false)).join('') : '<p class="px-1 py-1 text-sm text-muted">No comments yet.</p>';
+  return `<div class="flex flex-col px-3 pb-3">${more}${list}
+    <div class="mt-2 flex items-end gap-2"><label class="block flex-1"><span class="sr-only">Reply to ${key}</span><textarea rows="1" data-linked-input="${key}" placeholder="Reply to ${key} — ⌘↩ to send" class="${textareaClass.replace('resize-y', 'resize-none')} [field-sizing:content] max-h-40"></textarea></label>
+      <button type="button" data-linked-reply="${key}" class="${buttonPrimary}">Reply</button></div></div>`;
+}
+
+function linkedKidItem(issue) {
+  const isOpen = linked.open.has(issue.key);
+  return `<li class="rounded-xl transition-colors ${isOpen ? 'bg-foreground/[0.03]' : ''}"><div class="flex items-center gap-1 pr-1">
+      <button type="button" data-linked-toggle="${issue.key}" aria-expanded="${isOpen}" class="flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-xl px-2 py-2 text-left text-sm outline-hidden transition-colors hover:bg-item-hover">${icon('chevron-right', `size-4 text-muted transition-transform ${isOpen ? 'rotate-90' : ''}`)}${linkedIssueLabel(issue)}${linkedCommentCount(issue.key)}${statusBadge(issue.status)}</button>
+      <button type="button" data-issue="${issue.key}" aria-label="Open ${issue.key}" title="Open ${issue.key}" class="${iconButton}">${icon('arrow-up-right')}</button>
+    </div>${isOpen ? linkedThread(issue.key) : ''}</li>`;
+}
+
 function linkedHtml(d) {
   const parent = d.parentKey && findIssue(d.parentKey);
   const kids = state.issues.filter((i) => i.parentKey === d.key).sort(compareIssues);
   if (!parent && !kids.length) return '';
-  const group = (title, items) => (items.length ? `<div><h3 class="text-sm font-semibold text-foreground">${title}</h3><ul class="-mx-2 mt-1">${items.map(linkedItem).join('')}</ul></div>` : '');
-  return `<section class="flex flex-col gap-4 border-t border-border pt-5">${group('Parent', parent ? [parent] : [])}${group(`Linked bugs & sub-tasks <span class="font-normal tabular-nums text-muted">${kids.length}</span>`, kids)}</section>`;
+  const group = (title, items, renderItem) => (items.length ? `<div><h3 class="text-sm font-semibold text-foreground">${title}</h3><ul class="-mx-2 mt-1 flex flex-col gap-0.5">${items.map(renderItem).join('')}</ul></div>` : '');
+  return `<section id="linked" class="flex flex-col gap-4 border-t border-border pt-5">${group('Parent', parent ? [parent] : [], linkedItem)}${group(`Linked bugs & sub-tasks <span class="font-normal tabular-nums text-muted">${kids.length}</span>`, kids, linkedKidItem)}</section>`;
+}
+
+function refreshLinked() {
+  const section = $('#linked');
+  if (!section || !state.detail) return;
+  const drafts = [...section.querySelectorAll('[data-linked-input]')].map((el) => [el.dataset.linkedInput, el.value]);
+  section.outerHTML = linkedHtml(state.detail);
+  for (const [key, value] of drafts) {
+    const input = document.querySelector(`[data-linked-input="${key}"]`);
+    if (input) input.value = value;
+  }
+}
+
+async function loadLinked(key) {
+  linked.failed.delete(key);
+  try {
+    linked.details.set(key, await api.issue(key));
+  } catch (error) {
+    console.warn('linked load failed', key, error);
+    linked.failed.add(key);
+  }
+  refreshLinked();
+}
+
+function toggleLinked(el) {
+  const key = el.dataset.linkedToggle;
+  const isRetry = el.hasAttribute('data-retry-linked');
+  if (linked.open.has(key) && !isRetry) linked.open.delete(key);
+  else linked.open.add(key);
+  refreshLinked();
+  if (linked.open.has(key) && (isRetry || !linked.details.has(key))) return loadLinked(key);
+  document.querySelector(`[data-linked-input="${key}"]`)?.focus();
+}
+
+async function sendLinkedReply(key) {
+  const input = document.querySelector(`[data-linked-input="${key}"]`);
+  const body = input?.value.trim();
+  if (!body) return input?.focus();
+  const button = document.querySelector(`[data-linked-reply="${key}"]`);
+  button.disabled = true;
+  try {
+    const detail = await api.comment(key, body);
+    linked.details.set(key, detail);
+    replaceIssue(detail);
+    input.value = '';
+    refreshLinked();
+    showToast(`${key}: reply sent`);
+  } catch (error) {
+    button.disabled = false;
+    showToast(error.message, true);
+  }
 }
 
 const WIKI_FORMATS = {
@@ -941,14 +1064,14 @@ function descriptionHtml(d) {
   </section>`;
 }
 
-function commentBubble(c) {
+function commentBubble(c, isEditable = true) {
   const who = c.authorUser || { name: '', displayName: c.author || '', avatar: '' };
   const isMine = who.name === myName();
-  const actions = isMine ? `<div class="mt-0.5 flex gap-3 px-1 text-xs text-muted opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+  const actions = isMine && isEditable ? `<div class="mt-0.5 flex gap-3 px-1 text-xs text-muted opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
       <button type="button" data-edit-comment="${esc(c.id)}" class="cursor-pointer hover:text-foreground">Edit</button>
       <button type="button" data-delete-comment="${esc(c.id)}" class="cursor-pointer hover:text-danger-text data-[confirm]:font-semibold data-[confirm]:text-danger-text data-[confirm]:opacity-100">Delete</button></div>` : '';
   return `<div class="group flex items-start gap-2 py-1.5 ${isMine ? 'flex-row-reverse' : ''}">${avatar(who, 'size-7')}
-    <div class="flex min-w-0 max-w-[85%] flex-col ${isMine ? 'items-end' : 'items-start'}" data-comment="${esc(c.id)}">
+    <div class="flex min-w-0 max-w-[85%] flex-col ${isMine ? 'items-end' : 'items-start'}" ${isEditable ? `data-comment="${esc(c.id)}"` : ''}>
       <p class="px-1 text-xs text-muted">${isMine ? '' : `<span class="font-medium text-foreground">${esc(who.displayName)}</span> · `}${esc(c.created)}</p>
       <div data-comment-body class="rich mt-0.5 max-w-full overflow-x-auto rounded-2xl px-3 py-2 text-sm ${isMine ? 'rounded-tr-md bg-primary/15' : 'rounded-tl-md bg-foreground/5'}">${c.bodyHtml}</div>
       ${actions}
@@ -1078,9 +1201,20 @@ function commentsHtml(d) {
   </section>`;
 }
 
+function panelTrailTo(key) {
+  const trail = state.panelTrail;
+  if (trail.at(-1) === key) return trail.slice(0, -1);
+  return state.panelKey ? [...trail, state.panelKey] : [];
+}
+
+function panelBackButton() {
+  const backKey = state.panelTrail.at(-1);
+  return backKey ? `<button type="button" data-panel-back aria-label="Back to ${backKey}" title="Back to ${backKey}" class="-ml-2 inline-flex cursor-pointer items-center gap-1 rounded-lg px-2 py-1 font-medium text-foreground outline-hidden hover:bg-foreground/5">${icon('arrow-left')}${backKey}</button><span>/</span>` : '';
+}
+
 function panelTopBar(key, type = '', url = '') {
   const link = url ? `<a href="${esc(url)}" target="_blank" rel="noopener" aria-label="Open in Jira" title="Open in Jira" class="ml-auto ${iconButton}">${icon('external-link')}</a>` : '<span class="ml-auto"></span>';
-  return `<div class="flex items-center gap-2 text-sm text-muted"><span class="tabular-nums">${esc(key)}</span>${type ? `<span>·</span><span>${esc(type)}</span>` : ''}
+  return `<div class="flex items-center gap-2 text-sm text-muted">${panelBackButton()}<span class="tabular-nums">${esc(key)}</span>${type ? `<span>·</span><span>${esc(type)}</span>` : ''}
     ${link}<button type="button" data-close-panel aria-label="Close" title="Close" class="${iconButton}">${icon('x')}</button></div>`;
 }
 
@@ -1123,6 +1257,10 @@ async function handleRemoteUpdate(keys) {
       const detail = await api.issue(key);
       if (findIssue(key)) replaceIssue(detail);
       if (state.panelKey === key && state.detail?.key === key) applyRemoteDetail(detail);
+      if (linked.details.has(key)) {
+        linked.details.set(key, detail);
+        if (!isEditingPanel()) refreshLinked();
+      }
     } catch (error) {
       console.warn('remote refresh failed', key, error);
     }
@@ -1144,8 +1282,10 @@ function setPanelOpen(isOpen) {
   $('#panel-root').dataset.open = String(isOpen);
 }
 
-async function openPanel(key) {
+async function openPanel(key, trail = []) {
   closePop();
+  if (state.panelKey !== key) Object.assign(linked, { open: new Set(), details: new Map(), failed: new Set() });
+  state.panelTrail = trail;
   state.panelKey = key;
   state.detail = null;
   $('#panel').innerHTML = panelSkeleton(key);
@@ -1164,10 +1304,34 @@ async function openPanel(key) {
 function closePanel() {
   closePop();
   state.panelKey = null;
+  state.panelTrail = [];
   state.detail = null;
   setPanelOpen(false);
   history.replaceState(null, '', location.pathname + location.search);
   render();
+}
+
+const STAR_DISMISSED_KEY = 'jira.starDismissed';
+const STAR_REPO_URL = 'https://github.com/Truong62/clean-macos';
+
+function starCardHtml() {
+  return `<aside id="star-card" role="status" class="fixed bottom-4 left-4 z-50 flex w-[22rem] max-w-[calc(100vw-2rem)] flex-col gap-3 rounded-2xl border border-border bg-surface-overlay p-4 text-sm shadow-(--elevation-popover)">
+    <div class="flex items-start gap-3"><span class="grid size-9 shrink-0 place-items-center rounded-xl bg-warn/10 text-warn">${icon('star', 'size-5 fill-current')}</span>
+      <div class="min-w-0"><p class="font-semibold text-foreground">Enjoying Jira Desk?</p><p class="mt-0.5 text-pretty text-muted">A GitHub star helps Clean macOS keep going.</p></div>
+      <button type="button" data-star aria-label="Close" title="Close" class="${iconButton} -mt-1 -mr-1 size-7">${icon('x')}</button></div>
+    <div class="flex items-center gap-2"><a href="${STAR_REPO_URL}" target="_blank" rel="noopener" data-star class="${buttonPrimary.replace('px-4', 'px-3')} gap-1.5 whitespace-nowrap">${icon('star', 'size-4')}Star on GitHub</a>
+      <button type="button" data-star class="ml-auto cursor-pointer whitespace-nowrap text-xs text-muted hover:text-foreground">Don't ask again</button></div>
+  </aside>`;
+}
+
+function showStarCard() {
+  try { if (localStorage.getItem(STAR_DISMISSED_KEY)) return; } catch {}
+  document.body.insertAdjacentHTML('beforeend', starCardHtml());
+}
+
+function dismissStarCard() {
+  $('#star-card')?.remove();
+  try { localStorage.setItem(STAR_DISMISSED_KEY, '1'); } catch {}
 }
 
 async function runWrite(action, successMessage) {
@@ -1429,7 +1593,11 @@ const CLICK_ACTIONS = [
   ['[data-toggle]', (el) => { state.expanded.set(el.dataset.toggle, el.getAttribute('aria-expanded') !== 'true'); render(); }],
   ['[data-retry]', loadAll],
   ['[data-action]', (el) => PANEL_ACTIONS[el.dataset.action]?.()],
-  ['[data-issue]', (el) => openPanel(el.dataset.issue)],
+  ['[data-star]', dismissStarCard],
+  ['[data-linked-toggle]', toggleLinked],
+  ['[data-linked-reply]', (el) => sendLinkedReply(el.dataset.linkedReply)],
+  ['[data-panel-back]', () => openPanel(state.panelTrail.at(-1), state.panelTrail.slice(0, -1))],
+  ['[data-issue]', (el) => openPanel(el.dataset.issue, $('#panel').contains(el) ? panelTrailTo(el.dataset.issue) : [])],
   ['[data-remove-person]', (el) => savePeople(el.dataset.removePerson, personNames(el.dataset.removePerson).filter((n) => n !== el.dataset.name))],
   ['[data-mention]', (el) => insertMention(el.dataset.mention, el.dataset.display)],
   ['[data-edit-comment]', (el) => startEditComment(el.dataset.editComment)],
@@ -1510,6 +1678,10 @@ function handleKeydown(event) {
   if (shortcut && ['description-input', 'comment-input'].includes(event.target.id)) {
     event.preventDefault();
     return applyWikiFormat(event.target, shortcut);
+  }
+  if (event.key === 'Enter' && (event.metaKey || event.ctrlKey) && event.target.dataset?.linkedInput) {
+    event.preventDefault();
+    return sendLinkedReply(event.target.dataset.linkedInput);
   }
   if (event.key === 'Enter' && event.target.dataset?.input === 'summary') {
     event.preventDefault();
@@ -1634,6 +1806,7 @@ function bindEvents() {
 }
 
 bindEvents();
+showStarCard();
 loadAll().then(() => {
   const key = location.hash.slice(1);
   if (ISSUE_KEY_PATTERN.test(key)) openPanel(key);

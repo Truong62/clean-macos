@@ -14,6 +14,7 @@
   --muted: #6b6a65;
   --border: #f3f3f1;
   --border-strong: #e9e9e7;
+  --tree-line: color-mix(in srgb, var(--foreground) 20%, var(--surface));
 
   --item-hover: #f7f7f5;
   --secondary: #efefed;
