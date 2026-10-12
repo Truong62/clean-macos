@@ -1,11 +1,20 @@
 import SwiftUI
 import Sparkle
 
+struct PendingUpdate: Equatable {
+    let version: String
+    let notes: [String]
+    let isDownloaded: Bool
+}
+
 final class UpdaterViewModel: NSObject, ObservableObject, SPUUpdaterDelegate, SPUStandardUserDriverDelegate {
     private var updaterController: SPUStandardUpdaterController!
+    private var installDownloadedUpdate: (() -> Void)?
 
     @Published var canCheckForUpdates = false
-    @Published private(set) var availableVersion: String?
+    @Published private(set) var pendingUpdate: PendingUpdate?
+
+    let currentVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
 
     override init() {
         super.init()
@@ -17,15 +26,25 @@ final class UpdaterViewModel: NSObject, ObservableObject, SPUUpdaterDelegate, SP
 
         updaterController.updater.publisher(for: \.canCheckForUpdates)
             .assign(to: &$canCheckForUpdates)
+
+        if updaterController.updater.automaticallyChecksForUpdates {
+            updaterController.updater.checkForUpdatesInBackground()
+        }
     }
 
     func checkForUpdates() {
-        availableVersion = nil
+        pendingUpdate = nil
         updaterController.checkForUpdates(nil)
     }
 
-    func dismissAvailableUpdate() {
-        availableVersion = nil
+    func installPendingUpdate() {
+        guard let installDownloadedUpdate else { return checkForUpdates() }
+        pendingUpdate = nil
+        installDownloadedUpdate()
+    }
+
+    func dismissPendingUpdate() {
+        pendingUpdate = nil
     }
 
     var automaticallyChecksForUpdates: Binding<Bool> {
@@ -42,6 +61,20 @@ final class UpdaterViewModel: NSObject, ObservableObject, SPUUpdaterDelegate, SP
         )
     }
 
+    private func offer(_ item: SUAppcastItem, isDownloaded: Bool) {
+        let update = PendingUpdate(version: item.displayVersionString,
+                                   notes: ReleaseFeed.bulletItems(fromHTML: item.itemDescription ?? ""),
+                                   isDownloaded: isDownloaded)
+        withAnimation(.spring(duration: 0.35)) { pendingUpdate = update }
+    }
+
+    func updater(_ updater: SPUUpdater, willInstallUpdateOnQuit item: SUAppcastItem,
+                 immediateInstallationBlock immediateInstallHandler: @escaping () -> Void) -> Bool {
+        installDownloadedUpdate = immediateInstallHandler
+        offer(item, isDownloaded: true)
+        return true
+    }
+
     var supportsGentleScheduledUpdateReminders: Bool { true }
 
     func standardUserDriverShouldHandleShowingScheduledUpdate(_ update: SUAppcastItem, andInImmediateFocus immediateFocus: Bool) -> Bool {
@@ -50,46 +83,85 @@ final class UpdaterViewModel: NSObject, ObservableObject, SPUUpdaterDelegate, SP
 
     func standardUserDriverWillHandleShowingUpdate(_ handleShowingUpdate: Bool, forUpdate update: SUAppcastItem, state: SPUUserUpdateState) {
         guard !handleShowingUpdate, !state.userInitiated else { return }
-        withAnimation(.spring(duration: 0.45)) { availableVersion = update.displayVersionString }
+        offer(update, isDownloaded: false)
     }
 
     func standardUserDriverDidReceiveUserAttention(forUpdate update: SUAppcastItem) {
-        availableVersion = nil
+        pendingUpdate = nil
     }
 
     func standardUserDriverWillFinishUpdateSession() {
-        availableVersion = nil
+        if installDownloadedUpdate == nil { pendingUpdate = nil }
     }
 }
 
-struct UpdateAvailableToast: View {
+struct UpdateModal: View {
     @ObservedObject var updater: UpdaterViewModel
 
     var body: some View {
-        if let version = updater.availableVersion {
-            HStack(spacing: 12) {
+        if let update = updater.pendingUpdate {
+            ZStack {
+                Color.black.opacity(0.3)
+                    .ignoresSafeArea()
+                    .onTapGesture { updater.dismissPendingUpdate() }
+                UpdateCard(update: update, currentVersion: updater.currentVersion,
+                           onLater: { withAnimation(.easeOut(duration: 0.2)) { updater.dismissPendingUpdate() } },
+                           onInstall: updater.installPendingUpdate)
+            }
+            .transition(.opacity)
+        }
+    }
+}
+
+struct UpdateCard: View {
+    let update: PendingUpdate
+    let currentVersion: String
+    let onLater: () -> Void
+    let onInstall: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            HStack(spacing: 14) {
                 Image(systemName: "arrow.down.circle.fill")
-                    .font(.system(size: 26))
+                    .font(.system(size: 44))
                     .foregroundStyle(.orange.gradient)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Update available").font(.system(size: 13, weight: .semibold))
-                    Text("Clean macOS \(version) is ready to install").font(.caption).foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Clean macOS \(update.version) is available").font(.title3).fontWeight(.bold)
+                    Text(update.isDownloaded ? "Downloaded and ready — you have \(currentVersion)." : "You have \(currentVersion).")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
                 }
-                Spacer(minLength: 8)
-                Button("Later") { withAnimation(.easeOut(duration: 0.25)) { updater.dismissAvailableUpdate() } }
-                    .buttonStyle(.borderless)
+            }
+            if !update.notes.isEmpty {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 8) {
+                        ForEach(update.notes, id: \.self) { note in
+                            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                                Image(systemName: "sparkle").font(.caption).foregroundStyle(.orange)
+                                Text(note).font(.callout).fixedSize(horizontal: false, vertical: true)
+                            }
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .frame(maxHeight: 220)
+            }
+            HStack {
+                Spacer()
+                Button("Later", action: onLater)
+                    .keyboardShortcut(.cancelAction)
                     .pointerCursor()
-                Button("Update") { updater.checkForUpdates() }
+                Button(update.isDownloaded ? "Restart to Update" : "Update Now", action: onInstall)
                     .buttonStyle(.borderedProminent)
                     .tint(.orange)
+                    .keyboardShortcut(.defaultAction)
                     .pointerCursor()
             }
-            .padding(14)
-            .frame(width: 380)
-            .glassCard(cornerRadius: 16)
-            .shadow(color: .black.opacity(0.18), radius: 16, y: 6)
-            .padding(20)
-            .transition(.move(edge: .trailing).combined(with: .opacity))
+            .controlSize(.large)
         }
+        .padding(24)
+        .frame(width: 480)
+        .glassCard(cornerRadius: 20)
+        .shadow(color: .black.opacity(0.25), radius: 24, y: 10)
     }
 }

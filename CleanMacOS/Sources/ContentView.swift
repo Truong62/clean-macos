@@ -14,7 +14,7 @@ struct ContentView: View {
                 mainContent
             }
         }
-        .overlay(alignment: .bottomTrailing) { UpdateAvailableToast(updater: updater) }
+        .overlay { UpdateModal(updater: updater) }
     }
 
     private var mainContent: some View {

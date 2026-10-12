@@ -9,6 +9,7 @@ struct UpdaterDelegateTests {
         "standardUserDriverWillHandleShowingUpdate:forUpdate:state:",
         "standardUserDriverDidReceiveUserAttentionForUpdate:",
         "standardUserDriverWillFinishUpdateSession",
+        "updater:willInstallUpdateOnQuit:immediateInstallationBlock:",
     ])
     func sparkleSeesGentleReminderCallbacks(selector: String) {
         #expect(UpdaterViewModel.instancesRespond(to: NSSelectorFromString(selector)))
