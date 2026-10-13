@@ -43,6 +43,7 @@ struct SidebarView: View {
                 }
                 if currentPage == .jira {
                     JiraSidebarSection()
+                        .transition(.sidebarDisclosure)
                 }
                 SidebarItem(icon: "display.2", label: "Displays", color: .purple, isSelected: currentPage == .displays) {
                     currentPage = .displays
@@ -58,6 +59,7 @@ struct SidebarView: View {
                 }
                 if currentPage == .settings {
                     SettingsSidebarSection()
+                        .transition(.sidebarDisclosure)
                 }
                 SidebarItem(icon: "info.circle.fill", label: "About", color: .gray, isSelected: currentPage == .about) {
                     currentPage = .about
@@ -119,6 +121,7 @@ struct SidebarView: View {
                 .padding(.horizontal, 12)
                 .padding(.bottom, 12)
         }
+        .animation(.easeInOut(duration: 0.25), value: currentPage)
         .navigationSplitViewColumnWidth(min: 200, ideal: 240)
     }
 }
@@ -219,4 +222,18 @@ struct CategoryRow: View {
             if hovering { NSCursor.pointingHand.push() } else { NSCursor.pop() }
         }
     }
+}
+
+private struct DisclosureEffect: ViewModifier {
+    let progress: CGFloat
+
+    func body(content: Content) -> some View {
+        content
+            .mask(Rectangle().scaleEffect(x: 1, y: progress, anchor: .top))
+            .opacity(progress)
+    }
+}
+
+extension AnyTransition {
+    static let sidebarDisclosure = AnyTransition.modifier(active: DisclosureEffect(progress: 0), identity: DisclosureEffect(progress: 1))
 }
