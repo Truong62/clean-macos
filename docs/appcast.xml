@@ -9,6 +9,20 @@
     <!-- Paste new <item> blocks here when releasing (newest first) -->
 
     <item>
+      <title>Version 1.0.23</title>
+      <pubDate>Tue, 13 Oct 2026 17:22:57 +0700</pubDate>
+      <sparkle:version>24</sparkle:version>
+      <sparkle:shortVersionString>1.0.23</sparkle:shortVersionString>
+      <description><![CDATA[
+        <ul><li>Redesigned permission screen: clearer steps, detects access automatically, Quit &amp; Reopen button</li><li>Explains why access must be granted again after each update (free app without a paid Apple Developer signature) and how to fix an entry that already looks ON</li></ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/Truong62/clean-macos/releases/download/v1.0.23/CleanMacOS-1.0.23.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="bAz31i3NFZR3M+k0u46QrTRRQ7h9OG80VMEnJnl9LRugrppW4aWyC8iUDKoqDmps9z9nVYKiupUV4PR2mUJSBQ==" length="4052237" />
+    </item>
+
+    <item>
       <title>Version 1.0.22</title>
       <pubDate>Tue, 13 Oct 2026 17:19:05 +0700</pubDate>
       <sparkle:version>23</sparkle:version>
