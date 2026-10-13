@@ -11,6 +11,7 @@ struct SettingsView: View {
     @AppStorage(ClipboardSettings.skipConcealedKey) private var clipboardSkipConcealed = false
     @State private var accessibilityTrusted = PasteService.isAccessibilityTrusted
     @State private var opensAtLogin = SMAppService.mainApp.status == .enabled
+    @AppStorage(SettingsTab.storageKey) private var tab = SettingsTab.general
 
     var body: some View {
         ScrollView {
@@ -18,218 +19,226 @@ struct SettingsView: View {
                 // Header
                 headerCard
 
-                // Scan settings
-                section(icon: "magnifyingglass", iconColor: .blue, title: "Scan") {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Default scan path")
-                                .fontWeight(.medium)
-                            Text("Root directory to start scanning from")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        TextField("Path", text: $vm.scanPath)
-                            .textFieldStyle(.roundedBorder)
-                            .frame(width: 300)
-                    }
-
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Minimum file size")
-                                .fontWeight(.medium)
-                            Text("Ignore items smaller than this")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        Picker("", selection: $vm.minFileSizeMB) {
-                            Text("1 MB").tag(1)
-                            Text("10 MB").tag(10)
-                            Text("50 MB").tag(50)
-                            Text("100 MB").tag(100)
-                        }
-                        .pickerStyle(.segmented)
-                        .frame(width: 280)
-                    }
-
-                    Toggle(isOn: $vm.skipHidden) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Skip hidden directories")
-                                .fontWeight(.medium)
-                            Text("Don't scan directories starting with a dot")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
+                switch tab {
+                case .general: generalTab
+                case .cleaning: cleaningTab
+                case .clipboard: clipboardTab
+                case .jira: section(icon: "checklist", iconColor: .blue, title: "Jira") { JiraSettingsForm() }
+                case .updates: updatesTab
                 }
-
-                // Safety settings
-                section(icon: "shield.checkered", iconColor: .green, title: "Safety") {
-                    Toggle(isOn: $vm.confirmBeforeClean) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Confirm before cleaning")
-                                .fontWeight(.medium)
-                            Text("Show confirmation dialog before deleting files")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                }
-
-                // Menu Bar settings
-                section(icon: "menubar.rectangle", iconColor: .cyan, title: "Menu Bar") {
-                    Toggle(isOn: $vm.showMenuBar) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Show in menu bar")
-                                .fontWeight(.medium)
-                            Text("Display CPU, RAM, and disk usage in the top bar")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-
-                    Toggle(isOn: $opensAtLogin) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Open at login")
-                                .fontWeight(.medium)
-                            Text("Keep the menu bar and Jira notifications running after restart")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    .onChange(of: opensAtLogin) { _, isOn in
-                        do {
-                            try isOn ? SMAppService.mainApp.register() : SMAppService.mainApp.unregister()
-                        } catch {
-                            NSLog("SettingsView.openAtLogin failed: \(error.localizedDescription)")
-                        }
-                        opensAtLogin = SMAppService.mainApp.status == .enabled
-                    }
-                }
-
-                // Clipboard settings
-                section(icon: "doc.on.clipboard", iconColor: .indigo, title: "Clipboard") {
-                    Toggle(isOn: $clipboardPersist) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Keep history after quitting")
-                                .fontWeight(.medium)
-                            Text("Save clipboard history to disk so it survives a restart")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    .onChange(of: clipboardPersist) { _, _ in
-                        clipboard.persistenceSettingChanged()
-                    }
-
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Maximum items")
-                                .fontWeight(.medium)
-                            Text("Oldest items are dropped beyond this count")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        Picker("", selection: $clipboardMaxItems) {
-                            Text("50").tag(50)
-                            Text("100").tag(100)
-                            Text("200").tag(200)
-                            Text("500").tag(500)
-                        }
-                        .pickerStyle(.segmented)
-                        .frame(width: 240)
-                    }
-
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("History shortcut")
-                                .fontWeight(.medium)
-                            Text("Global hotkey to open the clipboard picker")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        KeyboardShortcuts.Recorder(for: .showClipboardHistory)
-                    }
-
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Auto-paste")
-                                .fontWeight(.medium)
-                            Text(accessibilityTrusted
-                                 ? "Accessibility granted — picks paste automatically"
-                                 : "Grant Accessibility to paste the picked item automatically")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        if accessibilityTrusted {
-                            Label("Granted", systemImage: "checkmark.circle.fill")
-                                .foregroundStyle(.green)
-                                .font(.callout)
-                        } else {
-                            Button("Open Accessibility…") {
-                                PasteService.requestAccessibility()
-                                PasteService.openAccessibilitySettings()
-                            }
-                            .pointerCursor()
-                        }
-                    }
-
-                    Toggle(isOn: $clipboardSkipConcealed) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Skip passwords")
-                                .fontWeight(.medium)
-                            Text("Don't capture clipboard marked private by password managers")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                }
-
-                section(icon: "checklist", iconColor: .blue, title: "Jira") {
-                    JiraSettingsForm()
-                }
-
-                // Update settings
-                section(icon: "arrow.triangle.2.circlepath", iconColor: .purple, title: "Updates") {
-                    Toggle(isOn: updater.automaticallyChecksForUpdates) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Check for updates automatically")
-                                .fontWeight(.medium)
-                            Text("Notify when a new version is available")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-
-                    Toggle(isOn: updater.automaticallyDownloadsUpdates) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Download and install automatically")
-                                .fontWeight(.medium)
-                            Text("New versions install in the background and apply when you quit")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-
-                    Button {
-                        updater.checkForUpdates()
-                    } label: {
-                        Label("Check for Updates Now", systemImage: "arrow.clockwise")
-                    }
-                    .disabled(!updater.canCheckForUpdates)
-                    .pointerCursor()
-                }
-
-                Spacer()
             }
             .padding(20)
         }
         .background(background)
         .onAppear { accessibilityTrusted = PasteService.isAccessibilityTrusted }
+    }
+
+    @ViewBuilder private var cleaningTab: some View {
+        section(icon: "magnifyingglass", iconColor: .blue, title: "Scan") {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Default scan path")
+                        .fontWeight(.medium)
+                    Text("Root directory to start scanning from")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                TextField("Path", text: $vm.scanPath)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 300)
+            }
+
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Minimum file size")
+                        .fontWeight(.medium)
+                    Text("Ignore items smaller than this")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Picker("", selection: $vm.minFileSizeMB) {
+                    Text("1 MB").tag(1)
+                    Text("10 MB").tag(10)
+                    Text("50 MB").tag(50)
+                    Text("100 MB").tag(100)
+                }
+                .pickerStyle(.segmented)
+                .frame(width: 280)
+            }
+
+            Toggle(isOn: $vm.skipHidden) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Skip hidden directories")
+                        .fontWeight(.medium)
+                    Text("Don't scan directories starting with a dot")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+
+        section(icon: "shield.checkered", iconColor: .green, title: "Safety") {
+            Toggle(isOn: $vm.confirmBeforeClean) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Confirm before cleaning")
+                        .fontWeight(.medium)
+                    Text("Show confirmation dialog before deleting files")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+
+    }
+
+    @ViewBuilder private var generalTab: some View {
+        section(icon: "menubar.rectangle", iconColor: .cyan, title: "Menu Bar") {
+            Toggle(isOn: $vm.showMenuBar) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Show in menu bar")
+                        .fontWeight(.medium)
+                    Text("Display CPU, RAM, and disk usage in the top bar")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Toggle(isOn: $opensAtLogin) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Open at login")
+                        .fontWeight(.medium)
+                    Text("Keep the menu bar and Jira notifications running after restart")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .onChange(of: opensAtLogin) { _, isOn in
+                do {
+                    try isOn ? SMAppService.mainApp.register() : SMAppService.mainApp.unregister()
+                } catch {
+                    NSLog("SettingsView.openAtLogin failed: \(error.localizedDescription)")
+                }
+                opensAtLogin = SMAppService.mainApp.status == .enabled
+            }
+        }
+
+    }
+
+    @ViewBuilder private var clipboardTab: some View {
+        section(icon: "doc.on.clipboard", iconColor: .indigo, title: "Clipboard") {
+            Toggle(isOn: $clipboardPersist) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Keep history after quitting")
+                        .fontWeight(.medium)
+                    Text("Save clipboard history to disk so it survives a restart")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .onChange(of: clipboardPersist) { _, _ in
+                clipboard.persistenceSettingChanged()
+            }
+
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Maximum items")
+                        .fontWeight(.medium)
+                    Text("Oldest items are dropped beyond this count")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Picker("", selection: $clipboardMaxItems) {
+                    Text("50").tag(50)
+                    Text("100").tag(100)
+                    Text("200").tag(200)
+                    Text("500").tag(500)
+                }
+                .pickerStyle(.segmented)
+                .frame(width: 240)
+            }
+
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("History shortcut")
+                        .fontWeight(.medium)
+                    Text("Global hotkey to open the clipboard picker")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                KeyboardShortcuts.Recorder(for: .showClipboardHistory)
+            }
+
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Auto-paste")
+                        .fontWeight(.medium)
+                    Text(accessibilityTrusted
+                         ? "Accessibility granted — picks paste automatically"
+                         : "Grant Accessibility to paste the picked item automatically")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                if accessibilityTrusted {
+                    Label("Granted", systemImage: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                        .font(.callout)
+                } else {
+                    Button("Open Accessibility…") {
+                        PasteService.requestAccessibility()
+                        PasteService.openAccessibilitySettings()
+                    }
+                    .pointerCursor()
+                }
+            }
+
+            Toggle(isOn: $clipboardSkipConcealed) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Skip passwords")
+                        .fontWeight(.medium)
+                    Text("Don't capture clipboard marked private by password managers")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+
+    }
+
+    @ViewBuilder private var updatesTab: some View {
+        section(icon: "arrow.triangle.2.circlepath", iconColor: .purple, title: "Updates") {
+            Toggle(isOn: updater.automaticallyChecksForUpdates) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Check for updates automatically")
+                        .fontWeight(.medium)
+                    Text("Notify when a new version is available")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Toggle(isOn: updater.automaticallyDownloadsUpdates) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Download and install automatically")
+                        .fontWeight(.medium)
+                    Text("New versions install in the background and apply when you quit")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Button {
+                updater.checkForUpdates()
+            } label: {
+                Label("Check for Updates Now", systemImage: "arrow.clockwise")
+            }
+            .disabled(!updater.canCheckForUpdates)
+            .pointerCursor()
+        }
     }
 
     // MARK: - Header
@@ -239,12 +248,12 @@ struct SettingsView: View {
             Circle()
                 .fill(appPastelGradient)
                 .frame(width: 46, height: 46)
-                .overlay(Image(systemName: "gearshape.fill").font(.system(size: 18)).foregroundStyle(.white))
+                .overlay(Image(systemName: tab.icon).font(.system(size: 18)).foregroundStyle(.white))
                 .shadow(color: .black.opacity(0.10), radius: 6, y: 3)
             VStack(alignment: .leading, spacing: 3) {
-                Text("Settings")
+                Text(tab.title)
                     .font(.title2).fontWeight(.bold)
-                Text("Configure how Clean macOS works")
+                Text(tab.subtitle)
                     .font(.subheadline).foregroundStyle(.secondary)
             }
             Spacer()
@@ -292,5 +301,60 @@ struct SettingsView: View {
             }
             .ignoresSafeArea()
         }
+    }
+}
+
+enum SettingsTab: String, CaseIterable, Identifiable {
+    case general, cleaning, clipboard, jira, updates
+
+    static let storageKey = "settings.tab"
+
+    var id: String { rawValue }
+    var title: String { rawValue.capitalized }
+
+    var icon: String {
+        switch self {
+        case .general: "gearshape.fill"
+        case .cleaning: "sparkles"
+        case .clipboard: "doc.on.clipboard"
+        case .jira: "checklist"
+        case .updates: "arrow.triangle.2.circlepath"
+        }
+    }
+
+    var color: Color {
+        switch self {
+        case .general: .gray
+        case .cleaning: .green
+        case .clipboard: .indigo
+        case .jira: .blue
+        case .updates: .purple
+        }
+    }
+
+    var subtitle: String {
+        switch self {
+        case .general: "Menu bar and startup"
+        case .cleaning: "Scan scope and safety checks"
+        case .clipboard: "History, shortcut and privacy"
+        case .jira: "Connection, KPI and notifications"
+        case .updates: "Automatic checks and installs"
+        }
+    }
+}
+
+struct SettingsSidebarSection: View {
+    @AppStorage(SettingsTab.storageKey) private var tab = SettingsTab.general
+
+    var body: some View {
+        VStack(spacing: 2) {
+            ForEach(SettingsTab.allCases) { item in
+                SidebarSubRow(label: item.title, icon: item.icon, color: item.color, isSelected: tab == item) {
+                    tab = item
+                }
+            }
+        }
+        .padding(.leading, 18)
+        .padding(.bottom, 4)
     }
 }

@@ -16,7 +16,7 @@ struct JiraSidebarSection: View {
             VStack(spacing: 2) {
                 ForEach(jira.nav.lists, id: \.id) { item in
                     let style = Self.listStyles[item.id] ?? ("list.bullet", .gray)
-                    JiraSidebarRow(item: item, icon: style.icon, color: style.color, isSelected: jira.nav.list == item.id) {
+                    SidebarSubRow(label: item.label, count: item.count, icon: style.icon, color: style.color, isSelected: jira.nav.list == item.id) {
                         jira.selectNav(list: item.id)
                     }
                 }
@@ -36,8 +36,9 @@ struct JiraSidebarSection: View {
     }
 }
 
-struct JiraSidebarRow: View {
-    let item: JiraNavItem
+struct SidebarSubRow: View {
+    let label: String
+    var count: Int? = nil
     let icon: String
     let color: Color
     let isSelected: Bool
@@ -52,12 +53,12 @@ struct JiraSidebarRow: View {
                     .font(.system(size: 12))
                     .foregroundStyle(color)
                     .frame(width: 18)
-                Text(item.label)
+                Text(label)
                     .font(.callout)
                     .fontWeight(isSelected ? .semibold : .regular)
                     .lineLimit(1)
                 Spacer()
-                if let count = item.count {
+                if let count {
                     Text("\(count)")
                         .font(.system(size: 11, weight: .semibold, design: .rounded))
                         .foregroundStyle(isSelected ? .primary : .secondary)
