@@ -98,7 +98,7 @@ private struct DisplayCanvas: View {
                     )
                 }
             }
-            .frame(width: geo.size.width, height: geo.size.height)
+            .frame(width: geo.size.width, height: geo.size.height, alignment: .topLeading)
         }
     }
 }
