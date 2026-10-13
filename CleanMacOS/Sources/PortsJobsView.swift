@@ -13,9 +13,9 @@ struct PortsJobsView: View {
                 case .jobs: jobsTable
                 }
             }
-            .frame(minHeight: 360)
+            .frame(minHeight: 200, maxHeight: .infinity)
             .glassCard(cornerRadius: 20)
-            actionBar
+            detailPanel
             if !vm.statusMessage.isEmpty {
                 Text(vm.statusMessage)
                     .font(.caption)
@@ -27,6 +27,8 @@ struct PortsJobsView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .onAppear { vm.startRefreshing() }
         .onDisappear { vm.stopRefreshing() }
+        .onChange(of: vm.selectedPortID) { _, _ in Task { await vm.loadDetails() } }
+        .onChange(of: vm.selectedJobID) { _, _ in Task { await vm.loadDetails() } }
         .alert(vm.confirmation?.title ?? "", isPresented: vm.isConfirming) {
             Button("Cancel", role: .cancel) { }
             Button(vm.confirmation?.actionLabel ?? "OK", role: .destructive) { Task { await vm.confirm() } }
@@ -112,7 +114,15 @@ struct PortsJobsView: View {
             .width(min: 80, ideal: 90)
         }
         .scrollContentBackground(.hidden)
-        .contextMenu(forSelectionType: ListeningPort.ID.self) { _ in } primaryAction: { ids in
+        .contextMenu(forSelectionType: ListeningPort.ID.self) { ids in
+            if let port = vm.ports.first(where: { ids.contains($0.id) }) {
+                Button("Open in Browser") { vm.openInBrowser(port) }
+                Button("Copy URL") { copy("http://localhost:\(port.port)") }
+                Divider()
+                Button("Quit") { vm.confirmation = .quitPort(port, .graceful) }
+                Button("Force Quit") { vm.confirmation = .quitPort(port, .force) }
+            }
+        } primaryAction: { ids in
             guard let port = vm.ports.first(where: { ids.contains($0.id) }) else { return }
             vm.openInBrowser(port)
         }
@@ -146,68 +156,143 @@ struct PortsJobsView: View {
             .width(min: 90, ideal: 120)
         }
         .scrollContentBackground(.hidden)
+        .contextMenu(forSelectionType: ScheduledJob.ID.self) { ids in
+            if let job = vm.jobs.first(where: { ids.contains($0.id) }) { jobMenu(job) }
+        }
     }
 
-    @ViewBuilder private var actionBar: some View {
-        HStack(spacing: 10) {
+    @ViewBuilder private func jobMenu(_ job: ScheduledJob) -> some View {
+        if job.source.isManageable {
+            Button("Run Now") { Task { await vm.runNow(job) } }.disabled(!job.isLoaded)
+            if job.isRunning { Button("Stop") { vm.confirmation = .stopJob(job) } }
+            if job.isLoaded {
+                Button("Turn Off") { vm.confirmation = .turnOff(job) }
+            } else {
+                Button("Turn On") { Task { await vm.turnOn(job) } }
+            }
+            Divider()
+        }
+        if let log = job.logPaths.first { Button("Open Log") { vm.openLog(log) } }
+        if let plist = job.plistPath { Button("Reveal in Finder") { vm.reveal(plist) } }
+        Button("Copy Command") { copy(job.command) }
+        if job.source.isDeletable {
+            Divider()
+            Button("Delete…") { vm.confirmation = .deleteJob(job) }
+        }
+    }
+
+    private func copy(_ text: String) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
+    }
+
+    private var detailPanel: some View {
+        VStack(alignment: .leading, spacing: 10) {
             switch vm.tab {
-            case .ports: portActions
-            case .jobs: jobActions
+            case .ports:
+                if let port = vm.selectedPort { portDetail(port) } else { hint("Select a port to see details, open it in the browser or stop the process holding it. Right-click a row for actions. Only your own processes are listed.") }
+            case .jobs:
+                if let job = vm.selectedJob { jobDetail(job) } else { hint("Select a job to see its command, schedule and log. Right-click a row for actions.") }
             }
         }
         .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .glassCard(cornerRadius: 16)
     }
 
-    @ViewBuilder private var portActions: some View {
-        if let port = vm.selectedPort {
-            Text(verbatim: "\(port.command) · port \(port.port)").font(.callout).fontWeight(.semibold).lineLimit(1)
+    private func hint(_ text: String) -> some View {
+        Text(text).font(.callout).foregroundStyle(.secondary)
+    }
+
+    @ViewBuilder private func portDetail(_ port: ListeningPort) -> some View {
+        HStack(spacing: 10) {
+            Text(verbatim: "\(port.command) · port \(port.port)").font(.headline).lineLimit(1)
             Spacer()
-            Button("Open in Browser") { vm.openInBrowser(port) }.pointerCursor()
-            Button("Quit") { vm.confirmation = .quitPort(port, .graceful) }
+            portButtons(port)
+        }
+        detailRow("PID", "\(port.pid) · \(port.user)")
+        detailRow("Address", port.addresses.map { $0 == "*" ? "All interfaces" : $0 }.joined(separator: ", "))
+        if let details = vm.portDetails {
+            detailRow("Running for", details.elapsed)
+            detailRow("Command", details.arguments, monospaced: true)
+        }
+    }
+
+    @ViewBuilder private func portButtons(_ port: ListeningPort) -> some View {
+        Button("Open in Browser") { vm.openInBrowser(port) }.pointerCursor()
+        Button("Quit") { vm.confirmation = .quitPort(port, .graceful) }
+            .pointerCursor()
+            .disabled(vm.isWorking)
+        Button("Force Quit", role: .destructive) { vm.confirmation = .quitPort(port, .force) }
+            .buttonStyle(.borderedProminent)
+            .tint(.red)
+            .pointerCursor()
+            .disabled(vm.isWorking)
+    }
+
+    @ViewBuilder private func jobDetail(_ job: ScheduledJob) -> some View {
+        HStack(spacing: 10) {
+            Text(job.label).font(.headline).lineLimit(1)
+            Spacer()
+            jobButtons(job)
+        }
+        detailRow("Schedule", job.schedule)
+        detailRow("Status", job.statusLabel)
+        detailRow("Command", job.command, monospaced: true)
+        if let plist = job.plistPath { detailRow("Plist", plist, monospaced: true) }
+        if !job.logPaths.isEmpty {
+            detailRow("Log", job.logPaths.joined(separator: "  ·  "), monospaced: true)
+            ScrollView {
+                Text(vm.jobLog.isEmpty ? "Log is empty or not created yet." : vm.jobLog)
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundStyle(vm.jobLog.isEmpty ? .tertiary : .secondary)
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .defaultScrollAnchor(.bottom)
+            .frame(height: 130)
+            .padding(8)
+            .background(Color.black.opacity(0.25), in: RoundedRectangle(cornerRadius: 8))
+        }
+    }
+
+    @ViewBuilder private func jobButtons(_ job: ScheduledJob) -> some View {
+        if let log = job.logPaths.first { Button("Open Log") { vm.openLog(log) }.pointerCursor() }
+        if let plist = job.plistPath { Button("Reveal") { vm.reveal(plist) }.pointerCursor() }
+        if job.source.isManageable {
+            if job.isRunning {
+                Button("Stop") { vm.confirmation = .stopJob(job) }.pointerCursor().disabled(vm.isWorking)
+            }
+            Button("Run Now") { Task { await vm.runNow(job) } }
                 .pointerCursor()
-                .disabled(vm.isWorking)
-            Button("Force Quit", role: .destructive) { vm.confirmation = .quitPort(port, .force) }
+                .disabled(vm.isWorking || !job.isLoaded)
+            if job.isLoaded {
+                Button("Turn Off") { vm.confirmation = .turnOff(job) }.pointerCursor().disabled(vm.isWorking)
+            } else {
+                Button("Turn On") { Task { await vm.turnOn(job) } }.pointerCursor().disabled(vm.isWorking)
+            }
+        }
+        if job.source.isDeletable {
+            Button("Delete", role: .destructive) { vm.confirmation = .deleteJob(job) }
                 .buttonStyle(.borderedProminent)
                 .tint(.red)
                 .pointerCursor()
                 .disabled(vm.isWorking)
-        } else {
-            Text("Select a port to open it or stop the process holding it. Only your own processes are listed.")
-                .font(.callout)
-                .foregroundStyle(.secondary)
-            Spacer()
         }
     }
 
-    @ViewBuilder private var jobActions: some View {
-        if let job = vm.selectedJob {
-            Text(job.label).font(.callout).fontWeight(.semibold).lineLimit(1)
-            Spacer()
-            if let log = job.logPath { Button("Open Log") { vm.openLog(log) }.pointerCursor() }
-            if let plist = job.plistPath { Button("Reveal") { vm.reveal(plist) }.pointerCursor() }
-            if job.source.isManageable {
-                Button("Run Now") { Task { await vm.runNow(job) } }
-                    .pointerCursor()
-                    .disabled(vm.isWorking || !job.isLoaded)
-                if job.isLoaded {
-                    Button("Turn Off", role: .destructive) { vm.confirmation = .turnOff(job) }
-                        .buttonStyle(.borderedProminent)
-                        .tint(.red)
-                        .pointerCursor()
-                        .disabled(vm.isWorking)
-                } else {
-                    Button("Turn On") { Task { await vm.turnOn(job) } }
-                        .buttonStyle(.borderedProminent)
-                        .pointerCursor()
-                        .disabled(vm.isWorking)
-                }
-            }
-        } else {
-            Text("Select a job to run, turn off or inspect it.")
-                .font(.callout)
-                .foregroundStyle(.secondary)
-            Spacer()
+    private func detailRow(_ title: String, _ value: String, monospaced: Bool = false) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            Text(title)
+                .font(.caption)
+                .fontWeight(.semibold)
+                .foregroundStyle(.tertiary)
+                .frame(width: 80, alignment: .leading)
+            Text(value)
+                .font(monospaced ? .system(size: 11, design: .monospaced) : .callout)
+                .textSelection(.enabled)
+                .lineLimit(4)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 

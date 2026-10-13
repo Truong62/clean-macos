@@ -9,6 +9,7 @@ struct ScheduledJobsService: Sendable {
     ]
     private static let weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
     private static let maxCalendarEntries = 3
+    private static let logTailBytes = 16_384
 
     func list() async -> [ScheduledJob] {
         await Task.detached(priority: .utility) {
@@ -35,6 +36,37 @@ struct ScheduledJobsService: Sendable {
         try await launchctl(["bootstrap", Self.domain, plist])
     }
 
+    func stop(_ job: ScheduledJob) async throws {
+        try await launchctl(["kill", "SIGTERM", "\(Self.domain)/\(job.label)"])
+    }
+
+    func delete(_ job: ScheduledJob) async throws {
+        if let line = job.cronLine {
+            let current = CommandRunner.run("/usr/bin/crontab", ["-l"]).output
+            let result = CommandRunner.run("/usr/bin/crontab", ["-"], input: Self.removingLine(line, from: current))
+            guard result.status == 0 else { throw PortsJobsError.commandFailed("crontab update failed: \(result.error)") }
+            return
+        }
+        guard let plist = job.plistPath, job.source.isManageable else { return }
+        if job.isLoaded { try await launchctl(["bootout", Self.domain, plist]) }
+        try FileManager.default.trashItem(at: URL(fileURLWithPath: plist), resultingItemURL: nil)
+    }
+
+    static func removingLine(_ line: String, from crontab: String) -> String {
+        var lines = crontab.components(separatedBy: "\n")
+        if let index = lines.firstIndex(of: line) { lines.remove(at: index) }
+        return lines.joined(separator: "\n")
+    }
+
+    static func logTail(_ path: String) -> String? {
+        guard let handle = FileHandle(forReadingAtPath: path) else { return nil }
+        defer { try? handle.close() }
+        let size = (try? handle.seekToEnd()) ?? 0
+        try? handle.seek(toOffset: size > UInt64(logTailBytes) ? size - UInt64(logTailBytes) : 0)
+        let text = String(decoding: handle.readDataToEndOfFile(), as: UTF8.self)
+        return size > UInt64(logTailBytes) ? text.drop { $0 != "\n" }.dropFirst().description : text
+    }
+
     private static var domain: String { "gui/\(getuid())" }
 
     private func launchctl(_ args: [String]) async throws {
@@ -55,7 +87,7 @@ struct ScheduledJobsService: Sendable {
             let status = statuses[label]
             return ScheduledJob(label: label, source: source, command: command(of: plist),
                                 schedule: describeSchedule(plist), plistPath: path,
-                                logPath: plist["StandardOutPath"] as? String ?? plist["StandardErrorPath"] as? String,
+                                logPaths: Array(NSOrderedSet(array: [plist["StandardOutPath"], plist["StandardErrorPath"]].compactMap { $0 as? String })) as? [String] ?? [],
                                 isLoaded: status != nil, pid: status?.pid, lastExitStatus: status?.lastExitStatus)
         }
     }
@@ -105,7 +137,7 @@ struct ScheduledJobsService: Sendable {
     }
 
     static func parseCrontab(_ output: String) -> [ScheduledJob] {
-        output.split(whereSeparator: \.isNewline).compactMap { raw in
+        output.components(separatedBy: "\n").compactMap { raw in
             let line = raw.trimmingCharacters(in: .whitespaces)
             guard !line.isEmpty, !line.hasPrefix("#"),
                   line.range(of: #"^[A-Za-z_][A-Za-z0-9_]*\s*="#, options: .regularExpression) == nil else { return nil }
@@ -115,7 +147,7 @@ struct ScheduledJobsService: Sendable {
             let command = String(fields[fieldCount])
             return ScheduledJob(label: command, source: .cron, command: command,
                                 schedule: fields.prefix(fieldCount).joined(separator: " "),
-                                plistPath: nil, logPath: nil, isLoaded: true, pid: nil, lastExitStatus: nil)
+                                plistPath: nil, logPaths: [], isLoaded: true, pid: nil, lastExitStatus: nil, cronLine: raw)
         }
     }
 }

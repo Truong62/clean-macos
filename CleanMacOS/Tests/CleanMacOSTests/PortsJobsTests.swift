@@ -36,14 +36,39 @@ struct PortsJobsTests {
         #expect(jobs.allSatisfy { $0.source == .cron })
     }
 
+    @Test func crontabJobKeepsRawLineAndDeleteRemovesOnlyThatLine() {
+        let crontab = "MAILTO=\"\"\n0 9 * * * /bin/a\n0 9 * * * /bin/b\n"
+        let jobs = ScheduledJobsService.parseCrontab(crontab)
+        #expect(jobs.map(\.cronLine) == ["0 9 * * * /bin/a", "0 9 * * * /bin/b"])
+        #expect(ScheduledJobsService.removingLine("0 9 * * * /bin/a", from: crontab) == "MAILTO=\"\"\n0 9 * * * /bin/b\n")
+    }
+
+    @Test func parsesPsDetails() {
+        #expect(PortsService.parseDetails("   01:02:03 /usr/local/bin/node server.js --port 3000\n")
+                == ProcessDetails(elapsed: "01:02:03", arguments: "/usr/local/bin/node server.js --port 3000"))
+        #expect(PortsService.parseDetails("") == nil)
+    }
+
+    @Test func logTailReturnsWholeLinesFromTheEnd() throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("tail-\(UUID()).log")
+        defer { try? FileManager.default.removeItem(at: url) }
+        try String(repeating: "0123456789\n", count: 3_000).appending("last line\n").write(to: url, atomically: true, encoding: .utf8)
+        let tail = try #require(ScheduledJobsService.logTail(url.path))
+        #expect(tail.hasPrefix("0123456789\n"))
+        #expect(tail.hasSuffix("last line\n"))
+        #expect(tail.utf8.count <= 16_384)
+        #expect(ScheduledJobsService.logTail("/nonexistent/x.log") == nil)
+    }
+
     @Test func statusLabelReflectsLaunchdState() {
         func job(loaded: Bool, pid: pid_t?, exit: Int?) -> ScheduledJob {
-            ScheduledJob(label: "x", source: .userAgent, command: "", schedule: "", plistPath: nil, logPath: nil,
+            ScheduledJob(label: "x", source: .userAgent, command: "", schedule: "", plistPath: nil, logPaths: [],
                          isLoaded: loaded, pid: pid, lastExitStatus: exit)
         }
         #expect(job(loaded: true, pid: 12, exit: 0).statusLabel == "Running · PID 12")
         #expect(job(loaded: true, pid: nil, exit: 78).statusLabel == "Failed (exit 78)")
         #expect(job(loaded: true, pid: nil, exit: 0).statusLabel == "Idle")
+        #expect(job(loaded: true, pid: nil, exit: -15).statusLabel == "Killed (signal 15)")
         #expect(job(loaded: false, pid: nil, exit: nil).statusLabel == "Stopped")
     }
 

@@ -7,7 +7,7 @@ struct CommandResult: Sendable {
 }
 
 enum CommandRunner {
-    static func run(_ tool: String, _ args: [String]) -> CommandResult {
+    static func run(_ tool: String, _ args: [String], input: String? = nil) -> CommandResult {
         let process = Process()
         let out = Pipe()
         let err = Pipe()
@@ -15,10 +15,16 @@ enum CommandRunner {
         process.arguments = args
         process.standardOutput = out
         process.standardError = err
+        let stdin = Pipe()
+        if input != nil { process.standardInput = stdin }
         do {
             try process.run()
         } catch {
             return CommandResult(status: -1, output: "", error: error.localizedDescription)
+        }
+        if let input {
+            stdin.fileHandleForWriting.write(Data(input.utf8))
+            try? stdin.fileHandleForWriting.close()
         }
         let output = out.fileHandleForReading.readDataToEndOfFile()
         let errorOutput = err.fileHandleForReading.readDataToEndOfFile()
@@ -35,6 +41,19 @@ struct PortsService: Sendable {
             let result = CommandRunner.run("/usr/sbin/lsof", ["-nP", "+c", "0", "-iTCP", "-sTCP:LISTEN", "-FpcLn"])
             return Self.parse(result.output)
         }.value
+    }
+
+    func details(pid: pid_t) async -> ProcessDetails? {
+        await Task.detached(priority: .utility) {
+            Self.parseDetails(CommandRunner.run("/bin/ps", ["-o", "etime=,args=", "-p", "\(pid)"]).output)
+        }.value
+    }
+
+    static func parseDetails(_ output: String) -> ProcessDetails? {
+        let fields = output.trimmingCharacters(in: .whitespacesAndNewlines)
+            .split(maxSplits: 1, omittingEmptySubsequences: true, whereSeparator: \.isWhitespace)
+        guard fields.count == 2 else { return nil }
+        return ProcessDetails(elapsed: String(fields[0]), arguments: String(fields[1]))
     }
 
     static func parse(_ output: String) -> [ListeningPort] {
