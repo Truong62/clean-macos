@@ -46,6 +46,9 @@ struct ContentView: View {
             case .ram:
                 RAMView()
 
+            case .portsJobs:
+                PortsJobsView()
+
             case .settings:
                 SettingsView()
 

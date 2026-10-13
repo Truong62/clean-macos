@@ -10,6 +10,7 @@ enum SidebarPage: Hashable {
     case jira
     case displays
     case ram
+    case portsJobs
     case settings
     case about
 }
@@ -48,6 +49,9 @@ struct SidebarView: View {
                 }
                 SidebarItem(icon: "memorychip", label: "RAM", color: .mint, isSelected: currentPage == .ram) {
                     currentPage = .ram
+                }
+                SidebarItem(icon: "network", label: "Ports & Jobs", color: .cyan, isSelected: currentPage == .portsJobs) {
+                    currentPage = .portsJobs
                 }
                 SidebarItem(icon: "gearshape.fill", label: "Settings", color: .gray, isSelected: currentPage == .settings) {
                     currentPage = .settings
