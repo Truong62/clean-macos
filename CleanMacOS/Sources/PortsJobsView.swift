@@ -29,11 +29,11 @@ struct PortsJobsView: View {
         .onDisappear { vm.stopRefreshing() }
         .onChange(of: vm.selectedPortID) { _, _ in Task { await vm.loadDetails() } }
         .onChange(of: vm.selectedJobID) { _, _ in Task { await vm.loadDetails() } }
-        .alert(vm.confirmation?.title ?? "", isPresented: vm.isConfirming) {
+        .alert(vm.confirmation?.title ?? "", isPresented: vm.isConfirming, presenting: vm.confirmation) { pending in
             Button("Cancel", role: .cancel) { }
-            Button(vm.confirmation?.actionLabel ?? "OK", role: .destructive) { Task { await vm.confirm() } }
-        } message: {
-            Text(vm.confirmation?.message ?? "")
+            Button(pending.actionLabel, role: .destructive) { Task { await vm.confirm(pending) } }
+        } message: { pending in
+            Text(pending.message)
         }
     }
 

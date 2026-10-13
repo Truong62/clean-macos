@@ -128,8 +128,7 @@ final class PortsJobsViewModel: ObservableObject {
         }.value
     }
 
-    func confirm() async {
-        guard let confirmation else { return }
+    func confirm(_ confirmation: PortsJobsConfirmation) async {
         self.confirmation = nil
         switch confirmation {
         case .quitPort(let port, let mode):
