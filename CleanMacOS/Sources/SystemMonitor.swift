@@ -45,6 +45,12 @@ final class SystemMonitor: ObservableObject {
         sampleTimer = nil
     }
 
+    func startPublishing(interval: TimeInterval) {
+        popoverOpen = true
+        startSampling(interval: interval)
+        refreshPublishedValues(cpu: latestCPU)
+    }
+
     func popoverDidOpen() {
         popoverOpen = true
         refreshPublishedValues(cpu: latestCPU)

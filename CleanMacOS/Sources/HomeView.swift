@@ -1,347 +1,317 @@
 import SwiftUI
 import AppKit
 
-// Soft pastel blob gradient — the Sense signature (pink → peach → lavender → mint).
-private let pastelGradient = LinearGradient(
-    colors: [
-        Color(red: 0.98, green: 0.80, blue: 0.86),
-        Color(red: 0.99, green: 0.87, blue: 0.77),
-        Color(red: 0.86, green: 0.82, blue: 0.95),
-        Color(red: 0.80, green: 0.92, blue: 0.86),
-    ],
-    startPoint: .topLeading, endPoint: .bottomTrailing
-)
-
-// Dark ink that stays legible on the light pastel hero, regardless of system theme.
-private let heroInk = Color(red: 0.17, green: 0.15, blue: 0.23)
-
 struct HomeView: View {
     @EnvironmentObject var vm: AppViewModel
     @EnvironmentObject var clipboard: ClipboardViewModel
+    @EnvironmentObject var jira: JiraViewModel
     let navigate: (SidebarPage) -> Void
 
-    @State private var shownCleanable: Double = 0
+    @StateObject private var monitor = SystemMonitor()
+    @State private var cpuHistory: [Double] = []
+    @State private var memoryHistory: [Double] = []
+    @State private var portCount: Int?
+    @State private var jobCount: Int?
+
+    private static let historyLength = 40
+    private static let sampleInterval: TimeInterval = 2
+    private static let heroColors = [Color(red: 0.36, green: 0.30, blue: 0.86), Color(red: 0.62, green: 0.32, blue: 0.86),
+                                     Color(red: 0.93, green: 0.42, blue: 0.62)]
 
     private var hasResults: Bool { !vm.artifacts.isEmpty }
-
-    private var greeting: String {
-        switch Calendar.current.component(.hour, from: Date()) {
-        case 5..<12: return "Good Morning"
-        case 12..<18: return "Good Afternoon"
-        default: return "Good Evening"
-        }
+    private var freeText: String { "\(monitor.diskFreeStr) free" }
+    private var health: HomeHealth {
+        HomeHealth.summarize(cpu: monitor.cpuUsage, memory: monitor.memPercent, disk: monitor.diskPercent, freeText: monitor.diskFreeStr)
     }
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 16) {
-                greetingCard
-                heroCard
-                featureCards
-                breakdownCard
-                systemInfo
-                Spacer(minLength: 0)
-            }
-            .padding(20)
-        }
-        .background(background)
-        .sheet(isPresented: $vm.showResults) {
-            CleanResultsView()
-                .environmentObject(vm)
-        }
-    }
-
-    // Light base with a soft pastel glow pooling at the bottom (like the shot).
-    private var background: some View {
-        ZStack {
-            Color(nsColor: .windowBackgroundColor)
-            VStack {
-                Spacer()
-                pastelGradient
-                    .frame(height: 320)
-                    .blur(radius: 90)
-                    .opacity(0.35)
-            }
-            .ignoresSafeArea()
-        }
-    }
-
-    // MARK: - Greeting
-
-    private var greetingCard: some View {
-        HStack(spacing: 14) {
-            Circle()
-                .fill(pastelGradient)
-                .frame(width: 46, height: 46)
-                .overlay(Image(systemName: "sparkles").font(.system(size: 18)).foregroundStyle(.white))
-                .shadow(color: .black.opacity(0.10), radius: 6, y: 3)
-            VStack(alignment: .leading, spacing: 3) {
-                Text(greeting)
-                    .font(.title2).fontWeight(.bold)
-                Text(vm.diskInfo.map { "\($0.hostname) · what can we clean today?" } ?? "Keep your Mac calm and clean")
-                    .font(.subheadline).foregroundStyle(.secondary)
-            }
-            Spacer()
-        }
-        .padding(18)
-        .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 22))
-        .overlay(RoundedRectangle(cornerRadius: 22).strokeBorder(.white.opacity(0.35), lineWidth: 1))
-        .shadow(color: .black.opacity(0.05), radius: 10, y: 4)
-    }
-
-    // MARK: - Hero featured card (pastel)
-
-    private var heroCard: some View {
-        VStack(spacing: 18) {
-            if let info = vm.diskInfo {
-                DiskRing(usedPercent: info.usedPercent,
-                         freeText: "\(info.freeStr) free",
-                         arcColor: arcColor(info.usedPercent))
-            } else {
-                ProgressView().frame(width: 178, height: 178).tint(heroInk)
-            }
-
-            if hasResults {
-                HStack(spacing: 6) {
-                    Image(systemName: "sparkles").foregroundStyle(heroInk)
-                    CountingBytes(value: shownCleanable)
-                        .font(.title2).fontWeight(.bold).fontDesign(.rounded)
-                        .foregroundStyle(heroInk)
-                    Text("ready to clean").foregroundStyle(heroInk.opacity(0.6))
+            VStack(spacing: 18) {
+                hero.homeAppear(0)
+                vitals.homeAppear(1)
+                HStack(alignment: .top, spacing: 18) {
+                    if jira.isConfigured { jiraCard.homeAppear(2) }
+                    cleanableCard.homeAppear(3)
                 }
-            } else {
-                Text("Scan your disk to find junk")
-                    .font(.title3).fontWeight(.medium)
-                    .foregroundStyle(heroInk.opacity(0.7))
+                toolsGrid.homeAppear(4)
+                footer.homeAppear(5)
             }
+            .padding(24)
+            .frame(maxWidth: 1100)
+            .frame(maxWidth: .infinity)
+        }
+        .background(AuroraBackground())
+        .sheet(isPresented: $vm.showResults) {
+            CleanResultsView().environmentObject(vm)
+        }
+        .onAppear { monitor.startPublishing(interval: Self.sampleInterval) }
+        .onDisappear { monitor.stopSampling() }
+        .onReceive(monitor.$cpuUsage) { cpuHistory = Self.append($0, to: cpuHistory) }
+        .onReceive(monitor.$memPercent) { memoryHistory = Self.append($0, to: memoryHistory) }
+        .task { await loadCounts() }
+    }
 
-            pillCTA
+    private static func append(_ value: Double, to history: [Double]) -> [Double] {
+        Array((history + [value]).suffix(historyLength))
+    }
+
+    private func loadCounts() async {
+        async let ports = PortsService().list()
+        async let jobs = ScheduledJobsService().list()
+        portCount = await ports.count
+        jobCount = await jobs.filter { $0.source == .userAgent || $0.source == .cron }.count
+        if jira.isConfigured && jira.menuUpdatedAt == nil { await jira.refreshMenu() }
+    }
+
+    // MARK: - Hero
+
+    private var hero: some View {
+        HStack(spacing: 28) {
+            VStack(alignment: .leading, spacing: 14) {
+                Text(Date.now.formatted(.dateTime.weekday(.wide).day().month(.wide)).uppercased())
+                    .font(.caption.weight(.bold))
+                    .tracking(1.4)
+                    .foregroundStyle(.white.opacity(0.7))
+                Text(greeting)
+                    .font(.system(size: 34, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+                HStack(spacing: 10) {
+                    Image(systemName: health.icon)
+                        .font(.title3)
+                        .foregroundStyle(health.isWarning ? Color.yellow : .white)
+                        .symbolEffect(.pulse, options: .repeating, isActive: health.isWarning)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(health.title).font(.headline).foregroundStyle(.white)
+                        Text(health.detail).font(.subheadline).foregroundStyle(.white.opacity(0.75))
+                    }
+                }
+                .padding(.vertical, 10)
+                .padding(.horizontal, 14)
+                .background(.white.opacity(0.14), in: RoundedRectangle(cornerRadius: 14))
+                HStack(spacing: 10) {
+                    primaryButton
+                    if hasResults {
+                        Text("\(formatBytes(vm.totalCleanableSize)) ready to clean")
+                            .font(.callout.weight(.semibold))
+                            .foregroundStyle(.white.opacity(0.9))
+                    }
+                }
+                .padding(.top, 4)
+            }
+            Spacer(minLength: 0)
+            DiskGauge(usedPercent: monitor.diskPercent, freeText: freeText)
         }
-        .padding(.vertical, 34)
-        .padding(.horizontal, 28)
-        .frame(maxWidth: .infinity)
-        .background(pastelGradient)
+        .padding(28)
+        .background(heroBackground)
         .clipShape(RoundedRectangle(cornerRadius: 28))
-        .shadow(color: .black.opacity(0.08), radius: 18, y: 8)
-        .onAppear {
-            withAnimation(.easeOut(duration: 0.8)) { shownCleanable = Double(vm.totalCleanableSize) }
-        }
-        .onChange(of: vm.totalCleanableSize) { _, new in
-            withAnimation(.easeOut(duration: 0.8)) { shownCleanable = Double(new) }
+        .shadow(color: Self.heroColors[1].opacity(0.35), radius: 24, y: 12)
+    }
+
+    private var heroBackground: some View {
+        ZStack {
+            LinearGradient(colors: Self.heroColors, startPoint: .topLeading, endPoint: .bottomTrailing)
+            SoftGlow(color: .white.opacity(0.28)).frame(width: 460, height: 460).offset(x: 260, y: -130)
+            SoftGlow(color: Color(red: 0.3, green: 0.85, blue: 0.95).opacity(0.45)).frame(width: 420, height: 420).offset(x: -300, y: 140)
         }
     }
 
-    private var pillCTA: some View {
+    private var primaryButton: some View {
         Button {
             navigate(.cleanDisk)
             if !hasResults { Task { await vm.scan() } }
         } label: {
             HStack(spacing: 8) {
                 if vm.isScanning {
-                    ProgressView().controlSize(.small).tint(heroInk)
+                    ProgressView().controlSize(.small).tint(Self.heroColors[0])
                 } else {
                     Image(systemName: hasResults ? "trash.fill" : "sparkles")
                 }
-                Text(hasResults ? "Review & Clean" : "Scan & Clean Disk")
+                Text(vm.isScanning ? "Scanning…" : hasResults ? "Review & Clean" : "Scan & Clean")
                     .fontWeight(.semibold)
             }
-            .padding(.horizontal, 26).padding(.vertical, 13)
+            .padding(.horizontal, 22)
+            .padding(.vertical, 12)
+            .foregroundStyle(Self.heroColors[0])
             .background(Capsule().fill(.white))
-            .foregroundStyle(heroInk)
-            .shadow(color: .black.opacity(0.12), radius: 8, y: 4)
+            .shadow(color: .black.opacity(0.2), radius: 10, y: 5)
         }
         .buttonStyle(.plain)
+        .pointerCursor()
         .disabled(vm.isScanning)
-        .opacity(vm.isScanning ? 0.7 : 1)
     }
 
-    private func arcColor(_ usedPercent: Double) -> Color {
-        if usedPercent > 90 { return Color(red: 0.82, green: 0.30, blue: 0.42) }
-        if usedPercent > 75 { return Color(red: 0.85, green: 0.52, blue: 0.25) }
-        return Color(red: 0.40, green: 0.35, blue: 0.70)
-    }
-
-    // MARK: - Feature cards (pastel thumbnails)
-
-    private var featureCards: some View {
-        HStack(spacing: 12) {
-            FeatureCard(icon: "doc.text.magnifyingglass", title: "Large Files",
-                        description: "Hunt down the biggest files and folders anywhere on your Mac and send the space-hogs to the Trash.",
-                        color: .orange, index: 0) { navigate(.largeFiles) }
-            FeatureCard(icon: "trash.fill", title: "Uninstall Apps",
-                        description: "Remove an app and every leftover it hides — caches, preferences, containers and logs included.",
-                        color: .pink, index: 1) { navigate(.uninstall) }
-            FeatureCard(icon: "doc.on.clipboard.fill", title: "Clipboard",
-                        description: "Everything you copy is kept here — \(clipboard.items.count) saved. Bring back earlier copies with ⌘⇧V.",
-                        color: .indigo, index: 2) { navigate(.clipboard) }
-            FeatureCard(icon: "memorychip", title: "RAM",
-                        description: "See apps, background agents, helpers and daemons, then quit processes that no longer belong.",
-                        color: .mint, index: 3) { navigate(.ram) }
+    private var greeting: String {
+        switch Calendar.current.component(.hour, from: Date()) {
+        case 5..<12: "Good morning"
+        case 12..<18: "Good afternoon"
+        default: "Good evening"
         }
     }
 
-    // MARK: - Cleanable breakdown
+    // MARK: - Vitals
 
-    private var breakdownCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("CLEANABLE BY CATEGORY")
-                .font(.caption2).fontWeight(.semibold)
-                .foregroundStyle(.tertiary).tracking(1)
+    private var vitals: some View {
+        HStack(spacing: 14) {
+            VitalTile(title: "CPU", icon: "cpu", value: "\(Int(monitor.cpuUsage.rounded()))%",
+                      caption: monitor.cpuName.isEmpty ? "Processor load" : monitor.cpuName,
+                      history: cpuHistory, colors: [.blue, .cyan])
+            VitalTile(title: "Memory", icon: "memorychip", value: "\(Int(monitor.memPercent.rounded()))%",
+                      caption: "\(monitor.memUsedStr) of \(monitor.memTotalStr)",
+                      history: memoryHistory, colors: [.purple, .pink])
+            VitalTile(title: "Disk", icon: "internaldrive", value: monitor.diskFreeStr,
+                      caption: "free of \(monitor.diskTotalStr) · up \(monitor.uptime)",
+                      fraction: monitor.diskPercent / 100, colors: [.orange, .yellow])
+        }
+    }
 
-            if hasResults {
-                ForEach(vm.categoryCounts, id: \.0) { cat, count, size in
-                    HStack(spacing: 10) {
-                        Image(systemName: cat.icon).foregroundStyle(cat.color).frame(width: 22)
-                        Text(cat.displayName).font(.callout)
-                        Spacer()
-                        Text("\(count) items").font(.caption).foregroundStyle(.secondary)
-                        Text(formatBytes(size))
-                            .font(.callout).fontWeight(.medium)
-                            .foregroundStyle(cat.color)
-                            .frame(width: 84, alignment: .trailing)
+    // MARK: - Jira
+
+    private var jiraCard: some View {
+        let sprint = jira.menu.sprint
+        let doing = jira.menu.rows.filter { $0.group == .doing }.prefix(3)
+        return VStack(alignment: .leading, spacing: 14) {
+            cardHeader(icon: "checklist", title: "Jira", colors: [.blue, .indigo]) { navigate(.jira) }
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text(sprint.name.isEmpty ? "No active sprint" : sprint.name)
+                    .font(.headline)
+                    .lineLimit(1)
+                if let days = sprint.daysLeft {
+                    Text("· \(days)d left").font(.subheadline).foregroundStyle(.secondary)
+                }
+            }
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Text("This month").font(.caption).foregroundStyle(.secondary)
+                    Spacer()
+                    Text("\(sprint.monthDone)/\(sprint.monthTasks) done · \(sprint.monthPoints) \(sprint.pointLabel)")
+                        .font(.caption.weight(.semibold))
+                }
+                ProgressView(value: Double(sprint.monthDone), total: Double(max(sprint.monthTasks, 1)))
+                    .tint(.indigo)
+            }
+            if doing.isEmpty {
+                Text("Nothing in progress").font(.callout).foregroundStyle(.secondary)
+            } else {
+                VStack(spacing: 6) {
+                    ForEach(Array(doing)) { row in
+                        Button { jira.open(issueKey: row.id) } label: {
+                            HStack(spacing: 8) {
+                                Circle().fill(.blue).frame(width: 6, height: 6)
+                                Text(row.id).font(.caption.monospaced().weight(.semibold)).foregroundStyle(.blue)
+                                Text(row.summary).font(.callout).lineLimit(1)
+                                Spacer(minLength: 0)
+                            }
+                            .padding(.vertical, 6)
+                            .padding(.horizontal, 10)
+                            .background(Color.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 10))
+                        }
+                        .buttonStyle(.plain)
+                        .pointerCursor()
                     }
                 }
-            } else {
-                HStack(spacing: 8) {
-                    Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-                    Text("Run a scan to see what's cleanable on your Mac.")
-                        .font(.callout).foregroundStyle(.secondary)
-                    Spacer()
-                }
-                .padding(.vertical, 4)
             }
         }
         .padding(18)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 22))
-        .overlay(RoundedRectangle(cornerRadius: 22).strokeBorder(.white.opacity(0.3), lineWidth: 1))
-        .shadow(color: .black.opacity(0.05), radius: 10, y: 4)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .homeCard()
     }
 
-    // MARK: - System info
+    // MARK: - Cleanable
 
-    @ViewBuilder
-    private var systemInfo: some View {
-        if let info = vm.diskInfo {
-            HStack(spacing: 8) {
-                Image(systemName: "desktopcomputer").font(.caption2).foregroundStyle(.tertiary)
-                Text(info.hostname).font(.caption).foregroundStyle(.secondary)
-                Spacer()
-                if !vm.snapshots.isEmpty {
-                    Label("\(vm.snapshots.count) snapshots", systemImage: "clock.arrow.circlepath")
-                        .font(.caption2).foregroundStyle(.tertiary)
+    private var cleanableCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            cardHeader(icon: "sparkles", title: "Cleanable", colors: [.teal, .green]) { navigate(.cleanDisk) }
+            if hasResults {
+                Text(formatBytes(vm.totalCleanableSize))
+                    .font(.system(size: 30, weight: .bold, design: .rounded))
+                CleanableBar(segments: vm.categoryCounts)
+                VStack(spacing: 8) {
+                    ForEach(vm.categoryCounts.prefix(5), id: \.0) { category, count, size in
+                        HStack(spacing: 8) {
+                            Circle().fill(category.color.gradient).frame(width: 8, height: 8)
+                            Text(category.displayName).font(.callout)
+                            Text("\(count)").font(.caption).foregroundStyle(.tertiary)
+                            Spacer()
+                            Text(formatBytes(size)).font(.callout.weight(.semibold)).monospacedDigit()
+                        }
+                    }
                 }
-                Text("\(info.osVersion) • \(info.arch)").font(.caption2).foregroundStyle(.tertiary)
-            }
-            .padding(.horizontal, 4)
-        }
-    }
-}
-
-// MARK: - Disk usage ring (animated fill, styled for the pastel hero)
-
-private struct DiskRing: View {
-    let usedPercent: Double
-    let freeText: String
-    let arcColor: Color
-    @State private var progress: CGFloat = 0
-
-    var body: some View {
-        ZStack {
-            Circle().stroke(.white.opacity(0.55), lineWidth: 13)
-            Circle()
-                .trim(from: 0, to: progress)
-                .stroke(arcColor, style: StrokeStyle(lineWidth: 13, lineCap: .round))
-                .rotationEffect(.degrees(-90))
-            VStack(spacing: 2) {
-                Text("\(Int(usedPercent.rounded()))%")
-                    .font(.system(size: 42, weight: .bold, design: .rounded))
-                    .foregroundStyle(heroInk)
-                Text("USED").font(.caption2).foregroundStyle(heroInk.opacity(0.5)).tracking(1.5)
-                Text(freeText).font(.caption).foregroundStyle(heroInk.opacity(0.7)).padding(.top, 2)
-            }
-        }
-        .frame(width: 178, height: 178)
-        .onAppear {
-            withAnimation(.easeOut(duration: 1.0)) {
-                progress = CGFloat(min(max(usedPercent / 100, 0), 1))
-            }
-        }
-    }
-}
-
-// MARK: - Count-up bytes label
-
-private struct CountingBytes: View, Animatable {
-    var value: Double
-    var animatableData: Double {
-        get { value }
-        set { value = newValue }
-    }
-    var body: some View {
-        Text(formatBytes(Int64(max(0, value))))
-    }
-}
-
-// MARK: - Feature card (pastel thumbnail, soft hover)
-
-private struct FeatureCard: View {
-    let icon: String
-    let title: String
-    let description: String
-    let color: Color
-    let index: Int
-    let action: () -> Void
-
-    @State private var hovered = false
-    @State private var appeared = false
-
-    private var thumb: LinearGradient {
-        LinearGradient(colors: [color.opacity(0.85), color.opacity(0.45)],
-                       startPoint: .topLeading, endPoint: .bottomTrailing)
-    }
-
-    var body: some View {
-        Button(action: action) {
-            VStack(alignment: .leading, spacing: 12) {
-                RoundedRectangle(cornerRadius: 14)
-                    .fill(thumb)
-                    .frame(height: 64)
-                    .overlay(
-                        Image(systemName: icon)
-                            .font(.system(size: 24))
-                            .foregroundStyle(.white)
-                            .shadow(color: .black.opacity(0.15), radius: 3, y: 1)
-                    )
-                VStack(alignment: .leading, spacing: 5) {
-                    Text(title).font(.headline)
-                    Text(description)
-                        .font(.caption).foregroundStyle(.secondary)
-                        .lineLimit(3)
+            } else {
+                VStack(alignment: .leading, spacing: 10) {
+                    Image(systemName: "wand.and.stars")
+                        .font(.system(size: 30))
+                        .foregroundStyle(LinearGradient(colors: [.teal, .green], startPoint: .top, endPoint: .bottom))
+                    Text("Find caches, logs and build leftovers").font(.headline)
+                    Text("A quick scan shows how much space you can take back, grouped by category.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                Spacer(minLength: 0)
             }
-            .frame(maxWidth: .infinity, minHeight: 188, alignment: .leading)
-            .padding(16)
-            .background(.ultraThinMaterial)
-            .clipShape(RoundedRectangle(cornerRadius: 20))
-            .overlay(RoundedRectangle(cornerRadius: 20).strokeBorder(.white.opacity(0.3), lineWidth: 1))
-            .shadow(color: .black.opacity(hovered ? 0.14 : 0.05),
-                    radius: hovered ? 16 : 7, y: hovered ? 7 : 3)
         }
-        .buttonStyle(.plain)
-        .onHover { h in
-            withAnimation(.easeInOut(duration: 0.25)) { hovered = h }
-            if h { NSCursor.pointingHand.push() } else { NSCursor.pop() }
+        .padding(18)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .homeCard()
+    }
+
+    private func cardHeader(icon: String, title: String, colors: [Color], action: @escaping () -> Void) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(.white)
+                .frame(width: 24, height: 24)
+                .background(LinearGradient(colors: colors, startPoint: .topLeading, endPoint: .bottomTrailing),
+                            in: RoundedRectangle(cornerRadius: 7))
+            Text(title.uppercased()).font(.caption2.weight(.bold)).tracking(1).foregroundStyle(.secondary)
+            Spacer()
+            Button("Open", action: action)
+                .buttonStyle(.plain)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .pointerCursor()
         }
-        .onDisappear { if hovered { NSCursor.pop() } }
-        .opacity(appeared ? 1 : 0)
-        .offset(y: appeared ? 0 : 10)
-        .onAppear {
-            withAnimation(.easeOut(duration: 0.4).delay(0.08 * Double(index))) { appeared = true }
+    }
+
+    // MARK: - Tools
+
+    private var toolsGrid: some View {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 220), spacing: 12)], spacing: 12) {
+            ToolTile(icon: "doc.text.magnifyingglass", title: "Large Files", stat: "Find space hogs",
+                     colors: [.orange, .red]) { navigate(.largeFiles) }
+            ToolTile(icon: "trash.fill", title: "Uninstall Apps", stat: "Remove apps and leftovers",
+                     colors: [.pink, .red]) { navigate(.uninstall) }
+            ToolTile(icon: "doc.on.clipboard.fill", title: "Clipboard", stat: "\(clipboard.items.count) items saved · ⌘⇧V",
+                     colors: [.indigo, .purple]) { navigate(.clipboard) }
+            ToolTile(icon: "network", title: "Ports & Jobs",
+                     stat: [portCount.map { "\($0) ports" }, jobCount.map { "\($0) jobs" }].compactMap { $0 }.joined(separator: " · "),
+                     colors: [.cyan, .blue]) { navigate(.portsJobs) }
+            ToolTile(icon: "memorychip", title: "RAM", stat: "\(Int(monitor.memPercent.rounded()))% used",
+                     colors: [.mint, .teal]) { navigate(.ram) }
+            ToolTile(icon: "display.2", title: "Displays", stat: "\(NSScreen.screens.count) connected",
+                     colors: [.purple, .blue]) { navigate(.displays) }
         }
+    }
+
+    // MARK: - Footer
+
+    @ViewBuilder private var footer: some View {
+        if let info = vm.diskInfo {
+            HStack(spacing: 8) {
+                chip("desktopcomputer", info.hostname)
+                chip("apple.logo", info.osVersion)
+                chip("cpu", info.arch)
+                if !vm.snapshots.isEmpty { chip("clock.arrow.circlepath", "\(vm.snapshots.count) snapshots") }
+                Spacer()
+            }
+        }
+    }
+
+    private func chip(_ icon: String, _ text: String) -> some View {
+        Label(text, systemImage: icon)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(.regularMaterial, in: Capsule())
     }
 }
