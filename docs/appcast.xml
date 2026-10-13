@@ -9,6 +9,20 @@
     <!-- Paste new <item> blocks here when releasing (newest first) -->
 
     <item>
+      <title>Version 1.0.21</title>
+      <pubDate>Tue, 13 Oct 2026 17:04:35 +0700</pubDate>
+      <sparkle:version>22</sparkle:version>
+      <sparkle:shortVersionString>1.0.21</sparkle:shortVersionString>
+      <description><![CDATA[
+        <ul><li>New Ports &amp; Jobs page: see which ports are listening and which process holds them, open them in the browser, or quit the process</li><li>Scheduled Jobs: list your LaunchAgents and crontab with readable schedules and live status; run now, turn off/on, open log or reveal the plist</li></ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/Truong62/clean-macos/releases/download/v1.0.21/CleanMacOS-1.0.21.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="+0x3ZhTm1cii3ZfuRySyqKfm1eyjL6fDKaETDB5orGDn/VBIAyfZRCWstaDKuRmH4IvF4oXQCIZu9SCuufi6CQ==" length="3968856" />
+    </item>
+
+    <item>
       <title>Version 1.0.20</title>
       <pubDate>Mon, 12 Oct 2026 10:31:26 +0700</pubDate>
       <sparkle:version>21</sparkle:version>
