@@ -9,6 +9,20 @@
     <!-- Paste new <item> blocks here when releasing (newest first) -->
 
     <item>
+      <title>Version 1.0.25</title>
+      <pubDate>Tue, 13 Oct 2026 17:40:27 +0700</pubDate>
+      <sparkle:version>26</sparkle:version>
+      <sparkle:shortVersionString>1.0.25</sparkle:shortVersionString>
+      <description><![CDATA[
+        <ul><li>Brand-new Home: live CPU, memory and disk with charts, a health summary, Jira sprint and in-progress tasks, cleanable breakdown and quick tools with live counts</li><li>Sidebar sub-tabs now slide open and closed smoothly</li></ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/Truong62/clean-macos/releases/download/v1.0.25/CleanMacOS-1.0.25.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="hztlsbiCahOjHsmewSOwkFFJy/VSE+4SJDRevMFWEQLUlcke3ahNo0Vuu/6q52NlDQvoErr6Rzm2Vfu3rJ2hBw==" length="4146770" />
+    </item>
+
+    <item>
       <title>Version 1.0.24</title>
       <pubDate>Tue, 13 Oct 2026 17:31:34 +0700</pubDate>
       <sparkle:version>25</sparkle:version>
