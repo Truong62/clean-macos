@@ -34,6 +34,12 @@ enum ScheduledJobSource: String, CaseIterable, Sendable {
     }
 
     var isManageable: Bool { self == .userAgent }
+    var isDeletable: Bool { self == .userAgent || self == .cron }
+}
+
+struct ProcessDetails: Equatable, Sendable {
+    let elapsed: String
+    let arguments: String
 }
 
 struct LaunchctlStatus: Equatable, Sendable {
@@ -47,10 +53,11 @@ struct ScheduledJob: Identifiable, Hashable, Sendable {
     let command: String
     let schedule: String
     let plistPath: String?
-    let logPath: String?
+    let logPaths: [String]
     let isLoaded: Bool
     let pid: pid_t?
     let lastExitStatus: Int?
+    var cronLine: String? = nil
 
     var id: String { "\(source.rawValue):\(label)" }
     var isRunning: Bool { pid != nil }
@@ -60,6 +67,7 @@ struct ScheduledJob: Identifiable, Hashable, Sendable {
         if source == .globalDaemon && !isLoaded { return "—" }
         if let pid { return "Running · PID \(pid)" }
         guard isLoaded else { return "Stopped" }
+        if let lastExitStatus, lastExitStatus < 0 { return "Killed (signal \(-lastExitStatus))" }
         if let lastExitStatus, lastExitStatus != 0 { return "Failed (exit \(lastExitStatus))" }
         return "Idle"
     }

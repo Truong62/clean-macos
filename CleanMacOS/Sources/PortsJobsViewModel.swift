@@ -11,11 +11,15 @@ enum PortsJobsTab: String, CaseIterable, Identifiable {
 enum PortsJobsConfirmation {
     case quitPort(ListeningPort, ProcessTerminationMode)
     case turnOff(ScheduledJob)
+    case stopJob(ScheduledJob)
+    case deleteJob(ScheduledJob)
 
     var title: String {
         switch self {
         case .quitPort(let port, let mode): "\(mode.label) \(port.command) on port \(port.port)?"
         case .turnOff(let job): "Turn off \(job.label)?"
+        case .stopJob(let job): "Stop \(job.label)?"
+        case .deleteJob(let job): "Delete \(job.label)?"
         }
     }
 
@@ -23,6 +27,10 @@ enum PortsJobsConfirmation {
         switch self {
         case .quitPort(let port, _): "PID \(port.pid) will stop and port \(port.port) will be freed."
         case .turnOff: "The job is unloaded and stays off after restart until you turn it on again."
+        case .stopJob(let job): "Sends SIGTERM to PID \(job.pid.map(String.init) ?? "?"). A job set to keep alive starts again; use Turn Off to keep it stopped."
+        case .deleteJob(let job):
+            job.cronLine.map { "This line is removed from your crontab:\n\($0)" }
+                ?? "The job is unloaded and its plist is moved to the Trash."
         }
     }
 
@@ -30,6 +38,8 @@ enum PortsJobsConfirmation {
         switch self {
         case .quitPort(_, let mode): mode.label
         case .turnOff: "Turn Off"
+        case .stopJob: "Stop"
+        case .deleteJob: "Delete"
         }
     }
 }
@@ -47,6 +57,8 @@ final class PortsJobsViewModel: ObservableObject {
     @Published var isWorking = false
     @Published var statusMessage = ""
     @Published var confirmation: PortsJobsConfirmation?
+    @Published var portDetails: ProcessDetails?
+    @Published var jobLog = ""
 
     private static let refreshInterval: Duration = .seconds(5)
     private let portsService: PortsService
@@ -99,6 +111,21 @@ final class PortsJobsViewModel: ObservableObject {
         ports = await listedPorts
         jobs = await listedJobs
         isRefreshing = false
+        await loadDetails()
+    }
+
+    func loadDetails() async {
+        if let port = selectedPort {
+            portDetails = await portsService.details(pid: port.pid)
+        } else {
+            portDetails = nil
+        }
+        let paths = selectedJob?.logPaths ?? []
+        jobLog = await Task.detached(priority: .utility) {
+            paths.compactMap { path in
+                ScheduledJobsService.logTail(path).map { paths.count > 1 ? "── \(path)\n\($0)" : $0 }
+            }.joined(separator: "\n")
+        }.value
     }
 
     func confirm() async {
@@ -109,6 +136,11 @@ final class PortsJobsViewModel: ObservableObject {
             await perform { _ = try await self.processService.terminate(port.process, mode: mode) }
         case .turnOff(let job):
             await perform { try await self.jobsService.turnOff(job) }
+        case .stopJob(let job):
+            await perform { try await self.jobsService.stop(job) }
+        case .deleteJob(let job):
+            await perform { try await self.jobsService.delete(job) }
+            selectedJobID = nil
         }
     }
 
