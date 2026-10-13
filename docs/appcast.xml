@@ -9,6 +9,20 @@
     <!-- Paste new <item> blocks here when releasing (newest first) -->
 
     <item>
+      <title>Version 1.0.24</title>
+      <pubDate>Tue, 13 Oct 2026 17:31:34 +0700</pubDate>
+      <sparkle:version>25</sparkle:version>
+      <sparkle:shortVersionString>1.0.24</sparkle:shortVersionString>
+      <description><![CDATA[
+        <ul><li>Fixed Delete, Turn Off, Stop and Quit in Ports &amp; Jobs doing nothing after confirming</li></ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/Truong62/clean-macos/releases/download/v1.0.24/CleanMacOS-1.0.24.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="2SCHj73t3J0BOJK5l0P/GvUYGi1JeSTXSbGcr0moyRez8x4LyU9lyIlF1Us248cuK0lvhtLy8LApuYyBJzN3Ag==" length="4052125" />
+    </item>
+
+    <item>
       <title>Version 1.0.23</title>
       <pubDate>Tue, 13 Oct 2026 17:22:57 +0700</pubDate>
       <sparkle:version>24</sparkle:version>
