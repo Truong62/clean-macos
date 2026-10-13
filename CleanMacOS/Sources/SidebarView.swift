@@ -56,6 +56,9 @@ struct SidebarView: View {
                 SidebarItem(icon: "gearshape.fill", label: "Settings", color: .gray, isSelected: currentPage == .settings) {
                     currentPage = .settings
                 }
+                if currentPage == .settings {
+                    SettingsSidebarSection()
+                }
                 SidebarItem(icon: "info.circle.fill", label: "About", color: .gray, isSelected: currentPage == .about) {
                     currentPage = .about
                 }
