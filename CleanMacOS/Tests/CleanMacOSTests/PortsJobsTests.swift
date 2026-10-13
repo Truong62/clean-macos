@@ -86,4 +86,25 @@ struct PortsJobsTests {
         #expect(found?.port == 47613)
         #expect(found?.command == "nc")
     }
+
+    @MainActor @Test func confirmedQuitRunsEvenAfterAlertDismissalClearsState() async throws {
+        let server = Process()
+        server.executableURL = URL(fileURLWithPath: "/usr/bin/nc")
+        server.arguments = ["-l", "127.0.0.1", "47615"]
+        try server.run()
+        defer { if server.isRunning { server.terminate() } }
+        let vm = PortsJobsViewModel()
+        var port: ListeningPort?
+        for _ in 0..<20 where port == nil {
+            try await Task.sleep(for: .milliseconds(100))
+            await vm.refresh()
+            port = vm.ports.first { $0.pid == server.processIdentifier }
+        }
+        vm.confirmation = .quitPort(try #require(port), .graceful)
+        let pending = try #require(vm.confirmation)
+        vm.isConfirming.wrappedValue = false
+        await vm.confirm(pending)
+        #expect(!server.isRunning)
+        #expect(vm.statusMessage.isEmpty)
+    }
 }
