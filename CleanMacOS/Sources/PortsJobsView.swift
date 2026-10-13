@@ -161,7 +161,7 @@ struct PortsJobsView: View {
 
     @ViewBuilder private var portActions: some View {
         if let port = vm.selectedPort {
-            Text("\(port.command) · port \(port.port)").font(.callout).fontWeight(.semibold).lineLimit(1)
+            Text(verbatim: "\(port.command) · port \(port.port)").font(.callout).fontWeight(.semibold).lineLimit(1)
             Spacer()
             Button("Open in Browser") { vm.openInBrowser(port) }.pointerCursor()
             Button("Quit") { vm.confirmation = .quitPort(port, .graceful) }
