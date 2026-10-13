@@ -28,8 +28,19 @@ final class AppViewModel: ObservableObject {
     private let scanner = ScannerService()
     private let cleaner = CleanerService()
 
+    static let grantedVersionKey = "permission.grantedVersion"
+
     var needsPermission: Bool {
         !hasFullDiskAccess && !skipPermissionCheck
+    }
+
+    var appVersion: String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
+    }
+
+    var permissionLostAfterUpdate: Bool {
+        let granted = UserDefaults.standard.string(forKey: Self.grantedVersionKey)
+        return granted != nil && granted != appVersion
     }
 
     init() {
@@ -53,6 +64,7 @@ final class AppViewModel: ObservableObject {
                 // Path exists, try to read contents — if we can, we have FDA
                 if (try? fm.contentsOfDirectory(atPath: path)) != nil {
                     hasFullDiskAccess = true
+                    UserDefaults.standard.set(appVersion, forKey: Self.grantedVersionKey)
                     return
                 } else {
                     hasFullDiskAccess = false
