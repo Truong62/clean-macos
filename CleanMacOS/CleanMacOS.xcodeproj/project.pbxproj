@@ -69,7 +69,6 @@
 		CCE08C41283FB6F5BA1463EE /* JiraNav.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3EEE3B129372B86AFA16DF07 /* JiraNav.swift */; };
 		D02C9240BF5C1DE815263131 /* ReleaseHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE1934A02858991DBDBF4B53 /* ReleaseHistory.swift */; };
 		D08EFD5D7130708A4B5B6845 /* JiraKpiStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B95A1CC4923CA37289806A62 /* JiraKpiStore.swift */; };
-		D27E79EC1251B3A7506D22C4 /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F65E738A5F0EF1106FF98BA1 /* DashboardView.swift */; };
 		D40AB6773397246222493362 /* ClipboardStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4BDB8F98BBA9CA360C581E8E /* ClipboardStore.swift */; };
 		D88B4E695DB8B335B73DD84C /* DisplayModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86A59D9525758B79812B76C7 /* DisplayModels.swift */; };
 		DCB35EFE4BE9E0408C9E9B82 /* PortsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30D585B3710EAB1FA5FBF8DE /* PortsService.swift */; };
@@ -159,7 +158,6 @@
 		F04709E7B96451414DEC0710 /* JiraSidebarSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JiraSidebarSection.swift; sourceTree = "<group>"; };
 		F3744B2045F435E67C8C39B9 /* CleanDiskView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CleanDiskView.swift; sourceTree = "<group>"; };
 		F50E79083A48396AD0651E87 /* AboutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutView.swift; sourceTree = "<group>"; };
-		F65E738A5F0EF1106FF98BA1 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
 		FA3CBD4C77F83A3FBD2A5741 /* ClipboardMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardMonitor.swift; sourceTree = "<group>"; };
 		FAAA08ABC4C4FD3834BA928F /* MenuBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarView.swift; sourceTree = "<group>"; };
 		FACD43C271B2FC1F2DAB2E4D /* ProcessService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProcessService.swift; sourceTree = "<group>"; };
@@ -208,7 +206,6 @@
 				4BDB8F98BBA9CA360C581E8E /* ClipboardStore.swift */,
 				8669187F5AE68DE7119775DC /* ClipboardViewModel.swift */,
 				13997B35568795BEA3BF3A64 /* ContentView.swift */,
-				F65E738A5F0EF1106FF98BA1 /* DashboardView.swift */,
 				DA627A7F08BAF177E20286D7 /* DevToolsModels.swift */,
 				CBA9BF13C88EF3811FB1AA05 /* DevToolsService.swift */,
 				7335EA96D5BFB7CA1CAAAD51 /* DevToolsView.swift */,
@@ -279,7 +276,7 @@
 			);
 			sourceTree = "<group>";
 		};
-		"TEMP_961E5CC7-9514-4ADB-8DBA-3F7F3CB023F7" /* Resources */ = {
+		"TEMP_CD5B7D35-0155-4024-9C81-618F5AB164FB" /* Resources */ = {
 			isa = PBXGroup;
 			children = (
 			);
@@ -377,7 +374,6 @@
 				D40AB6773397246222493362 /* ClipboardStore.swift in Sources */,
 				4CF6E5A0E538D5932ADFBD84 /* ClipboardViewModel.swift in Sources */,
 				55D09845383469CB506D3E85 /* ContentView.swift in Sources */,
-				D27E79EC1251B3A7506D22C4 /* DashboardView.swift in Sources */,
 				6BF030E075601987D96F6EFF /* DevToolsModels.swift in Sources */,
 				EC56BC63FAD43F0C90F5FAE1 /* DevToolsService.swift in Sources */,
 				4394A03F9FAB627AC78FF08C /* DevToolsView.swift in Sources */,

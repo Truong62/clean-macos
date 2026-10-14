@@ -16,6 +16,7 @@ final class AppViewModel: ObservableObject {
     @Published var showCleanConfirmation = false
     @Published var lastCleanResult: CleanResult?
     @Published var showResults = false
+    @Published var scanStartedAt: Date?
 
     @AppStorage("minFileSize") var minFileSizeMB = 1
     @AppStorage("skipHidden") var skipHidden = true
@@ -152,6 +153,7 @@ final class AppViewModel: ObservableObject {
 
     func scan() async {
         isScanning = true
+        scanStartedAt = .now
         statusMessage = "Scanning..."
         selectedArtifacts.removeAll()
 
@@ -265,7 +267,7 @@ final class AppViewModel: ObservableObject {
     func deleteSnapshot(_ snapshot: Snapshot) async {
         statusMessage = "Deleting snapshot \(snapshot.date)..."
         do {
-            try scanner.deleteSnapshot(date: snapshot.date)
+            try await Task.detached { [scanner] in try scanner.deleteSnapshot(date: snapshot.date) }.value
             snapshots.removeAll { $0.date == snapshot.date }
             refreshDiskInfo()
             statusMessage = "Snapshot deleted"

@@ -3,6 +3,7 @@ import SwiftUI
 struct SnapshotSection: View {
     @EnvironmentObject var vm: AppViewModel
     @State private var expanded = true
+    @State private var pendingDelete: Snapshot?
 
     var body: some View {
         DisclosureGroup(isExpanded: $expanded) {
@@ -40,14 +41,14 @@ struct SnapshotSection: View {
                         }
 
                         Button(role: .destructive) {
-                            Task { await vm.deleteSnapshot(snapshot) }
+                            pendingDelete = snapshot
                         } label: {
                             Image(systemName: "trash")
                                 .font(.caption)
                         }
                         .buttonStyle(.borderless)
                         .pointerCursor()
-                        .help("Delete snapshot (requires sudo)")
+                        .help("Delete this local snapshot")
                     }
                     .padding(.horizontal, 14)
                     .padding(.vertical, 10)
@@ -76,8 +77,14 @@ struct SnapshotSection: View {
             }
         }
         .padding(16)
-        .glassCard()
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
+        .homeCard()
+        .alert("Delete snapshot \(pendingDelete?.date ?? "")?",
+               isPresented: Binding(get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } }),
+               presenting: pendingDelete) { snapshot in
+            Button("Cancel", role: .cancel) { }
+            Button("Delete", role: .destructive) { Task { await vm.deleteSnapshot(snapshot) } }
+        } message: { _ in
+            Text("Time Machine can no longer restore files from this point in time. This cannot be undone.")
+        }
     }
 }

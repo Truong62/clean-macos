@@ -33,6 +33,16 @@ enum ArtifactCategory: String, CaseIterable, Identifiable, Hashable, Sendable {
         }
     }
 
+    var examples: String {
+        switch self {
+        case .developer: "node_modules, build output, Xcode, Docker, VMs"
+        case .caches: "App and package-manager caches"
+        case .system: "Logs, crash reports, temp files"
+        case .media: "Podcasts, Music and Spotify downloads"
+        case .personal: "Backups, Mail, browser data — never auto-selected"
+        }
+    }
+
     var color: Color {
         switch self {
         case .developer: .blue
