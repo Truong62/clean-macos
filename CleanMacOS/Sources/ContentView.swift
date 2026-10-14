@@ -56,7 +56,7 @@ struct ContentView: View {
                 SettingsView()
 
             case .about:
-                AboutView()
+                AboutView(navigate: { currentPage = $0 })
             }
         }
         .navigationSplitViewStyle(.balanced)
