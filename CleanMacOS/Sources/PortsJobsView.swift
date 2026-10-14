@@ -11,6 +11,7 @@ struct PortsJobsView: View {
                 switch vm.tab {
                 case .ports: portsTable
                 case .jobs: jobsTable
+                case .loginItems: loginItemsTable
                 }
             }
             .frame(minHeight: 200, maxHeight: .infinity)
@@ -42,7 +43,7 @@ struct PortsJobsView: View {
             Text("Ports & Jobs")
                 .font(.system(size: 26, weight: .bold, design: .rounded))
             Spacer()
-            Text(vm.tab == .ports ? "\(vm.ports.count) listening" : "\(vm.filteredJobs.count) jobs")
+            Text(countLabel)
                 .font(.callout)
                 .fontDesign(.rounded)
                 .fontWeight(.semibold)
@@ -62,6 +63,22 @@ struct PortsJobsView: View {
         }
     }
 
+    private var countLabel: String {
+        switch vm.tab {
+        case .ports: "\(vm.ports.count) listening"
+        case .jobs: "\(vm.filteredJobs.count) jobs"
+        case .loginItems: "\(vm.loginItems.filter { $0.isEnabled && !$0.isMissing }.count) open at login"
+        }
+    }
+
+    private var searchPrompt: String {
+        switch vm.tab {
+        case .ports: "Search port, process or PID"
+        case .jobs: "Search name or command"
+        case .loginItems: "Search app"
+        }
+    }
+
     private var controls: some View {
         HStack(spacing: 12) {
             Picker("View", selection: $vm.tab) {
@@ -69,12 +86,12 @@ struct PortsJobsView: View {
             }
             .labelsHidden()
             .pickerStyle(.segmented)
-            .frame(width: 240)
+            .frame(width: 360)
             .pointerCursor()
 
             HStack(spacing: 8) {
                 Image(systemName: "magnifyingglass").foregroundStyle(.tertiary)
-                TextField(vm.tab == .ports ? "Search port, process or PID" : "Search name or command", text: $vm.searchText)
+                TextField(searchPrompt, text: $vm.searchText)
                     .textFieldStyle(.plain)
             }
             .padding(.horizontal, 12)
@@ -86,6 +103,15 @@ struct PortsJobsView: View {
                     .toggleStyle(.switch)
                     .pointerCursor()
                     .help("Include /Library LaunchAgents and LaunchDaemons")
+            }
+            if vm.tab == .loginItems {
+                Button {
+                    Task { await vm.addLoginItem() }
+                } label: {
+                    Label("Add App…", systemImage: "plus")
+                }
+                .pointerCursor()
+                .disabled(vm.isWorking)
             }
         }
     }
@@ -161,6 +187,63 @@ struct PortsJobsView: View {
         }
     }
 
+    private var loginItemsTable: some View {
+        Table(vm.filteredLoginItems, selection: $vm.selectedLoginItemID) {
+            TableColumn("App") { item in
+                HStack(spacing: 10) {
+                    appIcon(item).frame(width: 22, height: 22)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(item.name).fontWeight(.medium).lineLimit(1)
+                        Text(item.path ?? "Location unknown")
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
+                }
+                .opacity(item.isEnabled ? 1 : 0.6)
+            }
+            .width(min: 220, ideal: 380)
+            TableColumn("Status") { item in
+                badge(item.statusLabel, color: item.isMissing ? .orange : item.isEnabled ? .green : .gray)
+            }
+            .width(min: 100, ideal: 130)
+            TableColumn("Open at Login") { item in
+                loginToggle(item)
+            }
+            .width(min: 90, ideal: 110)
+        }
+        .scrollContentBackground(.hidden)
+        .contextMenu(forSelectionType: LoginItem.ID.self) { ids in
+            if let item = vm.loginItems.first(where: { ids.contains($0.id) }) {
+                if !item.isMissing {
+                    Button(item.isEnabled ? "Turn Off" : "Turn On") { Task { await vm.setLoginItem(item, enabled: !item.isEnabled) } }
+                    if let path = item.path { Button("Reveal in Finder") { vm.reveal(path) } }
+                    Divider()
+                }
+                Button("Remove from List…") { vm.confirmation = .forgetLoginItem(item) }
+            }
+        }
+    }
+
+    private func loginToggle(_ item: LoginItem) -> some View {
+        Toggle("Open at Login", isOn: Binding(get: { item.isEnabled },
+                                              set: { isOn in Task { await vm.setLoginItem(item, enabled: isOn) } }))
+            .labelsHidden()
+            .toggleStyle(.switch)
+            .controlSize(.small)
+            .disabled(item.isMissing || vm.isWorking)
+            .pointerCursor()
+    }
+
+    @ViewBuilder private func appIcon(_ item: LoginItem) -> some View {
+        if let path = item.path, !item.isMissing {
+            Image(nsImage: NSWorkspace.shared.icon(forFile: path)).resizable()
+        } else {
+            Image(systemName: "questionmark.app.dashed").resizable().scaledToFit().foregroundStyle(.tertiary)
+        }
+    }
+
     @ViewBuilder private func jobMenu(_ job: ScheduledJob) -> some View {
         if job.source.isManageable {
             Button("Run Now") { Task { await vm.runNow(job) } }.disabled(!job.isLoaded)
@@ -193,6 +276,8 @@ struct PortsJobsView: View {
                 if let port = vm.selectedPort { portDetail(port) } else { hint("Select a port to see details, open it in the browser or stop the process holding it. Right-click a row for actions. Only your own processes are listed.") }
             case .jobs:
                 if let job = vm.selectedJob { jobDetail(job) } else { hint("Select a job to see its command, schedule and log. Right-click a row for actions.") }
+            case .loginItems:
+                if let item = vm.selectedLoginItem { loginItemDetail(item) } else { hint("These apps open automatically when you log in. Turn one off and it stays in this list so you can turn it back on later. Background helpers live under Scheduled Jobs; Clean macOS itself is in Settings › General.") }
             }
         }
         .padding(14)
@@ -254,6 +339,26 @@ struct PortsJobsView: View {
             .padding(8)
             .background(Color.black.opacity(0.25), in: RoundedRectangle(cornerRadius: 8))
         }
+    }
+
+    @ViewBuilder private func loginItemDetail(_ item: LoginItem) -> some View {
+        HStack(spacing: 10) {
+            Text(item.name).font(.headline).lineLimit(1)
+            Spacer()
+            if let path = item.path, !item.isMissing { Button("Reveal") { vm.reveal(path) }.pointerCursor() }
+            if !item.isMissing {
+                Button(item.isEnabled ? "Turn Off" : "Turn On") { Task { await vm.setLoginItem(item, enabled: !item.isEnabled) } }
+                    .pointerCursor()
+                    .disabled(vm.isWorking)
+            }
+            Button("Remove", role: .destructive) { vm.confirmation = .forgetLoginItem(item) }
+                .buttonStyle(.borderedProminent)
+                .tint(.red)
+                .pointerCursor()
+                .disabled(vm.isWorking)
+        }
+        detailRow("Status", item.statusLabel)
+        detailRow("Location", item.path ?? "Unknown — the app was probably uninstalled", monospaced: item.path != nil)
     }
 
     @ViewBuilder private func jobButtons(_ job: ScheduledJob) -> some View {

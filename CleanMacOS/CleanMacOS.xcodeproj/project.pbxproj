@@ -25,6 +25,7 @@
 		335CAC6105FA1A45BFF982DB /* JiraSchemeHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07E8AB324DAFE2AB345E8E0A /* JiraSchemeHandler.swift */; };
 		3869FF6969D2F5E7A44FDD87 /* ArtifactTableView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44805A604CACFED574E48F5C /* ArtifactTableView.swift */; };
 		395E0E34B6F653070228E303 /* UninstallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 184DA560673D572637A24E64 /* UninstallView.swift */; };
+		412F63C52B2EDDC8940FEEC1 /* LoginItemsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EB2810848FCC205C4339083 /* LoginItemsService.swift */; };
 		41AA7E6D8BDB4A6438B2776C /* ClipboardHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCA21C6DF18A5F4914577A05 /* ClipboardHistoryView.swift */; };
 		439C5FE692D89844CEEAEF39 /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76D6C63FE6785726A01BD9FB /* KeychainStore.swift */; };
 		4CF6E5A0E538D5932ADFBD84 /* ClipboardViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8669187F5AE68DE7119775DC /* ClipboardViewModel.swift */; };
@@ -124,6 +125,7 @@
 		86DAF5317703A2819563D781 /* HomeComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeComponents.swift; sourceTree = "<group>"; };
 		874D5290194904D2B767669A /* JiraView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JiraView.swift; sourceTree = "<group>"; };
 		8B132021AA2508B2000D6D63 /* Cleaner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Cleaner.swift; sourceTree = "<group>"; };
+		8EB2810848FCC205C4339083 /* LoginItemsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginItemsService.swift; sourceTree = "<group>"; };
 		905A24394C7E6C4E7AE06DF2 /* FileThumbnail.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileThumbnail.swift; sourceTree = "<group>"; };
 		90B7181574359261F04305FF /* DockerService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DockerService.swift; sourceTree = "<group>"; };
 		938603F095D5C03621C2C879 /* PasteService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasteService.swift; sourceTree = "<group>"; };
@@ -227,6 +229,7 @@
 				76D6C63FE6785726A01BD9FB /* KeychainStore.swift */,
 				30AE1414B4AC514340366221 /* LargeFilesService.swift */,
 				D5DCE02A3AFD020C36EFFF76 /* LargeFilesView.swift */,
+				8EB2810848FCC205C4339083 /* LoginItemsService.swift */,
 				5A993B1ADB912A796AE468D9 /* MenuBarController.swift */,
 				FAAA08ABC4C4FD3834BA928F /* MenuBarView.swift */,
 				CA9E35C7D8B82601564C5468 /* Models.swift */,
@@ -264,7 +267,7 @@
 			);
 			sourceTree = "<group>";
 		};
-		"TEMP_4710C8C0-9323-4E4C-9163-2DF9DA88E9DC" /* Resources */ = {
+		"TEMP_5B7BDA3F-879B-46EE-B88A-1B03636F75E0" /* Resources */ = {
 			isa = PBXGroup;
 			children = (
 			);
@@ -391,6 +394,7 @@
 				439C5FE692D89844CEEAEF39 /* KeychainStore.swift in Sources */,
 				91D5705DF41581EA40B80285 /* LargeFilesService.swift in Sources */,
 				2CD6BD854BCDA0E493C97ABC /* LargeFilesView.swift in Sources */,
+				412F63C52B2EDDC8940FEEC1 /* LoginItemsService.swift in Sources */,
 				7BA19101C45ED46BA88C75C2 /* MenuBarController.swift in Sources */,
 				FABD8B68B191996B3BAEB7E5 /* MenuBarView.swift in Sources */,
 				4DE61E3589D07E845CBC2FF3 /* Models.swift in Sources */,
