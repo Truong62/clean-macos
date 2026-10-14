@@ -1,191 +1,125 @@
+import AppKit
 import SwiftUI
 
 struct ArtifactTableView: View {
     @EnvironmentObject var vm: AppViewModel
     @State private var sortOrder = [KeyPathComparator(\Artifact.size, order: .reverse)]
+    @State private var highlighted = Set<Artifact.ID>()
 
-    var sortedArtifacts: [Artifact] {
+    private var sortedArtifacts: [Artifact] {
         vm.filteredArtifacts.sorted(using: sortOrder)
     }
 
     var body: some View {
-        Group {
-            if vm.artifacts.isEmpty && !vm.isScanning {
-            VStack(spacing: 18) {
-                Circle()
-                    .fill(appPastelGradient)
-                    .frame(width: 72, height: 72)
-                    .overlay(
-                        Image(systemName: "sparkles")
-                            .font(.system(size: 30))
-                            .foregroundStyle(.white)
-                            .shadow(color: .black.opacity(0.12), radius: 3, y: 1)
-                    )
-                    .shadow(color: .black.opacity(0.08), radius: 10, y: 4)
-
-                VStack(spacing: 6) {
-                    Text("No Artifacts Found")
-                        .font(.title3)
-                        .fontWeight(.semibold)
-                    Text("Scan your system to discover cleanable files")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                }
-
-                Button {
-                    Task { await vm.scan() }
-                } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: "magnifyingglass")
-                        Text("Start Scan").fontWeight(.semibold)
+        Table(sortedArtifacts, children: \.children, selection: $highlighted, sortOrder: $sortOrder) {
+            TableColumn("") { artifact in
+                Toggle("Select \(artifact.name)", isOn: Binding(
+                    get: { vm.selectedArtifacts.contains(artifact.id) },
+                    set: { isOn in
+                        if isOn { vm.selectedArtifacts.insert(artifact.id) } else { vm.selectedArtifacts.remove(artifact.id) }
                     }
-                    .padding(.horizontal, 24).padding(.vertical, 12)
-                    .background(Capsule().fill(.ultraThinMaterial))
-                    .overlay(Capsule().strokeBorder(.white.opacity(0.3), lineWidth: 1))
-                    .shadow(color: .black.opacity(0.08), radius: 8, y: 3)
-                }
-                .buttonStyle(.plain)
-                .pointerCursor()
+                ))
+                .labelsHidden()
+                .toggleStyle(.checkbox)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .padding(40)
-            .background(emptyStateBackground)
-            } else if vm.isScanning {
-            VStack(spacing: 16) {
-                ProgressView()
-                    .controlSize(.large)
-                Text("Scanning filesystem...")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
+            .width(28)
+
+            TableColumn("Name", value: \.name) { artifact in
+                nameCell(artifact)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .padding(40)
-            .background(emptyStateBackground)
-            } else {
-                Table(sortedArtifacts, children: \.children, selection: $vm.selectedArtifacts, sortOrder: $sortOrder) {
-                TableColumn("") { artifact in
-                    Toggle(isOn: Binding(
-                        get: { vm.selectedArtifacts.contains(artifact.id) },
-                        set: { selected in
-                            if selected {
-                                vm.selectedArtifacts.insert(artifact.id)
-                            } else {
-                                vm.selectedArtifacts.remove(artifact.id)
-                            }
-                        }
-                    )) { }
-                    .toggleStyle(.checkbox)
-                }
-                .width(30)
+            .width(min: 260, ideal: 460)
 
-                TableColumn("Name", value: \.name) { artifact in
-                    HStack(spacing: 8) {
-                        Image(systemName: artifact.category.icon)
-                            .font(.system(size: 14))
-                            .foregroundStyle(artifact.category.color.gradient)
-                            .frame(width: 20)
-
-                        VStack(alignment: .leading, spacing: 2) {
-                            HStack(spacing: 5) {
-                                Text(artifact.name)
-                                    .fontWeight(.medium)
-                                if artifact.needsSudo {
-                                    Text("ROOT")
-                                        .font(.system(size: 8, weight: .bold, design: .rounded))
-                                        .padding(.horizontal, 5)
-                                        .padding(.vertical, 1)
-                                        .background(.red.opacity(0.15))
-                                        .foregroundStyle(.red)
-                                        .clipShape(RoundedRectangle(cornerRadius: 4))
-                                }
-                                if artifact.isPersonalData {
-                                    Text("DATA")
-                                        .font(.system(size: 8, weight: .bold, design: .rounded))
-                                        .padding(.horizontal, 5)
-                                        .padding(.vertical, 1)
-                                        .background(.pink.opacity(0.15))
-                                        .foregroundStyle(.pink)
-                                        .clipShape(RoundedRectangle(cornerRadius: 4))
-                                        .help("Personal data — not auto-selected")
-                                }
-                                if artifact.reclaim.isCommand {
-                                    Image(systemName: "terminal")
-                                        .font(.system(size: 9))
-                                        .foregroundStyle(.secondary)
-                                        .help("Runs a command to reclaim space")
-                                }
-                                if let warning = artifact.warning {
-                                    Image(systemName: "exclamationmark.triangle.fill")
-                                        .font(.system(size: 9))
-                                        .foregroundStyle(.orange)
-                                        .help(warning)
-                                }
-                            }
-                            Text(artifact.description)
-                                .font(.caption2)
-                                .foregroundStyle(.tertiary)
-                                .lineLimit(1)
-                        }
-                    }
-                }
-                .width(min: 200, ideal: 280)
-
-                TableColumn("Category", value: \.category.displayName) { artifact in
-                    Text(artifact.category.displayName)
-                        .font(.caption)
-                        .fontWeight(.medium)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .background(artifact.category.color.opacity(0.1))
-                        .foregroundStyle(artifact.category.color)
-                        .clipShape(Capsule())
-                }
-                .width(min: 100, ideal: 120)
-
-                TableColumn("Path") { artifact in
-                    Text(artifact.path)
-                        .font(.caption)
-                        .fontDesign(.monospaced)
-                        .foregroundStyle(.tertiary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                        .help(artifact.path)
-                }
-                .width(min: 150, ideal: 250)
-
-                TableColumn("Size", value: \.size) { artifact in
-                    Text(artifact.sizeHuman)
-                        .font(.callout)
-                        .fontDesign(.rounded)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(sizeColor(artifact.size))
-                        .frame(maxWidth: .infinity, alignment: .trailing)
-                }
-                .width(min: 70, ideal: 90)
+            TableColumn("Category", value: \.category.displayName) { artifact in
+                Text(artifact.category.displayName)
+                    .font(.caption.weight(.medium))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(artifact.category.color.opacity(0.12))
+                    .foregroundStyle(artifact.category.color)
+                    .clipShape(Capsule())
             }
-                .scrollContentBackground(.hidden)
-                .background(emptyStateBackground)
+            .width(min: 90, ideal: 110)
+
+            TableColumn("Size", value: \.size) { artifact in
+                Text(artifact.sizeHuman)
+                    .font(.callout.weight(.semibold))
+                    .fontDesign(.rounded)
+                    .foregroundStyle(sizeColor(artifact.size))
+                    .frame(maxWidth: .infinity, alignment: .trailing)
             }
+            .width(min: 70, ideal: 90)
         }
-        .sheet(isPresented: $vm.showResults) {
-            CleanResultsView()
-                .environmentObject(vm)
+        .scrollContentBackground(.hidden)
+        .contextMenu(forSelectionType: Artifact.ID.self) { ids in
+            let items = AppViewModel.flattened(vm.artifacts).filter { ids.contains($0.id) }
+            if !items.isEmpty { menu(items) }
+        } primaryAction: { ids in
+            AppViewModel.flattened(vm.artifacts).filter { ids.contains($0.id) }.forEach(vm.toggleSelection)
         }
     }
 
-    // Light base with a soft pastel glow pooling at the bottom — matches Home.
-    private var emptyStateBackground: some View {
-        ZStack {
-            Color(nsColor: .windowBackgroundColor)
-            VStack {
-                Spacer()
-                appPastelGradient
-                    .frame(height: 320)
-                    .blur(radius: 90)
-                    .opacity(0.25)
+    @ViewBuilder private func menu(_ items: [Artifact]) -> some View {
+        let allSelected = items.allSatisfy { vm.selectedArtifacts.contains($0.id) }
+        Button(allSelected ? "Deselect" : "Select") {
+            for item in items {
+                if allSelected { vm.selectedArtifacts.remove(item.id) } else { vm.selectedArtifacts.insert(item.id) }
             }
-            .ignoresSafeArea()
         }
+        Divider()
+        Button("Reveal in Finder") {
+            NSWorkspace.shared.activateFileViewerSelecting(items.map { URL(fileURLWithPath: $0.path) })
+        }
+        Button("Copy Path") {
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(items.map(\.path).joined(separator: "\n"), forType: .string)
+        }
+    }
+
+    private func nameCell(_ artifact: Artifact) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: artifact.category.icon)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 26, height: 26)
+                .background(artifact.category.color.gradient, in: RoundedRectangle(cornerRadius: 7))
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 5) {
+                    Text(artifact.name).fontWeight(.medium).lineLimit(1)
+                    if artifact.needsSudo { tag("ADMIN", .red, help: "macOS asks for your administrator password to remove this") }
+                    if artifact.isPersonalData { tag("PERSONAL", .pink, help: "Your own data — never selected automatically") }
+                    if artifact.reclaim.isCommand {
+                        Image(systemName: "terminal")
+                            .font(.system(size: 9))
+                            .foregroundStyle(.secondary)
+                            .help("Reclaimed with \(artifact.reclaim.commandString ?? "a command")")
+                    }
+                    if let warning = artifact.warning {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.system(size: 9))
+                            .foregroundStyle(.orange)
+                            .help(warning)
+                    }
+                }
+                Text((artifact.path as NSString).abbreviatingWithTildeInPath)
+                    .font(.caption2)
+                    .fontDesign(.monospaced)
+                    .foregroundStyle(.tertiary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+        }
+        .help(artifact.description.isEmpty ? artifact.path : "\(artifact.description)\n\(artifact.path)")
+    }
+
+    private func tag(_ text: String, _ color: Color, help: String) -> some View {
+        Text(text)
+            .font(.system(size: 8, weight: .bold, design: .rounded))
+            .padding(.horizontal, 5)
+            .padding(.vertical, 1)
+            .background(color.opacity(0.15))
+            .foregroundStyle(color)
+            .clipShape(RoundedRectangle(cornerRadius: 4))
+            .help(help)
     }
 
     private func sizeColor(_ size: Int64) -> Color {
