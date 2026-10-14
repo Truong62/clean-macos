@@ -173,15 +173,21 @@ enum HomebrewInventory {
             tool.isDependency = installed.installed_on_request == false
             if let stable = formula.versions.stable, DevToolVersion.isOrderedBefore(installed.version, stable) {
                 tool.note = "Update available: \(stable)"
+                tool.updateCommand = ShellCommand(path: brew, arguments: ["upgrade", formula.name])
             }
             return tool
         }
         let casks = info.casks.map { cask in
-            var tool = DevTool(name: cask.token, version: cask.installed ?? cask.version ?? "?", source: "Homebrew Cask",
+            let installed = cask.installed ?? cask.version ?? "?"
+            var tool = DevTool(name: cask.token, version: caskVersion(installed), source: "Homebrew Cask",
                                path: "\(prefix)/Caskroom/\(cask.token)", kind: .homebrew,
                                removal: .command(path: brew, arguments: ["uninstall", "--cask", cask.token]))
             tool.summary = cask.desc ?? ""
             tool.homepage = cask.homepage.flatMap(URL.init(string:))
+            if let latest = cask.version, latest != "latest", latest != installed {
+                tool.note = "Update available: \(caskVersion(latest))"
+                tool.updateCommand = ShellCommand(path: brew, arguments: ["upgrade", "--cask", "--greedy", cask.token])
+            }
             return tool
         }
         return (formulae + casks).sorted { $0.name.lowercased() < $1.name.lowercased() }
@@ -195,9 +201,14 @@ enum HomebrewInventory {
             runtime.summary = tool.summary
             runtime.homepage = tool.homepage
             runtime.note = tool.note
+            runtime.updateCommand = tool.updateCommand
             return runtime
         }
         return DevToolVersion.sortedByNameThenNewest(runtimes)
+    }
+
+    private static func caskVersion(_ raw: String) -> String {
+        raw.split(separator: ",").first.map(String.init) ?? raw
     }
 
     private static func runtimeName(_ formula: String) -> String? {
@@ -237,6 +248,35 @@ enum GlobalPackageScanner {
             guard name.hasPrefix("@") else { return [dir] }
             let scoped = (try? FileManager.default.contentsOfDirectory(atPath: dir.path)) ?? []
             return scoped.filter { !$0.hasPrefix(".") }.map { dir.appendingPathComponent($0) }
+        }
+    }
+
+    private struct OutdatedEntry: Decodable {
+        let latest: String?
+        let location: String?
+    }
+
+    static func parseNpmOutdated(_ json: String) -> [String: String] {
+        guard let entries = try? JSONDecoder().decode([String: OutdatedEntry].self, from: Data(json.utf8)) else { return [:] }
+        return entries.values.reduce(into: [:]) { result, entry in
+            if let location = entry.location, let latest = entry.latest { result[location] = latest }
+        }
+    }
+
+    static func npmBinDirectory(forPackageAt path: String) -> String? {
+        guard let range = path.range(of: "/lib/node_modules/") else { return nil }
+        return path[..<range.lowerBound] + "/bin"
+    }
+
+    static func applyingNpmUpdates(_ tools: [DevTool], latestByLocation: [String: String]) -> [DevTool] {
+        tools.map { tool in
+            guard let latest = latestByLocation[tool.path], latest != tool.version,
+                  let bin = npmBinDirectory(forPackageAt: tool.path) else { return tool }
+            var tool = tool
+            tool.note = "Update available: \(latest)"
+            tool.updateCommand = ShellCommand(path: "/usr/bin/env",
+                                              arguments: ["PATH=\(bin):/usr/bin:/bin", "\(bin)/npm", "install", "-g", "\(tool.name)@latest"])
+            return tool
         }
     }
 
@@ -308,15 +348,35 @@ struct DevToolsService: Sendable {
             case .trash(let path):
                 try FileManager.default.trashItem(at: URL(fileURLWithPath: path), resultingItemURL: nil)
             case .command(let path, let arguments):
-                let result = CommandRunner.run(path, arguments)
-                guard result.status == 0 else {
-                    let message = [result.error, result.output].first { !$0.isEmpty } ?? "exit \(result.status)"
-                    throw PortsJobsError.commandFailed(message.trimmingCharacters(in: .whitespacesAndNewlines))
-                }
+                try Self.run(ShellCommand(path: path, arguments: arguments))
             case .unavailable(let reason):
                 throw PortsJobsError.commandFailed(reason)
             }
         }.value
+    }
+
+    func update(_ tool: DevTool) async throws {
+        guard let command = tool.updateCommand else { throw PortsJobsError.commandFailed("\(tool.name) is already up to date.") }
+        try await Task.detached(priority: .userInitiated) { try Self.run(command) }.value
+    }
+
+    func checkPackageUpdates(_ tools: [DevTool]) async -> [DevTool] {
+        await Task.detached(priority: .utility) {
+            let bins = Set(tools.filter { $0.kind == .package }.compactMap { GlobalPackageScanner.npmBinDirectory(forPackageAt: $0.path) })
+            let latest = bins.filter { FileManager.default.isExecutableFile(atPath: "\($0)/npm") }.reduce(into: [String: String]()) { result, bin in
+                let output = CommandRunner.run("/usr/bin/env", ["PATH=\(bin):/usr/bin:/bin", "\(bin)/npm", "outdated", "-g", "--json"]).output
+                result.merge(GlobalPackageScanner.parseNpmOutdated(output)) { first, _ in first }
+            }
+            return GlobalPackageScanner.applyingNpmUpdates(tools, latestByLocation: latest)
+        }.value
+    }
+
+    private static func run(_ command: ShellCommand) throws {
+        let result = CommandRunner.run(command.path, command.arguments)
+        guard result.status == 0 else {
+            let message = [result.error, result.output].first { !$0.isEmpty } ?? "exit \(result.status)"
+            throw PortsJobsError.commandFailed(message.trimmingCharacters(in: .whitespacesAndNewlines))
+        }
     }
 
     private static func loginShellCommands() async -> [String: String] {
