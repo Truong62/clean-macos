@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		04A378A64E626DFC7ECF463D /* DevToolsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D27CDD72FF571A78353AF20C /* DevToolsViewModel.swift */; };
 		059769BFCEECFADB2B6FEA35 /* JiraFieldDiscovery.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9F0CECE9C5D38132E03B61B /* JiraFieldDiscovery.swift */; };
 		10BB5BA2697E75F5C92A0868 /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A1479088579DC6E2A293A68 /* SidebarView.swift */; };
 		130C564B933EFF04813CAAD3 /* PortsJobsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9ECF14E8605AC58E4B9C07A2 /* PortsJobsViewModel.swift */; };
@@ -27,6 +28,7 @@
 		395E0E34B6F653070228E303 /* UninstallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 184DA560673D572637A24E64 /* UninstallView.swift */; };
 		412F63C52B2EDDC8940FEEC1 /* LoginItemsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EB2810848FCC205C4339083 /* LoginItemsService.swift */; };
 		41AA7E6D8BDB4A6438B2776C /* ClipboardHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCA21C6DF18A5F4914577A05 /* ClipboardHistoryView.swift */; };
+		4394A03F9FAB627AC78FF08C /* DevToolsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7335EA96D5BFB7CA1CAAAD51 /* DevToolsView.swift */; };
 		439C5FE692D89844CEEAEF39 /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76D6C63FE6785726A01BD9FB /* KeychainStore.swift */; };
 		4CF6E5A0E538D5932ADFBD84 /* ClipboardViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8669187F5AE68DE7119775DC /* ClipboardViewModel.swift */; };
 		4DE61E3589D07E845CBC2FF3 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA9E35C7D8B82601564C5468 /* Models.swift */; };
@@ -35,6 +37,7 @@
 		5B7456DF848FC407E1B1C316 /* ClipboardPanelController.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEBFF35EE02467C83ED9553C /* ClipboardPanelController.swift */; };
 		5DF8AD876142B74059E46536 /* PasteService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 938603F095D5C03621C2C879 /* PasteService.swift */; };
 		629F8B98ECF1850CAF10B28F /* AboutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F50E79083A48396AD0651E87 /* AboutView.swift */; };
+		6BF030E075601987D96F6EFF /* DevToolsModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA627A7F08BAF177E20286D7 /* DevToolsModels.swift */; };
 		6E46C6C1ECAB866E03951C47 /* CleanDiskView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3744B2045F435E67C8C39B9 /* CleanDiskView.swift */; };
 		6F071AA22F3892AA8FDB3237 /* JiraWeb in Resources */ = {isa = PBXBuildFile; fileRef = 08AD4D33254C08CAA5AF30B1 /* JiraWeb */; };
 		7BA19101C45ED46BA88C75C2 /* MenuBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A993B1ADB912A796AE468D9 /* MenuBarController.swift */; };
@@ -74,6 +77,7 @@
 		E046123F7CFDF6A8BEB1F1B1 /* HomeComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86DAF5317703A2819563D781 /* HomeComponents.swift */; };
 		EB2804A3FF935E9CF1A4AE3F /* SystemMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 146D7CD67B5D337110ABE8C9 /* SystemMonitor.swift */; };
 		EC4CBF72FCB53432FB5C1E03 /* FileThumbnail.swift in Sources */ = {isa = PBXBuildFile; fileRef = 905A24394C7E6C4E7AE06DF2 /* FileThumbnail.swift */; };
+		EC56BC63FAD43F0C90F5FAE1 /* DevToolsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = CBA9BF13C88EF3811FB1AA05 /* DevToolsService.swift */; };
 		EDEDBA4471C081E934012941 /* JiraClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9021792973FD87DC3FDF424 /* JiraClient.swift */; };
 		F25497E5A5FCBDEB50858F3C /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 185CCDDE3D43CD6FEF6FDA72 /* SettingsView.swift */; };
 		F27D29FB6807060B945F8EC4 /* ClipboardSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 586232A2D65D100703262AB1 /* ClipboardSettings.swift */; };
@@ -113,6 +117,7 @@
 		6961B68D8844C43ABA231FF8 /* UpdaterViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdaterViewModel.swift; sourceTree = "<group>"; };
 		6E5967A4047D750A42B3AC58 /* RAMView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RAMView.swift; sourceTree = "<group>"; };
 		708F90F18E14F80C30656E24 /* JiraMenuSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JiraMenuSnapshot.swift; sourceTree = "<group>"; };
+		7335EA96D5BFB7CA1CAAAD51 /* DevToolsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevToolsView.swift; sourceTree = "<group>"; };
 		76B7603C695D7E900696BC7D /* TokenFileStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenFileStore.swift; sourceTree = "<group>"; };
 		76D6C63FE6785726A01BD9FB /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
 		78E3D7D88AE05B4709A6FAE4 /* JiraViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JiraViewModel.swift; sourceTree = "<group>"; };
@@ -139,9 +144,12 @@
 		BCA21C6DF18A5F4914577A05 /* ClipboardHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardHistoryView.swift; sourceTree = "<group>"; };
 		C3E23E9045ECAC8FF3EB37FF /* ProcessModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProcessModels.swift; sourceTree = "<group>"; };
 		CA9E35C7D8B82601564C5468 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		CBA9BF13C88EF3811FB1AA05 /* DevToolsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevToolsService.swift; sourceTree = "<group>"; };
+		D27CDD72FF571A78353AF20C /* DevToolsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevToolsViewModel.swift; sourceTree = "<group>"; };
 		D5DCE02A3AFD020C36EFFF76 /* LargeFilesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LargeFilesView.swift; sourceTree = "<group>"; };
 		D85914B532348C7D1A34CFC8 /* JiraSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JiraSettings.swift; sourceTree = "<group>"; };
 		D9F0CECE9C5D38132E03B61B /* JiraFieldDiscovery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JiraFieldDiscovery.swift; sourceTree = "<group>"; };
+		DA627A7F08BAF177E20286D7 /* DevToolsModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevToolsModels.swift; sourceTree = "<group>"; };
 		DEBFF35EE02467C83ED9553C /* ClipboardPanelController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardPanelController.swift; sourceTree = "<group>"; };
 		E1FC8128FEE8FEEE7743FF7B /* GlobalShortcuts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlobalShortcuts.swift; sourceTree = "<group>"; };
 		E7CB583C51545CB2D5649473 /* CleanMacOSApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CleanMacOSApp.swift; sourceTree = "<group>"; };
@@ -201,6 +209,10 @@
 				8669187F5AE68DE7119775DC /* ClipboardViewModel.swift */,
 				13997B35568795BEA3BF3A64 /* ContentView.swift */,
 				F65E738A5F0EF1106FF98BA1 /* DashboardView.swift */,
+				DA627A7F08BAF177E20286D7 /* DevToolsModels.swift */,
+				CBA9BF13C88EF3811FB1AA05 /* DevToolsService.swift */,
+				7335EA96D5BFB7CA1CAAAD51 /* DevToolsView.swift */,
+				D27CDD72FF571A78353AF20C /* DevToolsViewModel.swift */,
 				610BB2E5437843457F99F69F /* DisplayArrangement.swift */,
 				86A59D9525758B79812B76C7 /* DisplayModels.swift */,
 				9832301F93D2207402FD0D3F /* DisplayService.swift */,
@@ -267,7 +279,7 @@
 			);
 			sourceTree = "<group>";
 		};
-		"TEMP_5B7BDA3F-879B-46EE-B88A-1B03636F75E0" /* Resources */ = {
+		"TEMP_961E5CC7-9514-4ADB-8DBA-3F7F3CB023F7" /* Resources */ = {
 			isa = PBXGroup;
 			children = (
 			);
@@ -366,6 +378,10 @@
 				4CF6E5A0E538D5932ADFBD84 /* ClipboardViewModel.swift in Sources */,
 				55D09845383469CB506D3E85 /* ContentView.swift in Sources */,
 				D27E79EC1251B3A7506D22C4 /* DashboardView.swift in Sources */,
+				6BF030E075601987D96F6EFF /* DevToolsModels.swift in Sources */,
+				EC56BC63FAD43F0C90F5FAE1 /* DevToolsService.swift in Sources */,
+				4394A03F9FAB627AC78FF08C /* DevToolsView.swift in Sources */,
+				04A378A64E626DFC7ECF463D /* DevToolsViewModel.swift in Sources */,
 				B8B567AEC135583DD0A7F5CC /* DisplayArrangement.swift in Sources */,
 				D88B4E695DB8B335B73DD84C /* DisplayModels.swift in Sources */,
 				F9C7FD9F9683F092A83E0ABE /* DisplayService.swift in Sources */,
