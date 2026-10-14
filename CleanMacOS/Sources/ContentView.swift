@@ -49,6 +49,9 @@ struct ContentView: View {
             case .portsJobs:
                 PortsJobsView()
 
+            case .devTools:
+                DevToolsView()
+
             case .settings:
                 SettingsView()
 

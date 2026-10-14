@@ -11,6 +11,7 @@ enum SidebarPage: Hashable {
     case displays
     case ram
     case portsJobs
+    case devTools
     case settings
     case about
 }
@@ -53,6 +54,9 @@ struct SidebarView: View {
                 }
                 SidebarItem(icon: "network", label: "Ports & Jobs", color: .cyan, isSelected: currentPage == .portsJobs) {
                     currentPage = .portsJobs
+                }
+                SidebarItem(icon: "terminal.fill", label: "Dev Tools", color: .green, isSelected: currentPage == .devTools) {
+                    currentPage = .devTools
                 }
                 SidebarItem(icon: "gearshape.fill", label: "Settings", color: .gray, isSelected: currentPage == .settings) {
                     currentPage = .settings
