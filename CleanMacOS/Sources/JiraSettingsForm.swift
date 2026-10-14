@@ -35,7 +35,7 @@ struct JiraSettingsForm: View {
                 TextField("you@company.com", text: $email).textFieldStyle(.roundedBorder).frame(width: 300)
             }
         }
-        row("Token", jira.hasToken ? "Saved in Keychain — type to replace" : "Stored in Keychain") {
+        row("Token", jira.hasToken ? "Saved on this Mac — type to replace" : "Stored only on this Mac") {
             SecureField(jira.hasToken ? "••••••••" : "Token", text: $token).textFieldStyle(.roundedBorder).frame(width: 300)
         }
         row("Project key", "Issues of this project are listed") {

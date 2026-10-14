@@ -9,12 +9,16 @@
 /* Begin PBXBuildFile section */
 		059769BFCEECFADB2B6FEA35 /* JiraFieldDiscovery.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9F0CECE9C5D38132E03B61B /* JiraFieldDiscovery.swift */; };
 		10BB5BA2697E75F5C92A0868 /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A1479088579DC6E2A293A68 /* SidebarView.swift */; };
+		130C564B933EFF04813CAAD3 /* PortsJobsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9ECF14E8605AC58E4B9C07A2 /* PortsJobsViewModel.swift */; };
 		15251D9BC4DF543DCD8A403E /* PermissionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC661B5A58FE8B57EF1C939C /* PermissionView.swift */; };
+		16CD740E2B57D5B3B3522E4E /* JiraSidebarSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = F04709E7B96451414DEC0710 /* JiraSidebarSection.swift */; };
 		171CB18E3F33997A33D09624 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 519973CA3556535EDD116B2C /* HomeView.swift */; };
 		179E822D590C3A03BCF4132C /* Cleaner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B132021AA2508B2000D6D63 /* Cleaner.swift */; };
 		1BF633E6145E7F8438492DAF /* UninstallerService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3910672BE6DD40B3BC79BCD2 /* UninstallerService.swift */; };
+		1CED90BCBBDD2A821C4DCD51 /* PortsJobsModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81091D6E9A716D758A5C5FDB /* PortsJobsModels.swift */; };
 		1D6A04FACE24BC65DB42E6BE /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 4A0A95590228EC533FD37160 /* Assets.xcassets */; };
 		216C011D736EB3C976E28957 /* ClipboardMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA3CBD4C77F83A3FBD2A5741 /* ClipboardMonitor.swift */; };
+		23D50491F3450FCA148381C4 /* TokenFileStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76B7603C695D7E900696BC7D /* TokenFileStore.swift */; };
 		2B29B7330637C2044DC76DA0 /* JiraMenuBarSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB3AF8662B903346BE044382 /* JiraMenuBarSection.swift */; };
 		2CD6BD854BCDA0E493C97ABC /* LargeFilesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5DCE02A3AFD020C36EFFF76 /* LargeFilesView.swift */; };
 		31B5D338F0B2D2941C130613 /* ProcessModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3E23E9045ECAC8FF3EB37FF /* ProcessModels.swift */; };
@@ -33,6 +37,7 @@
 		6E46C6C1ECAB866E03951C47 /* CleanDiskView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3744B2045F435E67C8C39B9 /* CleanDiskView.swift */; };
 		6F071AA22F3892AA8FDB3237 /* JiraWeb in Resources */ = {isa = PBXBuildFile; fileRef = 08AD4D33254C08CAA5AF30B1 /* JiraWeb */; };
 		7BA19101C45ED46BA88C75C2 /* MenuBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A993B1ADB912A796AE468D9 /* MenuBarController.swift */; };
+		7BFE59FDA07DEEFDFB771804 /* ScheduledJobsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FECF4839A71B43575E966ED9 /* ScheduledJobsService.swift */; };
 		7DC398E5392F10BE021ED138 /* JiraNotifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F1B26E8270E9D56F4CCC044 /* JiraNotifier.swift */; };
 		816A9F028C615190B88FF2B6 /* JiraSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = D85914B532348C7D1A34CFC8 /* JiraSettings.swift */; };
 		8261125933A50008A2E302C7 /* Style.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BCCBE4E7BC381BBBE85076E /* Style.swift */; };
@@ -47,6 +52,7 @@
 		9BACF5E03C14B194CB3FDA58 /* KeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = 325D204C31C3D5AAF952C5D9 /* KeyboardShortcuts */; };
 		9DD6BA1E28BA04A198D47BD5 /* ClipboardItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E43375821CBBE9DA578E345 /* ClipboardItem.swift */; };
 		9FB7AC07F1831FD94F649E30 /* CleanMacOSApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7CB583C51545CB2D5649473 /* CleanMacOSApp.swift */; };
+		A7FD38BC30A09373541D4ED4 /* PortsJobsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A006AC3D753EA22E7DAE17A9 /* PortsJobsView.swift */; };
 		A8781311CF0FDDF5B8831A7E /* JiraMenuSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 708F90F18E14F80C30656E24 /* JiraMenuSnapshot.swift */; };
 		ADB833098DB19DD1D86A7454 /* DockerService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90B7181574359261F04305FF /* DockerService.swift */; };
 		B10E97CB352C07091C8C5EEA /* DisplaysView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED308EBDE68AC23F9837A5B5 /* DisplaysView.swift */; };
@@ -56,12 +62,15 @@
 		BC3CC10E02C22920507972BB /* UpdaterViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6961B68D8844C43ABA231FF8 /* UpdaterViewModel.swift */; };
 		C0C09283201CAAB4F21010B6 /* CleanResultsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB05C0D7D13AC0BE49A2C584 /* CleanResultsView.swift */; };
 		C5EA8F9FF738427D54D100F4 /* RAMView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E5967A4047D750A42B3AC58 /* RAMView.swift */; };
+		CCE08C41283FB6F5BA1463EE /* JiraNav.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3EEE3B129372B86AFA16DF07 /* JiraNav.swift */; };
 		D02C9240BF5C1DE815263131 /* ReleaseHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE1934A02858991DBDBF4B53 /* ReleaseHistory.swift */; };
 		D08EFD5D7130708A4B5B6845 /* JiraKpiStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B95A1CC4923CA37289806A62 /* JiraKpiStore.swift */; };
 		D27E79EC1251B3A7506D22C4 /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F65E738A5F0EF1106FF98BA1 /* DashboardView.swift */; };
 		D40AB6773397246222493362 /* ClipboardStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4BDB8F98BBA9CA360C581E8E /* ClipboardStore.swift */; };
 		D88B4E695DB8B335B73DD84C /* DisplayModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86A59D9525758B79812B76C7 /* DisplayModels.swift */; };
+		DCB35EFE4BE9E0408C9E9B82 /* PortsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30D585B3710EAB1FA5FBF8DE /* PortsService.swift */; };
 		DF5BB4CFC044C4495AE40D9B /* ClipboardPanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100DBFE54165F72538F16CF5 /* ClipboardPanelView.swift */; };
+		E046123F7CFDF6A8BEB1F1B1 /* HomeComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86DAF5317703A2819563D781 /* HomeComponents.swift */; };
 		EB2804A3FF935E9CF1A4AE3F /* SystemMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 146D7CD67B5D337110ABE8C9 /* SystemMonitor.swift */; };
 		EC4CBF72FCB53432FB5C1E03 /* FileThumbnail.swift in Sources */ = {isa = PBXBuildFile; fileRef = 905A24394C7E6C4E7AE06DF2 /* FileThumbnail.swift */; };
 		EDEDBA4471C081E934012941 /* JiraClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9021792973FD87DC3FDF424 /* JiraClient.swift */; };
@@ -86,9 +95,11 @@
 		184DA560673D572637A24E64 /* UninstallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UninstallView.swift; sourceTree = "<group>"; };
 		185CCDDE3D43CD6FEF6FDA72 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		30AE1414B4AC514340366221 /* LargeFilesService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LargeFilesService.swift; sourceTree = "<group>"; };
+		30D585B3710EAB1FA5FBF8DE /* PortsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortsService.swift; sourceTree = "<group>"; };
 		3554E40130351545D52C837D /* SnapshotSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnapshotSection.swift; sourceTree = "<group>"; };
 		3910672BE6DD40B3BC79BCD2 /* UninstallerService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UninstallerService.swift; sourceTree = "<group>"; };
 		3A1479088579DC6E2A293A68 /* SidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarView.swift; sourceTree = "<group>"; };
+		3EEE3B129372B86AFA16DF07 /* JiraNav.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JiraNav.swift; sourceTree = "<group>"; };
 		44805A604CACFED574E48F5C /* ArtifactTableView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtifactTableView.swift; sourceTree = "<group>"; };
 		4A0A95590228EC533FD37160 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		4BDB8F98BBA9CA360C581E8E /* ClipboardStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardStore.swift; sourceTree = "<group>"; };
@@ -101,19 +112,24 @@
 		6961B68D8844C43ABA231FF8 /* UpdaterViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdaterViewModel.swift; sourceTree = "<group>"; };
 		6E5967A4047D750A42B3AC58 /* RAMView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RAMView.swift; sourceTree = "<group>"; };
 		708F90F18E14F80C30656E24 /* JiraMenuSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JiraMenuSnapshot.swift; sourceTree = "<group>"; };
+		76B7603C695D7E900696BC7D /* TokenFileStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenFileStore.swift; sourceTree = "<group>"; };
 		76D6C63FE6785726A01BD9FB /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
 		78E3D7D88AE05B4709A6FAE4 /* JiraViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JiraViewModel.swift; sourceTree = "<group>"; };
 		79D33A3D4889F2340E8FB307 /* JiraSettingsForm.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JiraSettingsForm.swift; sourceTree = "<group>"; };
 		7BCCBE4E7BC381BBBE85076E /* Style.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Style.swift; sourceTree = "<group>"; };
+		81091D6E9A716D758A5C5FDB /* PortsJobsModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortsJobsModels.swift; sourceTree = "<group>"; };
 		8669187F5AE68DE7119775DC /* ClipboardViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardViewModel.swift; sourceTree = "<group>"; };
 		869943FA6706D69B21CE1402 /* DisplaysViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DisplaysViewModel.swift; sourceTree = "<group>"; };
 		86A59D9525758B79812B76C7 /* DisplayModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DisplayModels.swift; sourceTree = "<group>"; };
+		86DAF5317703A2819563D781 /* HomeComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeComponents.swift; sourceTree = "<group>"; };
 		874D5290194904D2B767669A /* JiraView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JiraView.swift; sourceTree = "<group>"; };
 		8B132021AA2508B2000D6D63 /* Cleaner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Cleaner.swift; sourceTree = "<group>"; };
 		905A24394C7E6C4E7AE06DF2 /* FileThumbnail.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileThumbnail.swift; sourceTree = "<group>"; };
 		90B7181574359261F04305FF /* DockerService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DockerService.swift; sourceTree = "<group>"; };
 		938603F095D5C03621C2C879 /* PasteService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasteService.swift; sourceTree = "<group>"; };
 		9832301F93D2207402FD0D3F /* DisplayService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DisplayService.swift; sourceTree = "<group>"; };
+		9ECF14E8605AC58E4B9C07A2 /* PortsJobsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortsJobsViewModel.swift; sourceTree = "<group>"; };
+		A006AC3D753EA22E7DAE17A9 /* PortsJobsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortsJobsView.swift; sourceTree = "<group>"; };
 		AE1934A02858991DBDBF4B53 /* ReleaseHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReleaseHistory.swift; sourceTree = "<group>"; };
 		AEF83F7B546B77C747BCA698 /* CleanMacOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CleanMacOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B95A1CC4923CA37289806A62 /* JiraKpiStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JiraKpiStore.swift; sourceTree = "<group>"; };
@@ -130,6 +146,7 @@
 		E9021792973FD87DC3FDF424 /* JiraClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JiraClient.swift; sourceTree = "<group>"; };
 		EB3AF8662B903346BE044382 /* JiraMenuBarSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JiraMenuBarSection.swift; sourceTree = "<group>"; };
 		ED308EBDE68AC23F9837A5B5 /* DisplaysView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DisplaysView.swift; sourceTree = "<group>"; };
+		F04709E7B96451414DEC0710 /* JiraSidebarSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JiraSidebarSection.swift; sourceTree = "<group>"; };
 		F3744B2045F435E67C8C39B9 /* CleanDiskView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CleanDiskView.swift; sourceTree = "<group>"; };
 		F50E79083A48396AD0651E87 /* AboutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutView.swift; sourceTree = "<group>"; };
 		F65E738A5F0EF1106FF98BA1 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
@@ -137,6 +154,7 @@
 		FAAA08ABC4C4FD3834BA928F /* MenuBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarView.swift; sourceTree = "<group>"; };
 		FACD43C271B2FC1F2DAB2E4D /* ProcessService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProcessService.swift; sourceTree = "<group>"; };
 		FB05C0D7D13AC0BE49A2C584 /* CleanResultsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CleanResultsView.swift; sourceTree = "<group>"; };
+		FECF4839A71B43575E966ED9 /* ScheduledJobsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduledJobsService.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -189,6 +207,7 @@
 				90B7181574359261F04305FF /* DockerService.swift */,
 				905A24394C7E6C4E7AE06DF2 /* FileThumbnail.swift */,
 				E1FC8128FEE8FEEE7743FF7B /* GlobalShortcuts.swift */,
+				86DAF5317703A2819563D781 /* HomeComponents.swift */,
 				519973CA3556535EDD116B2C /* HomeView.swift */,
 				E9021792973FD87DC3FDF424 /* JiraClient.swift */,
 				D9F0CECE9C5D38132E03B61B /* JiraFieldDiscovery.swift */,
@@ -196,11 +215,13 @@
 				EB3AF8662B903346BE044382 /* JiraMenuBarSection.swift */,
 				708F90F18E14F80C30656E24 /* JiraMenuSnapshot.swift */,
 				5CB8B5400F267CB66E0DF94A /* JiraModels.swift */,
+				3EEE3B129372B86AFA16DF07 /* JiraNav.swift */,
 				4F1B26E8270E9D56F4CCC044 /* JiraNotifier.swift */,
 				07E8AB324DAFE2AB345E8E0A /* JiraSchemeHandler.swift */,
 				17FAB586E1DFF45338BEF8BB /* JiraService.swift */,
 				D85914B532348C7D1A34CFC8 /* JiraSettings.swift */,
 				79D33A3D4889F2340E8FB307 /* JiraSettingsForm.swift */,
+				F04709E7B96451414DEC0710 /* JiraSidebarSection.swift */,
 				874D5290194904D2B767669A /* JiraView.swift */,
 				78E3D7D88AE05B4709A6FAE4 /* JiraViewModel.swift */,
 				76D6C63FE6785726A01BD9FB /* KeychainStore.swift */,
@@ -211,16 +232,22 @@
 				CA9E35C7D8B82601564C5468 /* Models.swift */,
 				938603F095D5C03621C2C879 /* PasteService.swift */,
 				BC661B5A58FE8B57EF1C939C /* PermissionView.swift */,
+				81091D6E9A716D758A5C5FDB /* PortsJobsModels.swift */,
+				A006AC3D753EA22E7DAE17A9 /* PortsJobsView.swift */,
+				9ECF14E8605AC58E4B9C07A2 /* PortsJobsViewModel.swift */,
+				30D585B3710EAB1FA5FBF8DE /* PortsService.swift */,
 				C3E23E9045ECAC8FF3EB37FF /* ProcessModels.swift */,
 				FACD43C271B2FC1F2DAB2E4D /* ProcessService.swift */,
 				6E5967A4047D750A42B3AC58 /* RAMView.swift */,
 				AE1934A02858991DBDBF4B53 /* ReleaseHistory.swift */,
 				0BB4842D79D5443DE4383C38 /* Scanner.swift */,
+				FECF4839A71B43575E966ED9 /* ScheduledJobsService.swift */,
 				185CCDDE3D43CD6FEF6FDA72 /* SettingsView.swift */,
 				3A1479088579DC6E2A293A68 /* SidebarView.swift */,
 				3554E40130351545D52C837D /* SnapshotSection.swift */,
 				7BCCBE4E7BC381BBBE85076E /* Style.swift */,
 				146D7CD67B5D337110ABE8C9 /* SystemMonitor.swift */,
+				76B7603C695D7E900696BC7D /* TokenFileStore.swift */,
 				3910672BE6DD40B3BC79BCD2 /* UninstallerService.swift */,
 				184DA560673D572637A24E64 /* UninstallView.swift */,
 				6961B68D8844C43ABA231FF8 /* UpdaterViewModel.swift */,
@@ -237,7 +264,7 @@
 			);
 			sourceTree = "<group>";
 		};
-		"TEMP_14E1738E-3258-4799-9918-0E4D35092F5E" /* Resources */ = {
+		"TEMP_4710C8C0-9323-4E4C-9163-2DF9DA88E9DC" /* Resources */ = {
 			isa = PBXGroup;
 			children = (
 			);
@@ -344,6 +371,7 @@
 				ADB833098DB19DD1D86A7454 /* DockerService.swift in Sources */,
 				EC4CBF72FCB53432FB5C1E03 /* FileThumbnail.swift in Sources */,
 				B94D5E73B6A99CD323DB3DA8 /* GlobalShortcuts.swift in Sources */,
+				E046123F7CFDF6A8BEB1F1B1 /* HomeComponents.swift in Sources */,
 				171CB18E3F33997A33D09624 /* HomeView.swift in Sources */,
 				EDEDBA4471C081E934012941 /* JiraClient.swift in Sources */,
 				059769BFCEECFADB2B6FEA35 /* JiraFieldDiscovery.swift in Sources */,
@@ -351,11 +379,13 @@
 				2B29B7330637C2044DC76DA0 /* JiraMenuBarSection.swift in Sources */,
 				A8781311CF0FDDF5B8831A7E /* JiraMenuSnapshot.swift in Sources */,
 				B4D91EFFE73DDF6416A5F2C0 /* JiraModels.swift in Sources */,
+				CCE08C41283FB6F5BA1463EE /* JiraNav.swift in Sources */,
 				7DC398E5392F10BE021ED138 /* JiraNotifier.swift in Sources */,
 				335CAC6105FA1A45BFF982DB /* JiraSchemeHandler.swift in Sources */,
 				9957F9ADE0BA6BA5A6F0268C /* JiraService.swift in Sources */,
 				816A9F028C615190B88FF2B6 /* JiraSettings.swift in Sources */,
 				F46D4AD2FF7008D85A1CC143 /* JiraSettingsForm.swift in Sources */,
+				16CD740E2B57D5B3B3522E4E /* JiraSidebarSection.swift in Sources */,
 				FD68EF4B8ED6EFEB3B1E7057 /* JiraView.swift in Sources */,
 				58F147DF5CA1C5EE46DBA025 /* JiraViewModel.swift in Sources */,
 				439C5FE692D89844CEEAEF39 /* KeychainStore.swift in Sources */,
@@ -366,16 +396,22 @@
 				4DE61E3589D07E845CBC2FF3 /* Models.swift in Sources */,
 				5DF8AD876142B74059E46536 /* PasteService.swift in Sources */,
 				15251D9BC4DF543DCD8A403E /* PermissionView.swift in Sources */,
+				1CED90BCBBDD2A821C4DCD51 /* PortsJobsModels.swift in Sources */,
+				A7FD38BC30A09373541D4ED4 /* PortsJobsView.swift in Sources */,
+				130C564B933EFF04813CAAD3 /* PortsJobsViewModel.swift in Sources */,
+				DCB35EFE4BE9E0408C9E9B82 /* PortsService.swift in Sources */,
 				31B5D338F0B2D2941C130613 /* ProcessModels.swift in Sources */,
 				8898B200E4C8F6189458C3E8 /* ProcessService.swift in Sources */,
 				C5EA8F9FF738427D54D100F4 /* RAMView.swift in Sources */,
 				D02C9240BF5C1DE815263131 /* ReleaseHistory.swift in Sources */,
 				82E93883DEBED57BE062E2C0 /* Scanner.swift in Sources */,
+				7BFE59FDA07DEEFDFB771804 /* ScheduledJobsService.swift in Sources */,
 				F25497E5A5FCBDEB50858F3C /* SettingsView.swift in Sources */,
 				10BB5BA2697E75F5C92A0868 /* SidebarView.swift in Sources */,
 				997224C7A3D07647C2EBC8C5 /* SnapshotSection.swift in Sources */,
 				8261125933A50008A2E302C7 /* Style.swift in Sources */,
 				EB2804A3FF935E9CF1A4AE3F /* SystemMonitor.swift in Sources */,
+				23D50491F3450FCA148381C4 /* TokenFileStore.swift in Sources */,
 				395E0E34B6F653070228E303 /* UninstallView.swift in Sources */,
 				1BF633E6145E7F8438492DAF /* UninstallerService.swift in Sources */,
 				BC3CC10E02C22920507972BB /* UpdaterViewModel.swift in Sources */,

@@ -119,7 +119,7 @@ struct PermissionView: View {
                 Text("Why again after every update?")
                     .font(.callout)
                     .fontWeight(.semibold)
-                Text("Clean macOS is free and open source, so it isn't signed with a paid Apple Developer certificate. Without that signature macOS can't tell a new version is the same app, so Full Disk Access, Accessibility and the Keychain prompt need to be approved again after each update. When the Keychain asks, choose **Always Allow**.")
+                Text("Clean macOS is free and open source, so it isn't signed with a paid Apple Developer certificate. Without that signature macOS can't tell a new version is the same app, so Full Disk Access and Accessibility need to be approved again after each update.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
