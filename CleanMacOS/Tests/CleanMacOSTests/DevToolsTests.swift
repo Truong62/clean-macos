@@ -54,9 +54,52 @@ struct DevToolsTests {
         #expect(brew.first { $0.name == "fmt" }?.isDependency == true)
         #expect(brew.first { $0.name == "chromium" }?.removal == .command(path: "/opt/homebrew/bin/brew", arguments: ["uninstall", "--cask", "chromium"]))
 
+        #expect(node.updateCommand == ShellCommand(path: "/opt/homebrew/bin/brew", arguments: ["upgrade", "node"]))
+        #expect(brew.first { $0.name == "fmt" }?.updateCommand == nil)
+
         let runtimes = HomebrewInventory.runtimes(from: brew)
+        #expect(runtimes.first?.updateCommand == node.updateCommand)
         #expect(runtimes.map { "\($0.name) \($0.version)" } == ["Node.js 25.0.0", "Python 3.13.9"])
         #expect(runtimes.allSatisfy { $0.kind == .runtime && $0.source == "Homebrew" })
+    }
+
+    @Test func outdatedCaskGetsGreedyUpgrade() throws {
+        let json = """
+        {"formulae":[],"casks":[
+          {"token":"ngrok","installed":"3.22.1,abc,a","version":"3.39.11,def,a"},
+          {"token":"gcloud-cli","installed":"588.0.0","version":"588.0.0"},
+          {"token":"chromium","installed":"latest","version":"latest"}]}
+        """
+        let casks = try HomebrewInventory.parse(Data(json.utf8), prefix: "/opt/homebrew")
+        let ngrok = try #require(casks.first { $0.name == "ngrok" })
+        #expect(ngrok.version == "3.22.1")
+        #expect(ngrok.note == "Update available: 3.39.11")
+        #expect(ngrok.updateCommand == ShellCommand(path: "/opt/homebrew/bin/brew", arguments: ["upgrade", "--cask", "--greedy", "ngrok"]))
+        #expect(casks.filter { $0.name != "ngrok" }.allSatisfy { $0.updateCommand == nil && $0.note == nil })
+    }
+
+    @Test func appliesNpmOutdatedToGlobalPackages() {
+        let base = "/home/.nvm/versions/node/v22.22.0"
+        let json = """
+        {"typescript":{"current":"5.6.2","latest":"5.9.0","location":"\(base)/lib/node_modules/typescript"},
+         "npm":{"current":"10.9.4","latest":"11.21.0","location":"\(base)/lib/node_modules/npm"}}
+        """
+        let latest = GlobalPackageScanner.parseNpmOutdated(json)
+        #expect(latest == ["\(base)/lib/node_modules/typescript": "5.9.0", "\(base)/lib/node_modules/npm": "11.21.0"])
+        #expect(GlobalPackageScanner.npmBinDirectory(forPackageAt: "\(base)/lib/node_modules/@scope/cli") == "\(base)/bin")
+        #expect(GlobalPackageScanner.npmBinDirectory(forPackageAt: "/home/.bun/install/global/node_modules/x") == nil)
+
+        let tools = [
+            DevTool(name: "typescript", version: "5.6.2", source: "npm", path: "\(base)/lib/node_modules/typescript", kind: .package, removal: .unavailable("")),
+            DevTool(name: "npm", version: "10.9.4", source: "npm", path: "\(base)/lib/node_modules/npm", kind: .package, removal: .unavailable("")),
+            DevTool(name: "eslint", version: "9.0.0", source: "npm", path: "\(base)/lib/node_modules/eslint", kind: .package, removal: .unavailable("")),
+        ]
+        let updated = GlobalPackageScanner.applyingNpmUpdates(tools, latestByLocation: latest)
+        #expect(updated[0].note == "Update available: 5.9.0")
+        #expect(updated[0].updateCommand == ShellCommand(path: "/usr/bin/env",
+                                                         arguments: ["PATH=\(base)/bin:/usr/bin:/bin", "\(base)/bin/npm", "install", "-g", "typescript@latest"]))
+        #expect(updated[1].updateCommand != nil)
+        #expect(updated[2].updateCommand == nil && updated[2].note == nil)
     }
 
     @Test func listsGlobalNodePackagesIncludingScopedOnes() throws {

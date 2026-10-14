@@ -42,7 +42,18 @@ struct DevToolsView: View {
                 .fontDesign(.rounded)
                 .fontWeight(.semibold)
                 .foregroundStyle(.secondary)
-            if vm.isLoading || vm.isWorking { ProgressView().controlSize(.small) }
+            if vm.isLoading || vm.isWorking || vm.isCheckingUpdates { ProgressView().controlSize(.small) }
+            if !vm.updatableTools.isEmpty {
+                Button {
+                    Task { await vm.updateAll() }
+                } label: {
+                    Label("Update All (\(vm.updatableTools.count))", systemImage: "arrow.up.circle.fill")
+                }
+                .buttonStyle(.borderedProminent)
+                .pointerCursor()
+                .disabled(vm.isWorking || vm.isLoading)
+                .help(vm.updatableTools.map(\.name).joined(separator: ", "))
+            }
             Button {
                 Task { await vm.load() }
             } label: {
@@ -141,6 +152,9 @@ struct DevToolsView: View {
                 Button("Copy Path") { vm.copyPath(tool) }
                 if tool.homepage != nil { Button("Open Homepage") { vm.openHomepage(tool) } }
                 Divider()
+                if tool.updateCommand != nil {
+                    Button("Update") { Task { await vm.update(tool) } }.disabled(vm.isWorking)
+                }
                 Button("Uninstall…") { vm.pendingRemoval = tool }.disabled(!tool.canRemove)
             }
         }
@@ -175,6 +189,12 @@ struct DevToolsView: View {
             Button("Reveal") { vm.reveal(tool) }.pointerCursor()
             Button("Copy Path") { vm.copyPath(tool) }.pointerCursor()
             if tool.homepage != nil { Button("Homepage") { vm.openHomepage(tool) }.pointerCursor() }
+            if tool.updateCommand != nil {
+                Button("Update") { Task { await vm.update(tool) } }
+                    .buttonStyle(.borderedProminent)
+                    .pointerCursor()
+                    .disabled(vm.isWorking)
+            }
             Button("Uninstall", role: .destructive) { vm.pendingRemoval = tool }
                 .buttonStyle(.borderedProminent)
                 .tint(.red)

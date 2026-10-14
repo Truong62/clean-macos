@@ -11,6 +11,7 @@ final class DevToolsViewModel: ObservableObject {
     @Published var selectedID: DevTool.ID?
     @Published private(set) var isLoading = false
     @Published private(set) var isWorking = false
+    @Published private(set) var isCheckingUpdates = false
     @Published var statusMessage = ""
     @Published var pendingRemoval: DevTool?
 
@@ -31,6 +32,7 @@ final class DevToolsViewModel: ObservableObject {
     }
 
     var selected: DevTool? { tools.first { $0.id == selectedID } }
+    var updatableTools: [DevTool] { visibleTools.filter { $0.updateCommand != nil } }
 
     var visibleTotalSize: Int64 {
         visibleTools.compactMap { sizes[$0.id] }.reduce(0, +)
@@ -46,6 +48,39 @@ final class DevToolsViewModel: ObservableObject {
         tools = await service.list()
         isLoading = false
         measureVisibleSizes()
+        isCheckingUpdates = true
+        tools = await service.checkPackageUpdates(tools)
+        isCheckingUpdates = false
+    }
+
+    func update(_ tool: DevTool) async {
+        isWorking = true
+        statusMessage = "Updating \(tool.name)… this can take a few minutes."
+        do {
+            try await service.update(tool)
+            statusMessage = "Updated \(tool.name)."
+        } catch {
+            statusMessage = "\(tool.name): \(error.localizedDescription)"
+        }
+        isWorking = false
+        sizes[tool.id] = nil
+        await load()
+    }
+
+    func updateAll() async {
+        let pending = updatableTools
+        isWorking = true
+        var failed: [String] = []
+        for (index, tool) in pending.enumerated() {
+            statusMessage = "Updating \(tool.name) (\(index + 1) of \(pending.count))…"
+            do { try await service.update(tool) } catch { failed.append(tool.name) }
+            sizes[tool.id] = nil
+        }
+        statusMessage = failed.isEmpty
+            ? "Updated \(pending.count) item\(pending.count == 1 ? "" : "s")."
+            : "Updated \(pending.count - failed.count) of \(pending.count). Failed: \(failed.joined(separator: ", ")) — select one and press Update to see why."
+        isWorking = false
+        await load()
     }
 
     func measureVisibleSizes() {

@@ -8,6 +8,11 @@ enum DevToolKind: String, CaseIterable, Identifiable, Sendable {
     var id: String { rawValue }
 }
 
+struct ShellCommand: Hashable, Sendable {
+    let path: String
+    let arguments: [String]
+}
+
 enum DevToolRemoval: Hashable, Sendable {
     case trash(String)
     case command(path: String, arguments: [String])
@@ -25,6 +30,7 @@ struct DevTool: Identifiable, Hashable, Sendable {
     var note: String?
     var isDependency = false
     var isActive = false
+    var updateCommand: ShellCommand?
     let removal: DevToolRemoval
 
     var id: String { "\(kind.rawValue)|\(source)|\(name)|\(path)" }
