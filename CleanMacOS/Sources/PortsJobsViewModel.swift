@@ -4,6 +4,7 @@ import SwiftUI
 enum PortsJobsTab: String, CaseIterable, Identifiable {
     case ports = "Ports"
     case jobs = "Scheduled Jobs"
+    case loginItems = "Login Items"
 
     var id: String { rawValue }
 }
@@ -13,6 +14,7 @@ enum PortsJobsConfirmation {
     case turnOff(ScheduledJob)
     case stopJob(ScheduledJob)
     case deleteJob(ScheduledJob)
+    case forgetLoginItem(LoginItem)
 
     var title: String {
         switch self {
@@ -20,6 +22,7 @@ enum PortsJobsConfirmation {
         case .turnOff(let job): "Turn off \(job.label)?"
         case .stopJob(let job): "Stop \(job.label)?"
         case .deleteJob(let job): "Delete \(job.label)?"
+        case .forgetLoginItem(let item): "Remove \(item.name) from Login Items?"
         }
     }
 
@@ -31,6 +34,7 @@ enum PortsJobsConfirmation {
         case .deleteJob(let job):
             job.cronLine.map { "This line is removed from your crontab:\n\($0)" }
                 ?? "The job is unloaded and its plist is moved to the Trash."
+        case .forgetLoginItem: "It no longer opens at login and disappears from this list. The app itself is not deleted."
         }
     }
 
@@ -40,6 +44,7 @@ enum PortsJobsConfirmation {
         case .turnOff: "Turn Off"
         case .stopJob: "Stop"
         case .deleteJob: "Delete"
+        case .forgetLoginItem: "Remove"
         }
     }
 }
@@ -49,6 +54,8 @@ final class PortsJobsViewModel: ObservableObject {
     @Published var tab: PortsJobsTab = .ports
     @Published var ports: [ListeningPort] = []
     @Published var jobs: [ScheduledJob] = []
+    @Published var loginItems: [LoginItem] = []
+    @Published var selectedLoginItemID: LoginItem.ID?
     @Published var searchText = ""
     @Published var showsSystemJobs = false
     @Published var selectedPortID: ListeningPort.ID?
@@ -64,13 +71,15 @@ final class PortsJobsViewModel: ObservableObject {
     private let portsService: PortsService
     private let jobsService: ScheduledJobsService
     private let processService: ProcessService
+    private let loginItemsService: LoginItemsService
     private var refreshTask: Task<Void, Never>?
 
     init(portsService: PortsService = PortsService(), jobsService: ScheduledJobsService = ScheduledJobsService(),
-         processService: ProcessService = ProcessService()) {
+         processService: ProcessService = ProcessService(), loginItemsService: LoginItemsService = LoginItemsService()) {
         self.portsService = portsService
         self.jobsService = jobsService
         self.processService = processService
+        self.loginItemsService = loginItemsService
     }
 
     var filteredPorts: [ListeningPort] {
@@ -81,8 +90,13 @@ final class PortsJobsViewModel: ObservableObject {
         jobs.filter { (showsSystemJobs || $0.source == .userAgent || $0.source == .cron) && matches("\($0.label) \($0.command)") }
     }
 
+    var filteredLoginItems: [LoginItem] {
+        loginItems.filter { matches("\($0.name) \($0.path ?? "")") }
+    }
+
     var selectedPort: ListeningPort? { ports.first { $0.id == selectedPortID } }
     var selectedJob: ScheduledJob? { jobs.first { $0.id == selectedJobID } }
+    var selectedLoginItem: LoginItem? { loginItems.first { $0.id == selectedLoginItemID } }
 
     var isConfirming: Binding<Bool> {
         Binding(get: { self.confirmation != nil }, set: { if !$0 { self.confirmation = nil } })
@@ -110,6 +124,7 @@ final class PortsJobsViewModel: ObservableObject {
         async let listedJobs = jobsService.list()
         ports = await listedPorts
         jobs = await listedJobs
+        loginItems = loginItemsService.list()
         isRefreshing = false
         await loadDetails()
     }
@@ -140,7 +155,25 @@ final class PortsJobsViewModel: ObservableObject {
         case .deleteJob(let job):
             await perform { try await self.jobsService.delete(job) }
             selectedJobID = nil
+        case .forgetLoginItem(let item):
+            await perform { try self.loginItemsService.forget(item) }
+            selectedLoginItemID = nil
         }
+    }
+
+    func setLoginItem(_ item: LoginItem, enabled: Bool) async {
+        await perform {
+            if enabled { try self.loginItemsService.turnOn(item) } else { try self.loginItemsService.turnOff(item) }
+        }
+    }
+
+    func addLoginItem() async {
+        let panel = NSOpenPanel()
+        panel.directoryURL = URL(fileURLWithPath: "/Applications")
+        panel.allowedContentTypes = [.application]
+        panel.prompt = "Open at Login"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        await perform { try self.loginItemsService.add(url) }
     }
 
     func runNow(_ job: ScheduledJob) async {

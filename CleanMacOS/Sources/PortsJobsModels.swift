@@ -82,3 +82,17 @@ enum PortsJobsError: LocalizedError {
         }
     }
 }
+
+struct LoginItem: Identifiable, Hashable, Sendable {
+    let name: String
+    let path: String?
+    let isEnabled: Bool
+    let isMissing: Bool
+
+    var id: String { path ?? name }
+
+    var statusLabel: String {
+        if isMissing { return "App not found" }
+        return isEnabled ? "Opens at login" : "Off"
+    }
+}
