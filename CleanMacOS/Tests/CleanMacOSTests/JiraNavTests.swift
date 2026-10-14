@@ -24,7 +24,7 @@ struct JiraNavTests {
     }
 
     @MainActor @Test func selectingUpdatesNavAndIssuesNewRequest() {
-        let jira = JiraViewModel(keychain: KeychainStore(service: "test.jira.nav.\(UUID())"))
+        let jira = JiraViewModel(tokenStore: TokenFileStore(fileURL: FileManager.default.temporaryDirectory.appendingPathComponent("nav-\(UUID())")), legacyKeychain: nil)
         jira.selectNav(list: "done")
         jira.selectNav(view: "board")
         #expect(jira.nav.list == "done")

@@ -16,7 +16,7 @@ final class JiraViewModel: ObservableObject {
     @Published private(set) var menuError: String?
     @Published private(set) var menuUpdatedAt: Date?
 
-    private let keychain: KeychainStore
+    private let tokenStore: TokenFileStore
     private var token: String?
     private let kpiStore: JiraKpiStore
     private var menuLoop: Task<Void, Never>?
@@ -28,11 +28,23 @@ final class JiraViewModel: ObservableObject {
         onChange: { [weak self] keys in self?.publishRemoteChange(keys) }
     )
 
-    init(keychain: KeychainStore = KeychainStore(), kpiStore: JiraKpiStore = JiraKpiStore()) {
-        self.keychain = keychain
+    nonisolated static let tokenMovedKey = "jira.tokenMovedToFile"
+
+    init(tokenStore: TokenFileStore = TokenFileStore(), legacyKeychain: KeychainStore? = KeychainStore(),
+         kpiStore: JiraKpiStore = JiraKpiStore()) {
+        self.tokenStore = tokenStore
         self.kpiStore = kpiStore
-        token = keychain.read()
+        token = Self.loadToken(store: tokenStore, legacy: legacyKeychain, defaults: .standard)
         service = Self.makeService(token: token)
+    }
+
+    nonisolated static func loadToken(store: TokenFileStore, legacy: KeychainStore?, defaults: UserDefaults) -> String? {
+        if let token = store.read() { return token }
+        guard let legacy, !defaults.bool(forKey: tokenMovedKey) else { return nil }
+        defaults.set(true, forKey: tokenMovedKey)
+        guard let token = legacy.read() else { return nil }
+        try? store.save(token)
+        return token
     }
 
     var isConfigured: Bool { service != nil }
@@ -126,7 +138,7 @@ final class JiraViewModel: ObservableObject {
 
     func saveToken(_ token: String) throws {
         let trimmed = token.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmed.isEmpty { keychain.delete() } else { try keychain.save(trimmed) }
+        if trimmed.isEmpty { tokenStore.delete() } else { try tokenStore.save(trimmed) }
         self.token = trimmed.isEmpty ? nil : trimmed
     }
 
