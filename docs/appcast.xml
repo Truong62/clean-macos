@@ -9,6 +9,20 @@
     <!-- Paste new <item> blocks here when releasing (newest first) -->
 
     <item>
+      <title>Version 1.0.26</title>
+      <pubDate>Wed, 14 Oct 2026 08:40:02 +0700</pubDate>
+      <sparkle:version>27</sparkle:version>
+      <sparkle:shortVersionString>1.0.26</sparkle:shortVersionString>
+      <description><![CDATA[
+        <ul><li>The Jira token is now stored in a private file on your Mac instead of the Keychain, so updates no longer ask for your Keychain password. You may see the Keychain prompt one last time while the token moves over.</li></ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/Truong62/clean-macos/releases/download/v1.0.26/CleanMacOS-1.0.26.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="Rh0V98Z4Qz26JTAUsHhlzLK9gXCEiJ0oa6j8Jx7ZK9FirQeJLLp7PsnDvZJFSE7h1UgRe6jIuNrTu8di+4YvDA==" length="4148191" />
+    </item>
+
+    <item>
       <title>Version 1.0.25</title>
       <pubDate>Tue, 13 Oct 2026 17:40:27 +0700</pubDate>
       <sparkle:version>26</sparkle:version>
