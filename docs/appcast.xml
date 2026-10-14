@@ -9,6 +9,20 @@
     <!-- Paste new <item> blocks here when releasing (newest first) -->
 
     <item>
+      <title>Version 1.0.28</title>
+      <pubDate>Wed, 14 Oct 2026 09:48:36 +0700</pubDate>
+      <sparkle:version>29</sparkle:version>
+      <sparkle:shortVersionString>1.0.28</sparkle:shortVersionString>
+      <description><![CDATA[
+        <ul><li>Redesigned Clean Disk: a clear overview with disk usage and what is ready to clean, category filters, project paths under every item, a live scan progress view and a bottom bar to review and clean</li><li>Fixed clicking a row in Clean Disk clearing the items you had checked; deleting a Time Machine snapshot now asks first and no longer freezes the app</li><li>Dev Tools can now update outdated Homebrew formulae, casks and global npm packages, one by one or all at once</li><li>New About page with the real app icon, Check for Updates and shortcuts to every tool</li></ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/Truong62/clean-macos/releases/download/v1.0.28/CleanMacOS-1.0.28.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="EIxTd8k6HSey6QyNoQgCA4P3xIz25LSGudztgMdKlrEZdTzegMCys7QsuxJLM8FtIy3OUjZdRSX/DbGRVoKeDQ==" length="4404335" />
+    </item>
+
+    <item>
       <title>Version 1.0.27</title>
       <pubDate>Wed, 14 Oct 2026 09:08:27 +0700</pubDate>
       <sparkle:version>28</sparkle:version>
