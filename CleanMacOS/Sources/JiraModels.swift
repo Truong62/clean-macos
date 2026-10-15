@@ -445,9 +445,10 @@ enum JiraCSV {
 struct JiraWatchFields: Equatable {
     let assignees: [String]
     let reviewers: String?
+    var memberFieldNames: Set<String> = []
 
     var jqlFields: String {
-        (["summary", "updated", "description", "comment", "status"] + assignees + [reviewers].compactMap { $0 }).joined(separator: ",")
+        (["summary", "updated", "description", "comment", "reporter", "watches"] + assignees + [reviewers].compactMap { $0 }).joined(separator: ",")
     }
 }
 
@@ -472,7 +473,7 @@ struct JiraWatchState: Codable, Equatable {
     var mentionedIn: Set<String> = []
     var since: Date
     var teams: [String: [String: String]]?
-    var statuses: [String: String]?
+    var notifiedChanges: Set<String>?
 }
 
 struct JiraEvent: Equatable {
@@ -482,7 +483,7 @@ struct JiraEvent: Equatable {
         case comment
         case mention
         case team
-        case status
+        case change
     }
 
     let kind: Kind
@@ -517,15 +518,14 @@ enum JiraEvents {
                 events.append(JiraEvent(kind: .reviewer, key: key, title: key,
                                         message: "You were added as reviewer: \(summary)"))
             }
-            let isMember = isMine || isReviewer
+            let isWatching = (values["watches"] as? JiraJSON)?["isWatching"] as? Bool ?? false
+            let isMember = isMine || isReviewer || isWatching || includes(values["reporter"], me)
             let members = isMember ? team(values, me: me, fields: fields) : nil
             if let event = teamEvent(key: key, summary: summary, previous: remember(key, members, in: &next.teams), members: members) {
                 events.append(event)
             }
-            let status = isMember ? (values["status"] as? JiraJSON)?["name"] as? String : nil
-            if let from = remember(key, status, in: &next.statuses), let to = status, from != to,
-               let event = statusEvent(issue, summary: summary, from: from, to: to, me: me) {
-                events.append(event)
+            if isMember {
+                events += changeEvents(issue, summary: summary, me: me, fields: fields, since: state.since, notified: &next.notifiedChanges)
             }
             if track(key, mentions(values["description"] as? String ?? "", me), in: &next.mentionedIn) {
                 events.append(JiraEvent(kind: .mention, key: key, title: "\(key) · \(summary)",
@@ -533,9 +533,9 @@ enum JiraEvents {
             }
             for comment in (values["comment"] as? JiraJSON)?["comments"] as? [JiraJSON] ?? [] {
                 guard let id = comment["id"] as? String, !next.notifiedComments.contains(id),
-                      isRelevant(comment, me: me, isMine: isMine || isReviewer, since: state.since) else { continue }
+                      isRelevant(comment, me: me, isMine: isMember, since: state.since) else { continue }
                 next.notifiedComments.insert(id)
-                events.append(commentEvent(key: key, summary: summary, comment: comment, isMine: isMine || isReviewer))
+                events.append(commentEvent(key: key, summary: summary, comment: comment, isMine: isMember))
             }
         }
         return (events, next)
@@ -553,16 +553,49 @@ enum JiraEvents {
         return previous
     }
 
-    private static func statusEvent(_ issue: JiraJSON, summary: String, from: String, to: String, me: String) -> JiraEvent? {
-        let histories = (issue["changelog"] as? JiraJSON)?["histories"] as? [JiraJSON] ?? []
-        let change = histories
-            .filter { ($0["items"] as? [JiraJSON] ?? []).contains { $0["field"] as? String == "status" } }
-            .max { ($0["created"] as? String ?? "") < ($1["created"] as? String ?? "") }
-        let author = change?["author"] as? JiraJSON
-        guard author.flatMap(identity) != me else { return nil }
-        let who = (author?["displayName"] as? String).map { "\($0): " } ?? ""
+    static let longTextFields: Set<String> = ["description", "environment"]
+    static let changeValueChars = 60
+    static let skippedChangeFields: Set<String> = ["comment", "resolution", "rank", "workflow"]
+
+    static func batched(_ events: [JiraEvent], limit: Int) -> [JiraEvent] {
+        guard events.count > limit else { return events }
+        let keys = events.map(\.key).filter { !$0.isEmpty }.reduce(into: [String]()) { if !$0.contains($1) { $0.append($1) } }
+        let shown = keys.prefix(4).joined(separator: ", ") + (keys.count > 4 ? " and more" : "")
+        return [JiraEvent(kind: .change, key: keys.count == 1 ? keys[0] : "", title: "Jira",
+                          message: "\(events.count) updates on \(shown)")]
+    }
+
+    private static func changeEvents(_ issue: JiraJSON, summary: String, me: String, fields: JiraWatchFields,
+                                     since: Date, notified: inout Set<String>?) -> [JiraEvent] {
         let key = issue["key"] as? String ?? ""
-        return JiraEvent(kind: .status, key: key, title: "\(key) · \(summary)", message: "\(who)\(from) → \(to)")
+        let histories = (issue["changelog"] as? JiraJSON)?["histories"] as? [JiraJSON] ?? []
+        return histories.compactMap { entry in
+            guard let id = entry["id"] as? String, notified?.contains(id) != true,
+                  let created = (entry["created"] as? String).flatMap(jiraTimeFormatter.date(from:)), created > since,
+                  let author = entry["author"] as? JiraJSON, identity(author) != me else { return nil }
+            let skipped = fields.memberFieldNames.union(skippedChangeFields)
+            let lines = (entry["items"] as? [JiraJSON] ?? [])
+                .filter { !skipped.contains(($0["field"] as? String ?? "").lowercased()) }
+                .map(describeChange)
+            guard !lines.isEmpty else { return nil }
+            notified = (notified ?? []).union([id])
+            let who = author["displayName"] as? String ?? identity(author) ?? ""
+            return JiraEvent(kind: .change, key: key, title: "\(key) · \(summary)",
+                             message: "\(who): \(lines.joined(separator: " · "))")
+        }
+    }
+
+    private static func describeChange(_ item: JiraJSON) -> String {
+        let raw = item["field"] as? String ?? "Field"
+        let field = raw.prefix(1).uppercased() + raw.dropFirst()
+        if longTextFields.contains(raw.lowercased()) { return "\(field) updated" }
+        let short = { (value: String) in value.count > changeValueChars ? value.prefix(changeValueChars) + "…" : value }
+        switch (item["fromString"] as? String, item["toString"] as? String) {
+        case let (from?, to?): return "\(field) \(short(from)) → \(short(to))"
+        case let (nil, to?): return "\(field): \(short(to))"
+        case let (from?, nil): return "\(field) removed: \(short(from))"
+        case (nil, nil): return "\(field) updated"
+        }
     }
 
     private static func teamEvent(key: String, summary: String, previous: [String: String]?, members: [String: String]?) -> JiraEvent? {

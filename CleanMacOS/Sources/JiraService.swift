@@ -222,8 +222,10 @@ actor JiraService {
     func watchFields() async throws -> JiraWatchFields {
         let map = try await fieldMap()
         let assignees = [map[.assignees], "assignee"].compactMap { $0 }
+        let memberNames = [map.names[.assignees], map.names[.reviewers], JiraFieldDiscovery.standardAssignee.name]
         return JiraWatchFields(assignees: assignees.reduce(into: []) { if !$0.contains($1) { $0.append($1) } },
-                               reviewers: map[.reviewers])
+                               reviewers: map[.reviewers],
+                               memberFieldNames: Set(memberNames.compactMap { $0?.lowercased() }))
     }
 
     func myKeys(inAnyOf fieldIds: [String]) async throws -> Set<String> {
