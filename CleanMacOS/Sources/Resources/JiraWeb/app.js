@@ -1276,11 +1276,45 @@ function panelTopBar(key, type = '', url = '') {
     ${link}<button type="button" data-close-panel aria-label="Close" title="Close" class="${iconButton}">${icon('x')}</button></div>`;
 }
 
+const linkedCount = (d) => (d.parentKey && findIssue(d.parentKey) ? 1 : 0) + state.issues.filter((i) => i.parentKey === d.key).length;
+const emptyTab = (text) => `<p class="py-2 text-sm text-muted">${text}</p>`;
+const PANEL_TABS = [
+  { id: 'overview', label: 'Details', count: () => 0, html: (d) => `${warningBanner(d)}${propsHtml(d)}${extraFieldsHtml(d)}${descriptionHtml(d)}` },
+  { id: 'comments', label: 'Comments', count: (d) => d.comments.length, html: commentsHtml },
+  { id: 'linked', label: 'Linked', count: linkedCount, html: (d) => linkedHtml(d) || emptyTab('No parent, bugs or sub-tasks.') },
+  { id: 'files', label: 'Files', count: (d) => (d.attachments || []).length, html: attachmentsHtml },
+  { id: 'activity', label: 'Activity', count: (d) => (d.history || []).length, html: activityHtml },
+];
+let panelTab = 'overview';
+
+function panelTabsHtml(d) {
+  return `<div role="tablist" aria-label="Task sections" class="-mx-2 -mb-4 mt-2 flex gap-0.5 overflow-x-auto">${PANEL_TABS.map((tab) => {
+    const count = tab.count(d);
+    return `<button type="button" role="tab" data-panel-tab="${tab.id}" aria-selected="${tab.id === panelTab}" class="flex shrink-0 cursor-pointer items-center gap-1 border-b-2 border-transparent px-2 pt-1 pb-2.5 text-sm font-medium whitespace-nowrap text-muted outline-hidden transition-colors hover:text-foreground aria-selected:border-foreground aria-selected:text-foreground">${tab.label}<span data-tab-count="${tab.id}" class="tabular-nums text-xs text-muted">${count || ''}</span></button>`;
+  }).join('')}</div>`;
+}
+
+function selectPanelTab(id) {
+  panelTab = id;
+  document.querySelectorAll('[data-panel-tab]').forEach((el) => el.setAttribute('aria-selected', String(el.dataset.panelTab === id)));
+  document.querySelectorAll('[data-tab-panel]').forEach((el) => { el.hidden = el.dataset.tabPanel !== id; });
+  const body = $('#panel-body');
+  if (body) body.scrollTop = 0;
+}
+
+function updateTabCounts(d) {
+  PANEL_TABS.forEach((tab) => {
+    const el = document.querySelector(`[data-tab-count="${tab.id}"]`);
+    if (el) el.textContent = tab.count(d) || '';
+  });
+}
+
 function panelHtml(d) {
   return `<div class="border-b border-border px-6 pt-4 pb-4">${panelTopBar(d.key, d.type, d.url)}
       <h2 class="-ml-2.25 mt-1"><textarea data-input="summary" aria-label="Title" class="block w-full resize-none [field-sizing:content] rounded-lg border border-transparent bg-transparent px-2 py-1 text-lg leading-7 font-semibold text-pretty text-foreground outline-hidden transition-colors hover:bg-foreground/5 focus:border-focus focus:ring-2 focus:ring-focus">${esc(d.summary)}</textarea></h2>
+      ${panelTabsHtml(d)}
     </div>
-    <div class="flex-1 overflow-y-auto px-6 py-6"><div class="flex flex-col gap-6">${warningBanner(d)}${propsHtml(d)}${extraFieldsHtml(d)}${linkedHtml(d)}${descriptionHtml(d)}${attachmentsHtml(d)}${commentsHtml(d)}${activityHtml(d)}</div></div>`;
+    <div id="panel-body" class="flex-1 overflow-y-auto px-6 py-6">${PANEL_TABS.map((tab) => `<div data-tab-panel="${tab.id}" role="tabpanel" class="flex flex-col gap-6" ${tab.id === panelTab ? '' : 'hidden'}>${tab.html(d)}</div>`).join('')}</div>`;
 }
 
 function panelSkeleton(key) {
@@ -1306,6 +1340,7 @@ function applyRemoteDetail(detail) {
   state.detail = detail;
   $('#comment-list').innerHTML = commentListHtml(detail);
   $('#comment-count').textContent = detail.comments.length || '';
+  updateTabCounts(detail);
   const activity = $('#activity');
   if (activity) activity.outerHTML = activityHtml(detail, Boolean(activity.querySelector('details')?.open));
 }
@@ -1653,6 +1688,7 @@ const CLICK_ACTIONS = [
   ['[data-toggle]', (el) => { state.expanded.set(el.dataset.toggle, el.getAttribute('aria-expanded') !== 'true'); render(); }],
   ['[data-retry]', loadAll],
   ['[data-action]', (el) => PANEL_ACTIONS[el.dataset.action]?.()],
+  ['[data-panel-tab]', (el) => selectPanelTab(el.dataset.panelTab)],
   ['[data-star]', dismissStarCard],
   ['[data-linked-toggle]', toggleLinked],
   ['[data-linked-reply]', (el) => sendLinkedReply(el.dataset.linkedReply)],
@@ -1828,6 +1864,7 @@ function bindPanelResize() {
   try { saved = Number(localStorage.getItem(PANEL_WIDTH_KEY)) || 0; } catch {}
   applyPanelWidth(saved || PANEL_DEFAULT_WIDTH);
   const resizer = $('#panel-resizer');
+  resizer.innerHTML = `<span class="pointer-events-none absolute top-1/2 left-1/2 flex h-12 w-4 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-border-strong bg-surface text-muted shadow-sm transition-colors group-hover:border-focus group-hover:text-foreground">${icon('grip-vertical', 'size-3.5')}</span>`;
   resizer.addEventListener('pointerdown', (event) => {
     event.preventDefault();
     document.body.style.cursor = 'col-resize';
