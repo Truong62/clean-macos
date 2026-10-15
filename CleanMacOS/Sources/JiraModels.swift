@@ -546,3 +546,35 @@ enum JiraEvents {
                          message: "\(author): \(preview)")
     }
 }
+
+struct JiraProjectOption: Identifiable, Hashable {
+    let key: String
+    let name: String
+    var id: String { key }
+
+    static func parse(_ projects: [JiraJSON]) -> [JiraProjectOption] {
+        projects
+            .compactMap { project in
+                (project["key"] as? String).map { JiraProjectOption(key: $0, name: project["name"] as? String ?? $0) }
+            }
+            .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+    }
+}
+
+struct JiraBoardOption: Identifiable, Hashable {
+    let id: Int
+    let name: String
+    let isScrum: Bool
+
+    static func parse(_ boards: [JiraJSON]) -> [JiraBoardOption] {
+        boards.compactMap { board in
+            (board["id"] as? Int).map {
+                JiraBoardOption(id: $0, name: board["name"] as? String ?? "Board \($0)", isScrum: board["type"] as? String == "scrum")
+            }
+        }
+    }
+
+    static func preferred(in boards: [JiraBoardOption], current: Int?) -> JiraBoardOption? {
+        boards.first { $0.id == current } ?? boards.first(where: \.isScrum) ?? boards.first
+    }
+}
