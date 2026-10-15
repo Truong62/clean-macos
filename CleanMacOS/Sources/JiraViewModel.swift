@@ -47,7 +47,7 @@ final class JiraViewModel: ObservableObject {
         return token
     }
 
-    var isConfigured: Bool { service != nil }
+    var isConfigured: Bool { service != nil && !JiraSettings.projectKey.isEmpty }
 
     var hasToken: Bool { !(token ?? "").isEmpty }
 

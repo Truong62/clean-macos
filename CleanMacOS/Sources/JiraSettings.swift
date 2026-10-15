@@ -5,6 +5,12 @@ enum JiraSettings {
     enum AuthKind: String, CaseIterable {
         case server
         case cloud
+
+        // ponytail: Cloud sites on a custom domain would be treated as Server; add a manual switch if one shows up
+        init(domain: String) {
+            let host = URL(string: domain)?.host?.lowercased() ?? ""
+            self = host.hasSuffix(".atlassian.net") ? .cloud : .server
+        }
     }
 
     enum Role: String, CaseIterable {
@@ -15,7 +21,6 @@ enum JiraSettings {
     }
 
     static let domainKey = "jira.domain"
-    static let authKindKey = "jira.authKind"
     static let emailKey = "jira.email"
     static let projectKeyKey = "jira.projectKey"
     static let boardIdKey = "jira.boardId"
@@ -35,10 +40,7 @@ enum JiraSettings {
         set { defaults.set(normalizedDomain(newValue), forKey: domainKey) }
     }
 
-    static var authKind: AuthKind {
-        get { defaults.string(forKey: authKindKey).flatMap(AuthKind.init(rawValue:)) ?? .server }
-        set { defaults.set(newValue.rawValue, forKey: authKindKey) }
-    }
+    static var authKind: AuthKind { AuthKind(domain: domain) }
 
     static var email: String {
         get { defaults.string(forKey: emailKey) ?? "" }
@@ -104,7 +106,21 @@ enum JiraSettings {
 
     static func normalizedDomain(_ raw: String) -> String {
         var domain = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        if domain.isEmpty { return domain }
+        if !domain.contains("://") { domain = "https://" + domain }
+        if AuthKind(domain: domain) == .cloud, let url = URL(string: domain), let scheme = url.scheme, let host = url.host {
+            return "\(scheme)://\(host)"
+        }
         while domain.hasSuffix("/") { domain.removeLast() }
         return domain
+    }
+
+    static func tokenPageURL(domain: String) -> URL? {
+        switch AuthKind(domain: domain) {
+        case .cloud: return URL(string: "https://id.atlassian.com/manage-profile/security/api-tokens")
+        case .server:
+            guard !domain.isEmpty else { return nil }
+            return URL(string: domain + "/secure/ViewProfile.jspa?selectedTab=com.atlassian.pats.pats-plugin:jira-user-personal-access-tokens")
+        }
     }
 }

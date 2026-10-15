@@ -19,7 +19,7 @@ struct JiraView: View {
                             .font(.system(size: 40))
                             .foregroundStyle(.blue.gradient)
                         Text("Connect Jira").font(.title2).fontWeight(.bold)
-                        Text("Server: Jira profile → Personal Access Tokens. Cloud: id.atlassian.com → API tokens.")
+                        Text("Paste your Jira link and a token. Projects and boards are found for you.")
                             .font(.callout)
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)

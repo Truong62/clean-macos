@@ -118,6 +118,15 @@ actor JiraService {
         return try await getIssue(key)
     }
 
+    func listProjects() async throws -> [JiraProjectOption] {
+        JiraProjectOption.parse(try await client.json(path: "/rest/api/2/project") as? [JiraJSON] ?? [])
+    }
+
+    func listBoards(projectKey: String) async throws -> [JiraBoardOption] {
+        let page = try await object(path: "/rest/agile/1.0/board", query: ["projectKeyOrId": projectKey])
+        return JiraBoardOption.parse(page["values"] as? [JiraJSON] ?? [])
+    }
+
     func getBoardColumns() async throws -> [JiraJSON] {
         guard let boardId else { throw JiraError(status: 400, message: "Jira board is not set") }
         let config = try await object(path: "/rest/agile/1.0/board/\(boardId)/configuration")
