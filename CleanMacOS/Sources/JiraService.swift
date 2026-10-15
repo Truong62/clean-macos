@@ -5,7 +5,7 @@ import UniformTypeIdentifiers
 actor JiraService {
     static let pageSize = 1000
     static let userSearchLimit = 20
-    static let detailExpand = "renderedFields,transitions,editmeta"
+    static let detailExpand = "renderedFields,transitions,editmeta,changelog"
     static let sprintStates = "active,future"
     static let standardListFields = ["summary", "status", "issuetype", "priority", "created", "updated",
                                      "resolutiondate", "duedate", "parent", "issuelinks"]

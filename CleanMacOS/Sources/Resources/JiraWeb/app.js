@@ -1190,7 +1190,7 @@ function commentsHtml(d) {
   return `<section class="border-t border-border pt-5">
     <h3 class="text-sm font-semibold text-foreground">Comments <span id="comment-count" class="font-normal tabular-nums text-muted">${d.comments.length || ''}</span></h3>
     <div id="comment-list">${commentListHtml(d)}</div>
-    <div class="relative mt-2">${formatToolbar('comment-input')}<label class="block"><span class="sr-only">Add a comment</span><textarea id="comment-input" rows="3" placeholder="Add a comment — type @ to mention someone" class="${editorTextareaClass}"></textarea></label>
+    <div class="relative mt-2">${formatToolbar('comment-input')}<label class="block"><span class="sr-only">Add a comment</span><textarea id="comment-input" rows="3" placeholder="Add a comment — type @ to mention, ⌘↩ to send" class="${editorTextareaClass}"></textarea></label>
       <div id="comment-upload" role="status" hidden class="mt-2 flex items-center gap-2 rounded-lg bg-foreground/5 px-3 py-2 text-xs font-medium text-muted"><span class="size-3.5 shrink-0 animate-spin rounded-full border-2 border-foreground/20 border-t-primary"></span><span data-upload-text></span></div>
       <div id="comment-images" hidden class="mt-2 flex flex-wrap gap-2"></div>
       <ul id="mention-results" hidden class="absolute bottom-full left-0 z-30 mb-1 max-h-64 w-72 overflow-y-auto rounded-xl border border-border bg-surface p-1 shadow-lg"></ul></div>
@@ -1199,6 +1199,42 @@ function commentsHtml(d) {
       <button type="button" data-action="attach-image" aria-label="Attach image" title="Attach image (or paste into the box)" class="${iconButton} mr-auto">${icon('image-plus')}</button>
       <button type="button" data-action="add-comment" disabled class="${buttonPrimary}">Comment</button></div>
   </section>`;
+}
+
+const ACTIVITY_PREVIEW = 5;
+const ACTIVITY_VALUE_CHARS = 140;
+const LONG_TEXT_FIELDS = ['description', 'environment'];
+
+function activityValue(value) {
+  const text = value.length > ACTIVITY_VALUE_CHARS ? `${value.slice(0, ACTIVITY_VALUE_CHARS)}…` : value;
+  return esc(text);
+}
+
+function activityChange(item) {
+  const name = item.field ? item.field[0].toUpperCase() + item.field.slice(1) : 'Field';
+  const field = `<span class="font-medium text-foreground">${esc(name)}</span>`;
+  if (LONG_TEXT_FIELDS.includes(item.field?.toLowerCase())) return `Updated ${field}`;
+  if (!item.from) return `${field} <span class="text-muted">added</span> ${activityValue(item.to || '')}`;
+  if (!item.to) return `${field} <span class="text-muted">removed</span> <span class="text-muted line-through">${activityValue(item.from)}</span>`;
+  return `${field} <span class="text-muted line-through">${activityValue(item.from)}</span> <span class="text-muted">→</span> ${activityValue(item.to)}`;
+}
+
+function activityEntry(entry) {
+  const who = entry.author || { displayName: 'Jira', avatar: '' };
+  const face = who.avatar ? avatar(who) : '<span class="size-6 shrink-0 rounded-full bg-foreground/10"></span>';
+  return `<li class="flex items-start gap-2 py-1.5">${face}
+    <div class="min-w-0 flex-1"><p class="text-xs text-muted"><span class="font-medium text-foreground">${esc(who.displayName)}</span> · ${esc(entry.created)}</p>
+    <ul class="mt-0.5 flex flex-col gap-0.5 text-sm break-words">${entry.items.map((item) => `<li>${activityChange(item)}</li>`).join('')}</ul></div></li>`;
+}
+
+function activityHtml(d, isOlderOpen = false) {
+  const entries = d.history || [];
+  const older = entries.slice(ACTIVITY_PREVIEW);
+  const more = older.length ? `<details ${isOlderOpen ? 'open' : ''}><summary class="cursor-pointer list-none px-1 py-1 text-xs font-medium text-link hover:underline">Show ${older.length} older</summary>
+    <ul class="flex flex-col">${older.map(activityEntry).join('')}</ul></details>` : '';
+  const body = entries.length ? `<ul class="mt-2 flex flex-col">${entries.slice(0, ACTIVITY_PREVIEW).map(activityEntry).join('')}</ul>${more}` : '<p class="py-2 text-sm text-muted">No changes yet.</p>';
+  return `<section id="activity" class="border-t border-border pt-5">
+    <h3 class="text-sm font-semibold text-foreground">Activity <span class="font-normal tabular-nums text-muted">${entries.length || ''}</span></h3>${body}</section>`;
 }
 
 function panelTrailTo(key) {
@@ -1222,7 +1258,7 @@ function panelHtml(d) {
   return `<div class="border-b border-border px-6 pt-4 pb-4">${panelTopBar(d.key, d.type, d.url)}
       <h2 class="-ml-2.25 mt-1"><textarea data-input="summary" aria-label="Title" class="block w-full resize-none [field-sizing:content] rounded-lg border border-transparent bg-transparent px-2 py-1 text-lg leading-7 font-semibold text-pretty text-foreground outline-hidden transition-colors hover:bg-foreground/5 focus:border-focus focus:ring-2 focus:ring-focus">${esc(d.summary)}</textarea></h2>
     </div>
-    <div class="flex-1 overflow-y-auto px-6 py-6"><div class="flex flex-col gap-6">${warningBanner(d)}${propsHtml(d)}${extraFieldsHtml(d)}${linkedHtml(d)}${descriptionHtml(d)}${attachmentsHtml(d)}${commentsHtml(d)}</div></div>`;
+    <div class="flex-1 overflow-y-auto px-6 py-6"><div class="flex flex-col gap-6">${warningBanner(d)}${propsHtml(d)}${extraFieldsHtml(d)}${linkedHtml(d)}${descriptionHtml(d)}${attachmentsHtml(d)}${commentsHtml(d)}${activityHtml(d)}</div></div>`;
 }
 
 function panelSkeleton(key) {
@@ -1248,6 +1284,8 @@ function applyRemoteDetail(detail) {
   state.detail = detail;
   $('#comment-list').innerHTML = commentListHtml(detail);
   $('#comment-count').textContent = detail.comments.length || '';
+  const activity = $('#activity');
+  if (activity) activity.outerHTML = activityHtml(detail, Boolean(activity.querySelector('details')?.open));
 }
 
 async function handleRemoteUpdate(keys) {
@@ -1670,6 +1708,13 @@ function handleChange(event) {
   if (value !== (state.detail[field] ?? '')) saveField(field, value);
 }
 
+function submitButtonFor(target) {
+  if (target.id === 'comment-input') return $('[data-action="add-comment"]');
+  if (target.id === 'description-input') return $('[data-action="save-description"]');
+  if (target.matches?.('[data-comment-edit-input]')) return target.closest('[data-comment-editor]')?.querySelector('[data-save-comment]');
+  return null;
+}
+
 function handleKeydown(event) {
   if (event.target.id === 'comment-input' && handleOptionKeys(event, $('#mention-results'))) return;
   if (event.target.matches?.('[data-person-search]')
@@ -1682,6 +1727,12 @@ function handleKeydown(event) {
   if (event.key === 'Enter' && (event.metaKey || event.ctrlKey) && event.target.dataset?.linkedInput) {
     event.preventDefault();
     return sendLinkedReply(event.target.dataset.linkedInput);
+  }
+  const submit = event.key === 'Enter' && (event.metaKey || event.ctrlKey) && submitButtonFor(event.target);
+  if (submit) {
+    event.preventDefault();
+    if (!submit.disabled) submit.click();
+    return;
   }
   if (event.key === 'Enter' && event.target.dataset?.input === 'summary') {
     event.preventDefault();
