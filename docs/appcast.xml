@@ -8,6 +8,19 @@
 
     <!-- Paste new <item> blocks here when releasing (newest first) -->
     <item>
+      <title>Version 1.0.32</title>
+      <pubDate>Thu, 15 Oct 2026 10:08:13 +0700</pubDate>
+      <sparkle:version>33</sparkle:version>
+      <sparkle:shortVersionString>1.0.32</sparkle:shortVersionString>
+      <description><![CDATA[
+        <ul><li>Jira task panel is split into tabs: Details, Comments, Linked, Files and Activity, with live counts</li><li>The task panel edge now shows a grip so it is clear you can drag it wider (double-click to reset)</li></ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/Truong62/clean-macos/releases/download/v1.0.32/CleanMacOS-1.0.32.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="5seco+LOLmTmYgK4MjfxihpVQ92d5y6vKgL7ibKdeGHj27J/Ju9R5I4aI1232nDdDpNSIfgGIeWwWM3cgpNqDg==" length="4452305" />
+    </item>
+    <item>
       <title>Version 1.0.31</title>
       <pubDate>Thu, 15 Oct 2026 10:00:48 +0700</pubDate>
       <sparkle:version>32</sparkle:version>
