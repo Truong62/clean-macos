@@ -411,6 +411,32 @@ struct JiraEventsTests {
         #expect(detect([mentioned], cleared).0.map(\.kind) == [.mention])
     }
 
+    @Test func notifiesPeopleJoiningAndLeavingMyTask() {
+        let (baseline, seen) = detect([issue(assignees: ["truongnn", "tony"])], state(known: ["FAL-1"]))
+        #expect(baseline == [])
+        let (events, next) = detect([issue(assignees: ["truongnn", "an"], reviewers: ["lam"])], seen)
+        #expect(events.map(\.kind) == [.team])
+        #expect(events.first?.title == "FAL-1 · Dev Zone")
+        #expect(events.first?.message == "Joined: an, lam (reviewer) · Left: tony")
+        #expect(detect([issue(assignees: ["truongnn", "an"], reviewers: ["lam"])], next).0 == [])
+    }
+
+    @Test func noTeamNoticeWhenIJoinOrOnOthersTasks() {
+        let (joined, _) = detect([issue(assignees: ["truongnn", "tony"])], state())
+        #expect(joined.map(\.kind) == [.assigned])
+        let (_, watching) = detect([issue(assignees: ["truongnn", "tony"])], state(known: ["FAL-1"]))
+        let (left, after) = detect([issue(assignees: ["an"])], watching)
+        #expect(left == [])
+        #expect(after.teams?["FAL-1"] == nil)
+    }
+
+    @Test func decodesWatchStateSavedBeforeTeams() throws {
+        let old = #"{"knownAssigned":["FAL-1"],"knownReviewing":[],"notifiedComments":[],"mentionedIn":[],"since":0}"#
+        let decoded = try JSONDecoder().decode(JiraWatchState.self, from: Data(old.utf8))
+        #expect(decoded.knownAssigned == ["FAL-1"])
+        #expect(decoded.teams == nil)
+    }
+
     @Test func ignoresOwnOldAndUnrelatedComments() {
         let comments = [comment("1", author: "truongnn"), comment("2", created: "2026-10-08T09:00:00.000+0700")]
         let (mine, _) = detect([issue(comments: comments)], state(known: ["FAL-1"]))
