@@ -8,6 +8,19 @@
 
     <!-- Paste new <item> blocks here when releasing (newest first) -->
     <item>
+      <title>Version 1.0.31</title>
+      <pubDate>Thu, 15 Oct 2026 10:00:48 +0700</pubDate>
+      <sparkle:version>32</sparkle:version>
+      <sparkle:shortVersionString>1.0.31</sparkle:shortVersionString>
+      <description><![CDATA[
+        <ul><li>Jira notifications now cover every change others make on tasks you work on, report or watch — status, priority, sprint, points, links, attachments and more — with who made it</li><li>Comments on tasks you report or watch now notify you too; bursts of updates are grouped into one notification</li><li>Each Jira status has its own color in the table, board and task panel</li></ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/Truong62/clean-macos/releases/download/v1.0.31/CleanMacOS-1.0.31.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="j25PS6QWfLzPeXkinquVE1i821KqnnF33Gxo2XjQMjrRL0G7URWI5GNCOALni0MvmBitTPjP5g6Q4amIx+KWBg==" length="4451767" />
+    </item>
+    <item>
       <title>Version 1.0.30</title>
       <pubDate>Thu, 15 Oct 2026 09:44:03 +0700</pubDate>
       <sparkle:version>31</sparkle:version>
