@@ -52,10 +52,10 @@ actor JiraService {
         try await search(jql: jql, fields: "key").compactMap { $0["key"] as? String }
     }
 
-    func search(jql: String, fields: String) async throws -> [JiraJSON] {
+    func search(jql: String, fields: String, expand: String? = nil) async throws -> [JiraJSON] {
         client.authKind == .cloud
-            ? try await searchCloud(jql: jql, fields: fields)
-            : try await searchServer(jql: jql, fields: fields)
+            ? try await searchCloud(jql: jql, fields: fields, expand: expand)
+            : try await searchServer(jql: jql, fields: fields, expand: expand)
     }
 
     func getIssue(_ key: String) async throws -> JiraJSON {
@@ -234,7 +234,7 @@ actor JiraService {
 
     func issuesUpdated(since: Date, fields: JiraWatchFields, now: Date = Date()) async throws -> [JiraJSON] {
         let minutes = max(1, Int((now.timeIntervalSince(since) / 60).rounded(.up)))
-        return try await search(jql: "updated >= -\(minutes)m ORDER BY updated DESC", fields: fields.jqlFields)
+        return try await search(jql: "updated >= -\(minutes)m ORDER BY updated DESC", fields: fields.jqlFields, expand: "changelog")
     }
 
     static func jqlName(_ fieldId: String) -> String {
@@ -259,24 +259,25 @@ actor JiraService {
         return (Self.standardListFields + custom.compactMap { fields[$0] }).joined(separator: ",")
     }
 
-    private func searchServer(jql: String, fields: String) async throws -> [JiraJSON] {
+    private func searchServer(jql: String, fields: String, expand: String?) async throws -> [JiraJSON] {
         var issues: [JiraJSON] = []
         while true {
-            let page = try await object(path: "/rest/api/2/search", query: [
-                "jql": jql, "fields": fields, "maxResults": "\(Self.pageSize)", "startAt": "\(issues.count)",
-            ])
+            var query = ["jql": jql, "fields": fields, "maxResults": "\(Self.pageSize)", "startAt": "\(issues.count)"]
+            query["expand"] = expand
+            let page = try await object(path: "/rest/api/2/search", query: query)
             let batch = page["issues"] as? [JiraJSON] ?? []
             issues += batch
             if batch.isEmpty || issues.count >= page["total"] as? Int ?? 0 { return issues }
         }
     }
 
-    private func searchCloud(jql: String, fields: String) async throws -> [JiraJSON] {
+    private func searchCloud(jql: String, fields: String, expand: String?) async throws -> [JiraJSON] {
         var issues: [JiraJSON] = []
         var pageToken: String?
         repeat {
             var query = ["jql": jql, "fields": fields, "maxResults": "\(Self.pageSize)"]
             query["nextPageToken"] = pageToken
+            query["expand"] = expand
             let page = try await object(path: "/rest/api/2/search/jql", query: query)
             issues += page["issues"] as? [JiraJSON] ?? []
             pageToken = page["isLast"] as? Bool == true ? nil : page["nextPageToken"] as? String
