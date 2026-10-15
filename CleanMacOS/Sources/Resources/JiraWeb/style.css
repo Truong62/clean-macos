@@ -91,6 +91,14 @@
   }
 }
 
+[data-status] {
+  background: oklch(var(--app-bg-l) calc(var(--app-bg-c) * var(--chroma)) var(--hue));
+  color: oklch(var(--app-text-l) calc(var(--app-text-c) * var(--chroma)) var(--hue));
+}
+[data-status-text] {
+  color: oklch(var(--app-text-l) calc(var(--app-text-c) * var(--chroma)) var(--hue));
+}
+
 [data-app] {
   --hue: 0;
   --chroma: 0;
