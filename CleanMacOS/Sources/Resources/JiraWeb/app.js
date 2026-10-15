@@ -38,7 +38,6 @@ const TONE_BADGE = {
   warn: 'bg-warn-bg text-warn-text',
   archived: 'text-muted ring-1 ring-inset ring-border-strong',
 };
-const TONE_ICON = { todo: 'text-muted', progress: 'text-progress', review: 'text-review', done: 'text-done', archived: 'text-muted' };
 const TONE_COUNT = { progress: 'text-progress-text', review: 'text-review-text', done: 'text-done-text', warn: 'font-medium text-warn-text' };
 const TONE_TILE = {
   sprint: 'bg-primary/10 text-link',
@@ -46,6 +45,19 @@ const TONE_TILE = {
   warn: 'bg-warn-bg text-warn-text',
   todo: 'bg-todo-bg text-todo-text',
   done: 'bg-done-bg text-done-text',
+};
+const STATUS_COLORS = {
+  todo: [0, 0],
+  doing: [250, 1],
+  waitingtotest: [100, 1],
+  teststaging: [55, 1],
+  waitingforreview: [350, 1],
+  reviewing: [305, 1],
+  reviewdone: [215, 1],
+  'qa/qc': [20, 1],
+  waitingtolive: [65, 0.45],
+  testingproduction: [180, 1],
+  done: [150, 1],
 };
 const COLUMN_ICON = { 'To Do': 'circle', Doing: 'circle-dot', Done: 'circle-check' };
 const COLUMN_DEFS = {
@@ -183,7 +195,18 @@ function badge(label, tone) {
   return `<span class="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium ${TONE_BADGE[tone]}"><span class="size-1.5 rounded-full bg-current"></span>${esc(label)}</span>`;
 }
 
-const statusBadge = (status) => badge(status, statusTone(status));
+const statusKey = (status) => String(status || '').toLowerCase().replace(/\s+/g, '');
+
+function statusStyle(status) {
+  const key = statusKey(status);
+  const [hue, chroma] = STATUS_COLORS[key] || [[...key].reduce((sum, c) => (sum * 31 + c.charCodeAt(0)) % 360, 7), 1];
+  return `style="--hue:${hue};--chroma:${chroma}"`;
+}
+
+function statusBadge(status) {
+  if (statusTone(status) === 'archived') return badge(status, 'archived');
+  return `<span data-status ${statusStyle(status)} class="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium"><span class="size-1.5 rounded-full bg-current"></span>${esc(status)}</span>`;
+}
 const appTag = (app) => `<span data-app="${esc(app)}" class="inline-flex whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium">${esc(app)}</span>`;
 const issueAppTag = (issue) => (labels().app && issue.falconApp ? appTag(issue.falconApp) : '');
 const pointsTag = (issue, cls = '') => (labels().points && issue.devPoint ? `<span class="${cls}">${esc(pointsShort())} ${esc(issue.devPoint)}</span>` : '');
@@ -428,9 +451,8 @@ function boardColumn(column, issues) {
   const isDoneColumn = inColumn.every((issue) => issue.isDone);
   const shown = isDoneColumn ? inColumn.slice(0, BOARD_DONE_LIMIT) : inColumn;
   const hidden = inColumn.length - shown.length;
-  const tone = statusTone(column.name);
   return `<section data-col="${esc(column.name)}" class="${BOARD_COLUMN_WIDTH} shrink-0 ${DROP_CLASSES}">
-    <header class="mb-3 flex items-center gap-2 px-1">${icon(COLUMN_ICON[column.name] || 'circle-ellipsis', `size-4 ${TONE_ICON[tone]}`)}<h2 class="min-w-0 truncate text-sm font-semibold text-foreground">${esc(column.name)}</h2><span class="text-xs font-medium tabular-nums ${TONE_COUNT[tone] || 'text-muted'}">${inColumn.length}</span></header>
+    <header data-status-text ${statusStyle(column.name)} class="mb-3 flex items-center gap-2 px-1">${icon(COLUMN_ICON[column.name] || 'circle-ellipsis', 'size-4')}<h2 class="min-w-0 truncate text-sm font-semibold text-foreground">${esc(column.name)}</h2><span class="text-xs font-medium tabular-nums">${inColumn.length}</span></header>
     ${inColumn.length ? `<ul class="flex flex-col gap-3">${shown.map(boardCard).join('')}</ul>` : '<p class="grid h-24 place-items-center rounded-2xl border border-dashed border-foreground/15 text-sm text-muted">No tasks</p>'}
     ${hidden ? `<p class="mt-3 px-1 text-sm text-muted">${hidden} more in Table</p>` : ''}
   </section>`;
