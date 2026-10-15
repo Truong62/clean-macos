@@ -447,7 +447,7 @@ struct JiraWatchFields: Equatable {
     let reviewers: String?
 
     var jqlFields: String {
-        (["summary", "updated", "description", "comment"] + assignees + [reviewers].compactMap { $0 }).joined(separator: ",")
+        (["summary", "updated", "description", "comment", "status"] + assignees + [reviewers].compactMap { $0 }).joined(separator: ",")
     }
 }
 
@@ -472,6 +472,7 @@ struct JiraWatchState: Codable, Equatable {
     var mentionedIn: Set<String> = []
     var since: Date
     var teams: [String: [String: String]]?
+    var statuses: [String: String]?
 }
 
 struct JiraEvent: Equatable {
@@ -481,6 +482,7 @@ struct JiraEvent: Equatable {
         case comment
         case mention
         case team
+        case status
     }
 
     let kind: Kind
@@ -515,8 +517,14 @@ enum JiraEvents {
                 events.append(JiraEvent(kind: .reviewer, key: key, title: key,
                                         message: "You were added as reviewer: \(summary)"))
             }
-            if let event = teamChange(key: key, summary: summary, members: isMine || isReviewer ? team(values, me: me, fields: fields) : nil,
-                                      teams: &next.teams) {
+            let isMember = isMine || isReviewer
+            let members = isMember ? team(values, me: me, fields: fields) : nil
+            if let event = teamEvent(key: key, summary: summary, previous: remember(key, members, in: &next.teams), members: members) {
+                events.append(event)
+            }
+            let status = isMember ? (values["status"] as? JiraJSON)?["name"] as? String : nil
+            if let from = remember(key, status, in: &next.statuses), let to = status, from != to,
+               let event = statusEvent(issue, summary: summary, from: from, to: to, me: me) {
                 events.append(event)
             }
             if track(key, mentions(values["description"] as? String ?? "", me), in: &next.mentionedIn) {
@@ -533,17 +541,32 @@ enum JiraEvents {
         return (events, next)
     }
 
-    private static func teamChange(key: String, summary: String, members: [String: String]?,
-                                   teams: inout [String: [String: String]]?) -> JiraEvent? {
-        let previous = teams?[key]
-        guard let members else {
-            teams?[key] = nil
+    private static func remember<Value>(_ key: String, _ value: Value?, in store: inout [String: Value]?) -> Value? {
+        let previous = store?[key]
+        guard let value else {
+            store?[key] = nil
             return nil
         }
-        var all = teams ?? [:]
-        all[key] = members
-        teams = all
-        guard let previous else { return nil }
+        var all = store ?? [:]
+        all[key] = value
+        store = all
+        return previous
+    }
+
+    private static func statusEvent(_ issue: JiraJSON, summary: String, from: String, to: String, me: String) -> JiraEvent? {
+        let histories = (issue["changelog"] as? JiraJSON)?["histories"] as? [JiraJSON] ?? []
+        let change = histories
+            .filter { ($0["items"] as? [JiraJSON] ?? []).contains { $0["field"] as? String == "status" } }
+            .max { ($0["created"] as? String ?? "") < ($1["created"] as? String ?? "") }
+        let author = change?["author"] as? JiraJSON
+        guard author.flatMap(identity) != me else { return nil }
+        let who = (author?["displayName"] as? String).map { "\($0): " } ?? ""
+        let key = issue["key"] as? String ?? ""
+        return JiraEvent(kind: .status, key: key, title: "\(key) · \(summary)", message: "\(who)\(from) → \(to)")
+    }
+
+    private static func teamEvent(key: String, summary: String, previous: [String: String]?, members: [String: String]?) -> JiraEvent? {
+        guard let members, let previous else { return nil }
         let joined = members.filter { previous[$0.key] == nil }.values.sorted()
         let left = previous.filter { members[$0.key] == nil }.values.sorted()
         let parts = [("Joined", joined), ("Left", left)].filter { !$0.1.isEmpty }.map { "\($0.0): \($0.1.joined(separator: ", "))" }

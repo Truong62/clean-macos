@@ -337,8 +337,14 @@ struct JiraEventsTests {
     private let fields = JiraWatchFields(assignees: ["customfield_10700", "assignee"], reviewers: "customfield_10900")
 
     private func issue(key: String = "FAL-1", assignees: [String] = ["truongnn"], assignee: String? = nil,
-                       reviewers: [String] = [], description: String = "", comments: [JiraJSON] = []) -> JiraJSON {
-        ["key": key, "fields": [
+                       reviewers: [String] = [], description: String = "", comments: [JiraJSON] = [],
+                       status: String = "To Do", statusChangedBy: String? = nil) -> JiraJSON {
+        let changelog: JiraJSON = ["histories": statusChangedBy.map { author in
+            [["created": "2026-10-08T10:05:00.000+0700", "author": ["name": author, "displayName": author.capitalized],
+              "items": [["field": "status", "toString": status]]]]
+        } ?? []]
+        return ["key": key, "changelog": changelog, "fields": [
+            "status": ["name": status],
             "summary": "Dev Zone",
             "description": description,
             "customfield_10700": assignees.map { ["name": $0] },
@@ -456,6 +462,23 @@ struct JiraEventsTests {
         #expect(decoded.teams == nil)
     }
 
+    @Test func notifiesStatusChangeOnMyTaskWithWhoChangedIt() {
+        let (_, seen) = detect([issue()], state(known: ["FAL-1"]))
+        let moved = issue(status: "Test Staging", statusChangedBy: "tony")
+        let (events, next) = detect([moved], seen)
+        #expect(events.map(\.kind) == [.status])
+        #expect(events.first?.title == "FAL-1 · Dev Zone")
+        #expect(events.first?.message == "Tony: To Do → Test Staging")
+        #expect(detect([moved], next).0 == [])
+    }
+
+    @Test func skipsMyOwnStatusChangesAndOthersTasks() {
+        let (_, seen) = detect([issue()], state(known: ["FAL-1"]))
+        #expect(detect([issue(status: "Doing", statusChangedBy: "truongnn")], seen).0 == [])
+        let (_, other) = detect([issue(assignees: ["tony"])], state())
+        #expect(detect([issue(assignees: ["tony"], status: "Doing", statusChangedBy: "tony")], other).0 == [])
+    }
+
     @Test func ignoresOwnOldAndUnrelatedComments() {
         let comments = [comment("1", author: "truongnn"), comment("2", created: "2026-10-08T09:00:00.000+0700")]
         let (mine, _) = detect([issue(comments: comments)], state(known: ["FAL-1"]))
@@ -464,7 +487,7 @@ struct JiraEventsTests {
     }
 
     @Test func jqlFieldsIncludeEverythingDetectionReads() {
-        #expect(fields.jqlFields == "summary,updated,description,comment,customfield_10700,assignee,customfield_10900")
+        #expect(fields.jqlFields == "summary,updated,description,comment,status,customfield_10700,assignee,customfield_10900")
     }
 
     @Test func stateRoundTripsThroughJSON() throws {
