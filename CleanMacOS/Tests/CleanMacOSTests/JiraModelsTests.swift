@@ -136,6 +136,25 @@ struct JiraSummaryTests {
         #expect((row["assignees"] as? [JiraJSON])?.first?["name"] as? String == "5b10ac")
     }
 
+    @Test func historyIsNewestFirstAndSkipsEmptyEntries() {
+        let tony: JiraJSON = ["name": "tony", "displayName": "Tony"]
+        let changelog: JiraJSON = ["histories": [
+            ["created": "2026-10-14T09:00:00.000+0700", "author": tony,
+             "items": [["field": "status", "fromString": "To Do", "toString": "In Progress"]]],
+            ["created": "2026-10-15T08:30:00.000+0700", "items": [["field": "Assignees", "toString": "An"]]],
+            ["created": "2026-10-15T09:00:00.000+0700", "author": tony, "items": []],
+        ]]
+        let history = JiraFixtures.mapper.history(changelog)
+        #expect(history.map { $0["created"] as? String } == ["2026-10-15 08:30", "2026-10-14 09:00"])
+        #expect(history[0]["author"] is NSNull)
+        #expect((history[1]["author"] as? JiraJSON)?["displayName"] as? String == "Tony")
+        let item = (history[1]["items"] as? [JiraJSON])?.first
+        #expect(item?["field"] as? String == "status")
+        #expect(item?["from"] as? String == "To Do")
+        #expect(item?["to"] as? String == "In Progress")
+        #expect((history[0]["items"] as? [JiraJSON])?.first?["from"] is NSNull)
+    }
+
     @Test func cloudSprintObjects() {
         let sprint = JiraMapper.parseLastSprint([["id": 1, "name": "S1"], ["id": 2, "name": "S2"]])
         #expect(sprint.id == 2)

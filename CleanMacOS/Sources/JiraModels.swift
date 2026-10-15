@@ -80,6 +80,7 @@ struct JiraMapper {
                     "created": created.replacingOccurrences(of: "T", with: " "),
                     "bodyHtml": absolutizeLinks(comment["body"] as? String)]
         }
+        detail["history"] = history(issue["changelog"] as? JiraJSON)
         detail["transitions"] = transitions.map { transition -> JiraJSON in
             ["id": orNull(transition["id"]), "name": orNull(transition["name"]),
              "toId": orNull((transition["to"] as? JiraJSON)?["id"])]
@@ -90,6 +91,21 @@ struct JiraMapper {
             "priority": Self.allowedValues(editmeta, fieldId: "priority", labelKey: "name"),
         ]
         return detail
+    }
+
+    func history(_ changelog: JiraJSON?) -> [JiraJSON] {
+        let histories = changelog?["histories"] as? [JiraJSON] ?? []
+        return histories
+            .sorted { ($0["created"] as? String ?? "") > ($1["created"] as? String ?? "") }
+            .compactMap { entry -> JiraJSON? in
+                let items = (entry["items"] as? [JiraJSON] ?? []).map { item -> JiraJSON in
+                    ["field": orNull(item["field"]), "from": orNull(item["fromString"]), "to": orNull(item["toString"])]
+                }
+                guard !items.isEmpty else { return nil }
+                return ["author": (entry["author"] as? JiraJSON).map(user) ?? NSNull(),
+                        "created": (Self.prefix(entry["created"], 16) ?? "").replacingOccurrences(of: "T", with: " "),
+                        "items": items]
+            }
     }
 
     func attachment(_ raw: JiraJSON) -> JiraJSON {

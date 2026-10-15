@@ -90,7 +90,7 @@ struct JiraServiceTests {
         let body = try JSONSerialization.jsonObject(with: post.httpBody!) as? JiraJSON
         #expect((body?["transition"] as? JiraJSON)?["id"] as? String == "251")
         let refetch = try #require(transport.requests.last { $0.url!.path == "/rest/api/2/issue/FAL-1" })
-        #expect(query(refetch, "expand") == "renderedFields,transitions,editmeta")
+        #expect(query(refetch, "expand") == "renderedFields,transitions,editmeta,changelog")
     }
 
     @Test func rejectsInvalidKeyAndUnknownColumn() async {
