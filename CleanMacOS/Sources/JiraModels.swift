@@ -455,6 +455,7 @@ struct JiraWatchState: Codable, Equatable {
     var notifiedComments: Set<String> = []
     var mentionedIn: Set<String> = []
     var since: Date
+    var teams: [String: [String: String]]?
 }
 
 struct JiraEvent: Equatable {
@@ -463,6 +464,7 @@ struct JiraEvent: Equatable {
         case reviewer
         case comment
         case mention
+        case team
     }
 
     let kind: Kind
@@ -497,6 +499,10 @@ enum JiraEvents {
                 events.append(JiraEvent(kind: .reviewer, key: key, title: key,
                                         message: "You were added as reviewer: \(summary)"))
             }
+            if let event = teamChange(key: key, summary: summary, members: isMine || isReviewer ? team(values, me: me, fields: fields) : nil,
+                                      teams: &next.teams) {
+                events.append(event)
+            }
             if track(key, mentions(values["description"] as? String ?? "", me), in: &next.mentionedIn) {
                 events.append(JiraEvent(kind: .mention, key: key, title: "\(key) · \(summary)",
                                         message: "You were mentioned in the description"))
@@ -509,6 +515,36 @@ enum JiraEvents {
             }
         }
         return (events, next)
+    }
+
+    private static func teamChange(key: String, summary: String, members: [String: String]?,
+                                   teams: inout [String: [String: String]]?) -> JiraEvent? {
+        let previous = teams?[key]
+        guard let members else {
+            teams?[key] = nil
+            return nil
+        }
+        var all = teams ?? [:]
+        all[key] = members
+        teams = all
+        guard let previous else { return nil }
+        let joined = members.filter { previous[$0.key] == nil }.values.sorted()
+        let left = previous.filter { members[$0.key] == nil }.values.sorted()
+        let parts = [("Joined", joined), ("Left", left)].filter { !$0.1.isEmpty }.map { "\($0.0): \($0.1.joined(separator: ", "))" }
+        guard !parts.isEmpty else { return nil }
+        return JiraEvent(kind: .team, key: key, title: "\(key) · \(summary)", message: parts.joined(separator: " · "))
+    }
+
+    private static func team(_ values: JiraJSON, me: String, fields: JiraWatchFields) -> [String: String] {
+        let roles = [(fields.assignees, ""), ([fields.reviewers].compactMap { $0 }, " (reviewer)")]
+        var members: [String: String] = [:]
+        for (fieldIds, suffix) in roles {
+            for user in fieldIds.flatMap({ JiraMapper.users(values[$0]) }) {
+                guard let id = identity(user), id != me else { continue }
+                members["\(suffix)|\(id)"] = (user["displayName"] as? String ?? id) + suffix
+            }
+        }
+        return members
     }
 
     private static func track(_ key: String, _ isOn: Bool, in known: inout Set<String>) -> Bool {

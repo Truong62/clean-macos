@@ -107,7 +107,7 @@ struct JiraSettingsForm: View {
             .onChange(of: menuBarEnabled) { _, _ in jira.restartBackgroundWork() }
         HStack {
             Toggle(isOn: $notificationsEnabled) {
-                label("Notifications", "Added to a task, new comment on your task, @mention")
+                label("Notifications", "Added to a task, people joining or leaving your task, new comment, @mention")
             }
             .onChange(of: notificationsEnabled) { _, _ in jira.restartBackgroundWork() }
             Spacer()
