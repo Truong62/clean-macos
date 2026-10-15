@@ -334,17 +334,15 @@ struct JiraPickTransitionTests {
 
 struct JiraEventsTests {
     private let start = ISO8601DateFormatter().date(from: "2026-10-08T10:00:00+07:00")!
-    private let fields = JiraWatchFields(assignees: ["customfield_10700", "assignee"], reviewers: "customfield_10900")
+    private let fields = JiraWatchFields(assignees: ["customfield_10700", "assignee"], reviewers: "customfield_10900",
+                                         memberFieldNames: ["assignees", "assignee", "reviewer"])
 
     private func issue(key: String = "FAL-1", assignees: [String] = ["truongnn"], assignee: String? = nil,
                        reviewers: [String] = [], description: String = "", comments: [JiraJSON] = [],
-                       status: String = "To Do", statusChangedBy: String? = nil) -> JiraJSON {
-        let changelog: JiraJSON = ["histories": statusChangedBy.map { author in
-            [["created": "2026-10-08T10:05:00.000+0700", "author": ["name": author, "displayName": author.capitalized],
-              "items": [["field": "status", "toString": status]]]]
-        } ?? []]
-        return ["key": key, "changelog": changelog, "fields": [
-            "status": ["name": status],
+                       reporter: String = "ba", isWatching: Bool = false, history: [JiraJSON] = []) -> JiraJSON {
+        ["key": key, "changelog": ["histories": history], "fields": [
+            "reporter": ["name": reporter],
+            "watches": ["isWatching": isWatching],
             "summary": "Dev Zone",
             "description": description,
             "customfield_10700": assignees.map { ["name": $0] },
@@ -352,6 +350,12 @@ struct JiraEventsTests {
             "customfield_10900": reviewers.map { ["name": $0] },
             "comment": ["comments": comments],
         ] as JiraJSON]
+    }
+
+    private func change(_ items: [(String, String?, String?)], id: String = "h1", author: String = "tony",
+                        created: String = "2026-10-08T10:05:00.000+0700") -> JiraJSON {
+        ["id": id, "author": ["name": author, "displayName": author.capitalized], "created": created,
+         "items": items.map { ["field": $0.0, "fromString": $0.1 as Any, "toString": $0.2 as Any] }]
     }
 
     private func comment(_ id: String = "9", author: String = "tony", created: String = "2026-10-08T10:05:00.000+0700",
@@ -462,21 +466,46 @@ struct JiraEventsTests {
         #expect(decoded.teams == nil)
     }
 
-    @Test func notifiesStatusChangeOnMyTaskWithWhoChangedIt() {
-        let (_, seen) = detect([issue()], state(known: ["FAL-1"]))
-        let moved = issue(status: "Test Staging", statusChangedBy: "tony")
-        let (events, next) = detect([moved], seen)
-        #expect(events.map(\.kind) == [.status])
+    @Test func notifiesChangesByOthersOnMyTaskOnce() {
+        let moved = issue(history: [change([("status", "To Do", "Test Staging"), ("priority", "Low", "High"), ("Dev Point", nil, "3")])])
+        let (events, next) = detect([moved], state(known: ["FAL-1"]))
+        #expect(events.map(\.kind) == [.change])
         #expect(events.first?.title == "FAL-1 · Dev Zone")
-        #expect(events.first?.message == "Tony: To Do → Test Staging")
+        #expect(events.first?.message == "Tony: Status To Do → Test Staging · Priority Low → High · Dev Point: 3")
         #expect(detect([moved], next).0 == [])
     }
 
-    @Test func skipsMyOwnStatusChangesAndOthersTasks() {
-        let (_, seen) = detect([issue()], state(known: ["FAL-1"]))
-        #expect(detect([issue(status: "Doing", statusChangedBy: "truongnn")], seen).0 == [])
-        let (_, other) = detect([issue(assignees: ["tony"])], state())
-        #expect(detect([issue(assignees: ["tony"], status: "Doing", statusChangedBy: "tony")], other).0 == [])
+    @Test func summarizesLongTextAndRemovals() {
+        let edited = issue(history: [change([("description", "old", "new"), ("Link", "blocks FAL-2", nil)])])
+        #expect(detect([edited], state(known: ["FAL-1"])).0.first?.message == "Tony: Description updated · Link removed: blocks FAL-2")
+    }
+
+    @Test func skipsOwnOldMemberFieldAndCommentChanges() {
+        let history = [
+            change([("status", "To Do", "Doing")], id: "h1", author: "truongnn"),
+            change([("status", "Doing", "Done")], id: "h2", created: "2026-10-08T09:00:00.000+0700"),
+            change([("Assignees", "Ngoc", "Ngoc, An"), ("Comment", nil, nil)], id: "h3"),
+        ]
+        #expect(detect([issue(history: history)], state(known: ["FAL-1"])).0 == [])
+    }
+
+    @Test func ignoresChangesOnTasksImNotPartOf() {
+        #expect(detect([issue(assignees: ["tony"], history: [change([("status", "To Do", "Doing")])])], state()).0 == [])
+    }
+
+    @Test func watchedAndReportedTasksCountAsMine() {
+        let watched = issue(assignees: ["tony"], comments: [comment()], isWatching: true, history: [change([("status", "To Do", "Doing")])])
+        #expect(detect([watched], state()).0.map(\.kind) == [.change, .comment])
+        let reported = issue(assignees: ["tony"], reporter: "truongnn", history: [change([("priority", "Low", "High")])])
+        #expect(detect([reported], state()).0.map(\.kind) == [.change])
+    }
+
+    @Test func batchesBurstsIntoOneSummary() {
+        let events = (1...7).map { JiraEvent(kind: .change, key: "FAL-\($0)", title: "", message: "") }
+        let batched = JiraEvents.batched(events, limit: 5)
+        #expect(batched.count == 1)
+        #expect(batched.first?.message == "7 updates on FAL-1, FAL-2, FAL-3, FAL-4 and more")
+        #expect(JiraEvents.batched(Array(events.prefix(3)), limit: 5) == Array(events.prefix(3)))
     }
 
     @Test func ignoresOwnOldAndUnrelatedComments() {
@@ -487,7 +516,7 @@ struct JiraEventsTests {
     }
 
     @Test func jqlFieldsIncludeEverythingDetectionReads() {
-        #expect(fields.jqlFields == "summary,updated,description,comment,status,customfield_10700,assignee,customfield_10900")
+        #expect(fields.jqlFields == "summary,updated,description,comment,reporter,watches,customfield_10700,assignee,customfield_10900")
     }
 
     @Test func stateRoundTripsThroughJSON() throws {

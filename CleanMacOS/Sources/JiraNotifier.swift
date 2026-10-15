@@ -6,6 +6,7 @@ final class JiraNotifier: NSObject, UNUserNotificationCenterDelegate {
     static let pollInterval: Duration = .seconds(10)
     static let clockSkew: TimeInterval = 120
     static let maxCatchUp: TimeInterval = 7 * 24 * 3600
+    static let maxBurst = 5
     static let stateKeyPrefix = "jira.watchState."
     nonisolated static let issueKeyInfo = "key"
     static let testTitle = "Clean macOS · Jira"
@@ -71,7 +72,7 @@ final class JiraNotifier: NSObject, UNUserNotificationCenterDelegate {
                     current.state.since = pollStart.addingTimeInterval(-Self.clockSkew)
                     session = current
                     save(current.state, key: current.storeKey)
-                    if postsNotifications { result.events.forEach(post) }
+                    if postsNotifications { JiraEvents.batched(result.events, limit: Self.maxBurst).forEach(post) }
                     let changes = JiraChanges.changedKeys(issues, seen: seen ?? [:])
                     if seen != nil, !changes.keys.isEmpty { onChange(changes.keys) }
                     seen = changes.seen
