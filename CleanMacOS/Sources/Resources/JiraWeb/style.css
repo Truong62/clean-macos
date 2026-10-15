@@ -155,3 +155,11 @@ body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; 
 .rich ul.alternate { list-style: square; }
 .rich .panel:not(.code):not(.preformatted) { border: 1px solid color-mix(in oklab, currentColor 18%, transparent); border-radius: 0.75rem; padding: 0.75rem; }
 .rich img { border-radius: 0.5rem; }
+
+[data-tab-panel] > section:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+:is([data-tab-panel="comments"], [data-tab-panel="files"], [data-tab-panel="activity"]) > section > h3:first-child {
+  display: none;
+}
