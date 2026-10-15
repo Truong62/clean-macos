@@ -7,6 +7,19 @@
     <language>en</language>
 
     <!-- Paste new <item> blocks here when releasing (newest first) -->
+    <item>
+      <title>Version 1.0.29</title>
+      <pubDate>Thu, 15 Oct 2026 09:34:48 +0700</pubDate>
+      <sparkle:version>30</sparkle:version>
+      <sparkle:shortVersionString>1.0.29</sparkle:shortVersionString>
+      <description><![CDATA[
+        <ul><li>Jira: get notified when people join or leave a task you are on</li><li>Jira settings are simpler: paste any Jira link and a token, then pick your project — Cloud/Server and the board are detected for you</li><li>Less-used Jira options moved under Advanced</li></ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/Truong62/clean-macos/releases/download/v1.0.29/CleanMacOS-1.0.29.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="ugA3ckQPn/ABSfPmt7gZLb/4+u2bkjKEczSTf9nC1mPkuiTd+4YHIxU7IyiWmV5NEvmYIdIqL/Izi7no+T6BAQ==" length="4449066" />
+    </item>
 
     <item>
       <title>Version 1.0.28</title>
