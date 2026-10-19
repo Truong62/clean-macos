@@ -31,7 +31,7 @@ struct CleanMacOSApp: App {
     @State private var panelController: ClipboardPanelController?
 
     var body: some Scene {
-        Window("Clean macOS", id: "main") {
+        Window(MainWindowController.title, id: "main") {
             ContentView()
                 .environmentObject(vm)
                 .environmentObject(updater)

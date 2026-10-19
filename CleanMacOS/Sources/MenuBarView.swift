@@ -13,10 +13,7 @@ struct MenuBarView: View {
             header
             Divider()
             if showsJira {
-                JiraMenuBarSection(jira: jira) { key in
-                    openWindow(id: "main")
-                    DispatchQueue.main.async { jira.openFromOutside(issueKey: key) }
-                }
+                JiraMenuBarSection(jira: jira) { key in openMain { jira.openFromOutside(issueKey: key) } }
                 Divider()
             }
             systemStats
@@ -26,15 +23,21 @@ struct MenuBarView: View {
         .onDisappear { monitor.popoverDidClose() }
     }
 
+    private func openMain(_ show: @escaping @MainActor () -> Void) {
+        let popover = NSApp.keyWindow
+        openWindow(id: "main")
+        DispatchQueue.main.async {
+            show()
+            if popover?.title != MainWindowController.title { popover?.close() }
+        }
+    }
+
     private var header: some View {
         HStack(spacing: 6) {
             Image(systemName: "sparkles").foregroundStyle(.orange.gradient)
             Text("Clean macOS").font(.system(size: 13, weight: .semibold))
             Spacer()
-            MenuIconButton(systemImage: "macwindow", help: "Open Clean macOS") {
-                openWindow(id: "main")
-                DispatchQueue.main.async { MainWindowController.show() }
-            }
+            MenuIconButton(systemImage: "macwindow", help: "Open Clean macOS") { openMain(MainWindowController.show) }
             MenuIconButton(systemImage: "power", help: "Quit") { NSApp.terminate(nil) }
         }
         .padding(.horizontal, 14)
