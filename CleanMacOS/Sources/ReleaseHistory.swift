@@ -215,3 +215,20 @@ private struct ReleaseNoteRow: View {
             .foregroundStyle(color)
     }
 }
+
+enum DownloadStats {
+    // ponytail: one page of 100 releases; page through Link headers once there are more
+    static let url = URL(string: "https://api.github.com/repos/Truong62/clean-macos/releases?per_page=100")!
+
+    static func total(_ data: Data) -> Int? {
+        guard let releases = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else { return nil }
+        return releases.reduce(0) { sum, release in
+            sum + (release["assets"] as? [[String: Any]] ?? []).reduce(0) { $0 + ($1["download_count"] as? Int ?? 0) }
+        }
+    }
+
+    static func fetch() async -> Int? {
+        guard let (data, _) = try? await URLSession.shared.data(from: url) else { return nil }
+        return total(data)
+    }
+}

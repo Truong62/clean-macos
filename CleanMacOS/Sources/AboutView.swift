@@ -3,6 +3,7 @@ import SwiftUI
 struct AboutView: View {
     @EnvironmentObject var updater: UpdaterViewModel
     let navigate: (SidebarPage) -> Void
+    @State private var downloads: Int?
 
     private static let repoURL = URL(string: "https://github.com/Truong62/clean-macos")!
     private static let tools: [(SidebarPage, String, String, String, [Color])] = [
@@ -45,12 +46,15 @@ struct AboutView: View {
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
-            Label("Free & open source", systemImage: "heart.fill")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.pink)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 5)
-                .background(.pink.opacity(0.12), in: Capsule())
+            HStack(spacing: 8) {
+                pill("Free & open source", icon: "heart.fill", color: .pink)
+                if let downloads {
+                    pill("\(downloads.formatted()) downloads", icon: "arrow.down.circle.fill", color: .blue)
+                        .transition(.opacity)
+                }
+            }
+            .animation(.easeOut(duration: 0.3), value: downloads)
+            .task { downloads = await DownloadStats.fetch() }
             Text("A calm, native toolkit that keeps your Mac clean and your dev setup in check. Nothing leaves your Mac — no account, no tracking.")
                 .font(.body)
                 .foregroundStyle(.secondary)
@@ -82,6 +86,15 @@ struct AboutView: View {
         .padding(.horizontal, 24)
         .frame(maxWidth: .infinity)
         .homeCard(cornerRadius: 28)
+    }
+
+    private func pill(_ text: String, icon: String, color: Color) -> some View {
+        Label(text, systemImage: icon)
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(color)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 5)
+            .background(color.opacity(0.12), in: Capsule())
     }
 
     private var toolsSection: some View {

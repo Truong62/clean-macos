@@ -52,3 +52,15 @@ struct ReleaseFeedTests {
         #expect(ReleaseFeed.parse(Data("not xml".utf8)).isEmpty)
     }
 }
+
+struct DownloadStatsTests {
+    @Test func sumsEveryAssetAcrossReleases() {
+        let json = Data(#"[{"assets":[{"download_count":120},{"download_count":3}]},{"assets":[]},{"assets":[{"download_count":7}]}]"#.utf8)
+        #expect(DownloadStats.total(json) == 130)
+    }
+
+    @Test func rejectsErrorPayloads() {
+        #expect(DownloadStats.total(Data(#"{"message":"API rate limit exceeded"}"#.utf8)) == nil)
+        #expect(DownloadStats.total(Data("oops".utf8)) == nil)
+    }
+}
