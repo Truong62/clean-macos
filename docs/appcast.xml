@@ -8,6 +8,19 @@
 
     <!-- Paste new <item> blocks here when releasing (newest first) -->
     <item>
+      <title>Version 1.0.33</title>
+      <pubDate>Mon, 19 Oct 2026 09:44:44 +0700</pubDate>
+      <sparkle:version>34</sparkle:version>
+      <sparkle:shortVersionString>1.0.33</sparkle:shortVersionString>
+      <description><![CDATA[
+        <ul><li>Opening a task from a notification or the menu bar no longer pins the window to every desktop — it comes to the current one and stays there</li><li>The menu bar popup now closes when you open a task or the app from it</li></ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/Truong62/clean-macos/releases/download/v1.0.33/CleanMacOS-1.0.33.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="AGH5eWevZ82a0JVi/hV3jJwm4DuGq+3Ws1CwA4VLxw4CX4GJnKEyXh1YJ/CMyWIsoJZCztHQNA6z4Y8yXv7nDQ==" length="4452252" />
+    </item>
+    <item>
       <title>Version 1.0.32</title>
       <pubDate>Thu, 15 Oct 2026 10:08:13 +0700</pubDate>
       <sparkle:version>33</sparkle:version>
