@@ -73,5 +73,20 @@ struct StartupRoutineTests {
         #expect(plist["ProgramArguments"] as? [String] == ["/usr/bin/caffeinate", "-d"])
         #expect(plist["RunAtLoad"] as? Bool == true)
         #expect(plist["KeepAlive"] as? Bool == true)
+        #expect(plist["StandardOutPath"] == nil)
+    }
+
+    @Test func buildsACustomJobFromNameAndCommand() throws {
+        let job = try StartupJobs.custom(name: "  DB Proxy (staging)! ", command: "~/bin/proxy.sh --port 5434", keepsRunning: false)
+        #expect(job.label == "local.db-proxy-staging")
+        #expect(job.arguments == ["/bin/zsh", "-lc", "~/bin/proxy.sh --port 5434"])
+        #expect(job.keepsRunning == false)
+        #expect(job.logPath == NSHomeDirectory() + "/Library/Logs/local.db-proxy-staging.log")
+        let plist = ScheduledJobsService.agentPlist(label: job.label, arguments: job.arguments,
+                                                    keepsRunning: job.keepsRunning, logPath: job.logPath)
+        #expect(plist["KeepAlive"] as? Bool == false)
+        #expect(plist["StandardErrorPath"] as? String == job.logPath)
+        #expect(throws: PortsJobsError.self) { try StartupJobs.custom(name: "!!!", command: "x", keepsRunning: true) }
+        #expect(throws: PortsJobsError.self) { try StartupJobs.custom(name: "ok", command: "  ", keepsRunning: true) }
     }
 }

@@ -80,6 +80,25 @@ enum StartupJobs {
     static let keepAwakeLabel = "click.ngoctruong.CleanMacOS.caffeinate"
     static let keepAwakeArguments = ["/usr/bin/caffeinate", "-d"]
 
+    struct CustomJob: Equatable, Sendable {
+        let label: String
+        let arguments: [String]
+        let keepsRunning: Bool
+        let logPath: String
+    }
+
+    static func custom(name: String, command: String, keepsRunning: Bool) throws -> CustomJob {
+        let slug = name.lowercased()
+            .split { !($0.isASCII && ($0.isLetter || $0.isNumber)) }
+            .joined(separator: "-")
+        let command = command.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !slug.isEmpty else { throw PortsJobsError.commandFailed("Give the job a name with letters or numbers.") }
+        guard !command.isEmpty else { throw PortsJobsError.commandFailed("Type the command the job should run.") }
+        let label = "local.\(slug)"
+        return CustomJob(label: label, arguments: ["/bin/zsh", "-lc", command], keepsRunning: keepsRunning,
+                         logPath: NSHomeDirectory() + "/Library/Logs/\(label).log")
+    }
+
     static func atLogin(_ jobs: [ScheduledJob]) -> [ScheduledJob] {
         jobs.filter { $0.source == .userAgent && $0.startsAtLogin }
     }

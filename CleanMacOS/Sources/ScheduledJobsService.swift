@@ -99,13 +99,22 @@ struct ScheduledJobsService: Sendable {
         return (keepAlive as? Bool) != false
     }
 
-    static func agentPlist(label: String, arguments: [String]) -> [String: Any] {
-        ["Label": label, "ProgramArguments": arguments, "RunAtLoad": true, "KeepAlive": true]
+    static func agentPlist(label: String, arguments: [String], keepsRunning: Bool = true, logPath: String? = nil) -> [String: Any] {
+        var plist: [String: Any] = ["Label": label, "ProgramArguments": arguments, "RunAtLoad": true, "KeepAlive": keepsRunning]
+        if let logPath {
+            plist["StandardOutPath"] = logPath
+            plist["StandardErrorPath"] = logPath
+        }
+        return plist
     }
 
-    func addAgent(label: String, arguments: [String]) async throws {
+    func addAgent(label: String, arguments: [String], keepsRunning: Bool = true, logPath: String? = nil) async throws {
         let path = Self.directories[0].0 + "/\(label).plist"
-        guard (Self.agentPlist(label: label, arguments: arguments) as NSDictionary).write(toFile: path, atomically: true) else {
+        guard !FileManager.default.fileExists(atPath: path) else {
+            throw PortsJobsError.commandFailed("A job named \(label) already exists.")
+        }
+        let plist = Self.agentPlist(label: label, arguments: arguments, keepsRunning: keepsRunning, logPath: logPath)
+        guard (plist as NSDictionary).write(toFile: path, atomically: true) else {
             throw PortsJobsError.commandFailed("Could not write \(path)")
         }
         try await launchctl(["bootstrap", Self.domain, path])

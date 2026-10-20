@@ -13,6 +13,7 @@ struct StartupSettingsView: View {
     @State private var isWorking = false
     @State private var message = ""
     @State private var selected: StartupStep?
+    @State private var isAddingJob = false
 
     private let loginItemsService = LoginItemsService()
     private let jobsService = ScheduledJobsService()
@@ -119,6 +120,15 @@ struct StartupSettingsView: View {
         case .apps:
             Button { addApp() } label: { Label("Add App…", systemImage: "plus") }.pointerCursor()
         case .background:
+            Button { isAddingJob = true } label: { Label("Add Job…", systemImage: "plus") }
+                .pointerCursor()
+                .popover(isPresented: $isAddingJob, arrowEdge: .bottom) {
+                    AddJobForm { job in
+                        isAddingJob = false
+                        run { try await jobsService.addAgent(label: job.label, arguments: job.arguments,
+                                                             keepsRunning: job.keepsRunning, logPath: job.logPath) }
+                    }
+                }
             if !hasKeepAwake {
                 Button { addKeepAwake() } label: { Label("Add caffeinate -d", systemImage: "sun.max.fill") }
                     .pointerCursor()
@@ -490,5 +500,69 @@ struct StartupRow: View {
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
         .background(Color.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 10))
+    }
+}
+
+struct AddJobForm: View {
+    let add: (StartupJobs.CustomJob) -> Void
+    @State private var name = ""
+    @State private var command = ""
+    @State private var keepsRunning = true
+    @State private var error = ""
+
+    private var label: String { (try? StartupJobs.custom(name: name, command: "x", keepsRunning: true).label) ?? "local.…" }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 10) {
+                Image(systemName: "terminal.fill")
+                    .foregroundStyle(.white)
+                    .frame(width: 30, height: 30)
+                    .background(LinearGradient(colors: [.purple, .pink], startPoint: .topLeading, endPoint: .bottomTrailing),
+                                in: RoundedRectangle(cornerRadius: 8))
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("New background job").font(.headline)
+                    Text("Starts every time you log in").font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            TextField("Name, e.g. DB Proxy", text: $name)
+                .textFieldStyle(.roundedBorder)
+            TextField("Command, e.g. ~/bin/proxy.sh --port 5434", text: $command, axis: .vertical)
+                .textFieldStyle(.roundedBorder)
+                .font(.system(size: 12, design: .monospaced))
+                .lineLimit(2...4)
+            Toggle(isOn: $keepsRunning) {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Keep running")
+                    Text(keepsRunning ? "macOS starts it again if it stops, like caffeinate -d" : "Runs once at login, then stops")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .toggleStyle(.switch)
+            Text("Saved as \(label) · log in ~/Library/Logs")
+                .font(.caption.monospaced())
+                .foregroundStyle(.tertiary)
+            if !error.isEmpty {
+                Text(error).font(.caption).foregroundStyle(.red)
+            }
+            HStack {
+                Spacer()
+                Button("Add Job") { submit() }
+                    .buttonStyle(.borderedProminent)
+                    .keyboardShortcut(.defaultAction)
+                    .pointerCursor()
+            }
+        }
+        .padding(16)
+        .frame(width: 380)
+    }
+
+    private func submit() {
+        do {
+            add(try StartupJobs.custom(name: name, command: command, keepsRunning: keepsRunning))
+        } catch {
+            self.error = error.localizedDescription
+        }
     }
 }
