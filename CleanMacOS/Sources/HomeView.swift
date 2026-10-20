@@ -12,6 +12,8 @@ struct HomeView: View {
     @State private var memoryHistory: [Double] = []
     @State private var portCount: Int?
     @State private var jobCount: Int?
+    @State private var startupMissing: Int?
+    @AppStorage(SettingsTab.storageKey) private var settingsTab = SettingsTab.general
 
     private static let historyLength = 40
     private static let sampleInterval: TimeInterval = 2
@@ -58,7 +60,9 @@ struct HomeView: View {
     private func loadCounts() async {
         async let ports = PortsService().list()
         async let jobs = ScheduledJobsService().list()
+        async let startup = Task.detached(priority: .utility) { StartupReadiness.check().count }.value
         portCount = await ports.count
+        startupMissing = await startup
         jobCount = await jobs.filter { $0.source == .userAgent || $0.source == .cron }.count
         if jira.isConfigured && jira.menuUpdatedAt == nil { await jira.refreshMenu() }
     }
@@ -289,6 +293,12 @@ struct HomeView: View {
                      colors: [.mint, .teal]) { navigate(.ram) }
             ToolTile(icon: "display.2", title: "Displays", stat: "\(NSScreen.screens.count) connected",
                      colors: [.purple, .blue]) { navigate(.displays) }
+            ToolTile(icon: "bolt.fill", title: "Power Recovery",
+                     stat: startupMissing.map { $0 == 0 ? "Ready after a power cut" : "\($0) \($0 == 1 ? "step needs" : "steps need") you" } ?? "",
+                     colors: [.yellow, .orange]) {
+                settingsTab = .startup
+                navigate(.settings)
+            }
         }
     }
 

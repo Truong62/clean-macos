@@ -51,7 +51,7 @@ struct StartupSettingsView: View {
                      state: backgroundJobs.contains(where: \.isLoaded) ? .ready : .off),
             FlowNode(step: .lock, icon: "lock.fill", colors: [.indigo, .purple], name: "Lock", title: "Lock the screen",
                      detail: lockerJob.map { job in
-                         "Done by your job \(job.label)\(StartupJobs.lockDelay(job).map { ", \($0) s after logging in" } ?? " after logging in"). The switch turns that job on or off."
+                         "Done by your job \(job.label)\(StartupJobs.lockDelay(job).map { ", \($0) s after logging in" } ?? " after logging in"). Changing the seconds edits that job and applies from the next startup."
                      } ?? "Done by Clean macOS, \(lockDelay) s after logging in without a password, so the desktop isn't left open.",
                      state: isLocking ? .ready : .off),
         ]
@@ -131,6 +131,15 @@ struct StartupSettingsView: View {
                 }
         case .lock:
             if let lockerJob {
+                if let delay = StartupJobs.lockDelay(lockerJob) {
+                    Stepper("\(delay) s", value: Binding(get: { delay }, set: { seconds in
+                        run { try jobsService.setLockDelay(seconds, of: lockerJob) }
+                    }), in: 0...60)
+                    .monospacedDigit()
+                    .frame(width: 80)
+                    .disabled(isWorking)
+                    .help("Seconds after logging in before the screen locks — takes effect from the next startup")
+                }
                 switchToggle(Binding(get: { lockerJob.isLoaded }, set: { setJob(lockerJob, $0) }))
             } else {
                 Stepper("\(lockDelay) s", value: $lockDelay, in: 0...60)
@@ -387,34 +396,76 @@ struct FlowConnector: View {
     let from: FlowNode
     let to: FlowNode
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var phase: CGFloat = 0
 
     private var isFlowing: Bool { from.isLit }
 
     var body: some View {
         HStack(spacing: 0) {
-            Line()
-                .stroke(LinearGradient(colors: isFlowing ? [from.colors[1], to.colors[0]] : [Color.secondary.opacity(0.35)],
-                                       startPoint: .leading, endPoint: .trailing),
-                        style: StrokeStyle(lineWidth: 2, lineCap: .round, dash: [5, 5], dashPhase: phase))
+            DashedFlowLine(colors: isFlowing ? [from.colors[1], to.colors[0]] : [Color.secondary.opacity(0.35)],
+                           isMoving: isFlowing && !reduceMotion)
                 .frame(height: 2)
             Image(systemName: "arrowtriangle.right.fill")
                 .font(.system(size: 7))
                 .foregroundStyle(isFlowing ? to.colors[0] : Color.secondary.opacity(0.5))
         }
         .padding(.horizontal, 6)
-        .onAppear {
-            guard !reduceMotion else { return }
-            withAnimation(.linear(duration: 0.8).repeatForever(autoreverses: false)) { phase = -10 }
+    }
+}
+
+struct DashedFlowLine: NSViewRepresentable {
+    let colors: [Color]
+    let isMoving: Bool
+
+    private static let dash: [NSNumber] = [5, 5]
+    private static let animationKey = "flow"
+
+    func makeNSView(context: Context) -> LineView { LineView() }
+
+    func updateNSView(_ view: LineView, context: Context) {
+        view.gradient.colors = (colors.count == 1 ? colors + colors : colors).map { NSColor($0).cgColor }
+        let isAnimating = view.dashes.animation(forKey: Self.animationKey) != nil
+        if isMoving, !isAnimating {
+            let animation = CABasicAnimation(keyPath: "lineDashPhase")
+            animation.fromValue = 0
+            animation.toValue = -10
+            animation.duration = 0.8
+            animation.repeatCount = .infinity
+            view.dashes.add(animation, forKey: Self.animationKey)
+        } else if !isMoving, isAnimating {
+            view.dashes.removeAnimation(forKey: Self.animationKey)
         }
     }
 
-    private struct Line: Shape {
-        func path(in rect: CGRect) -> Path {
-            Path { path in
-                path.move(to: CGPoint(x: rect.minX, y: rect.midY))
-                path.addLine(to: CGPoint(x: rect.maxX, y: rect.midY))
-            }
+    final class LineView: NSView {
+        let gradient = CAGradientLayer()
+        let dashes = CAShapeLayer()
+
+        override init(frame: NSRect) {
+            super.init(frame: frame)
+            wantsLayer = true
+            gradient.startPoint = CGPoint(x: 0, y: 0.5)
+            gradient.endPoint = CGPoint(x: 1, y: 0.5)
+            dashes.lineWidth = 2
+            dashes.lineCap = .round
+            dashes.lineDashPattern = DashedFlowLine.dash
+            dashes.strokeColor = NSColor.black.cgColor
+            gradient.mask = dashes
+            layer?.addSublayer(gradient)
+        }
+
+        required init?(coder: NSCoder) { nil }
+
+        override func layout() {
+            super.layout()
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            gradient.frame = bounds
+            dashes.frame = bounds
+            let path = CGMutablePath()
+            path.move(to: CGPoint(x: 0, y: bounds.midY))
+            path.addLine(to: CGPoint(x: bounds.maxX, y: bounds.midY))
+            dashes.path = path
+            CATransaction.commit()
         }
     }
 }

@@ -111,6 +111,13 @@ enum StartupJobs {
     static func lockDelay(_ job: ScheduledJob) -> Int? {
         job.command.firstMatch(of: #/sleep\s+(\d+)/#).flatMap { Int($0.1) }
     }
+
+    static func settingSleep(_ seconds: Int, in arguments: [String]) -> [String]? {
+        guard let index = arguments.firstIndex(where: { $0.contains(#/sleep\s+\d+/#) }) else { return nil }
+        var updated = arguments
+        updated[index] = arguments[index].replacing(#/sleep\s+\d+/#, with: "sleep \(seconds)", maxReplacements: 1)
+        return updated
+    }
 }
 
 enum ScreenLock {
@@ -150,6 +157,10 @@ enum StartupRoutine {
 
 enum StartupReadiness: Equatable, Sendable {
     case power, password
+
+    static func check() -> [StartupReadiness] {
+        missing(autoRestart: SystemPower.autoRestart(), fileVaultIsOn: SystemPower.fileVaultIsOn(), autoLoginUser: SystemPower.autoLoginUser())
+    }
 
     static func missing(autoRestart: Bool?, fileVaultIsOn: Bool?, autoLoginUser: String?) -> [StartupReadiness] {
         [autoRestart == true ? nil : .power,

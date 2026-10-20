@@ -50,6 +50,10 @@ struct StartupRoutineTests {
         #expect(!StartupJobs.locksScreen(jobs[0]))
         #expect(StartupJobs.lockDelay(jobs[3]) == 1)
         #expect(StartupJobs.lockDelay(job("x", "/usr/local/bin/lockscreen")) == nil)
+        let arguments = ["/bin/zsh", "-c", "defaults read x >/dev/null 2>&1 || exit 0; sleep 1; /Users/me/.local/bin/lockscreen"]
+        #expect(StartupJobs.settingSleep(5, in: arguments)
+                == ["/bin/zsh", "-c", "defaults read x >/dev/null 2>&1 || exit 0; sleep 5; /Users/me/.local/bin/lockscreen"])
+        #expect(StartupJobs.settingSleep(5, in: ["/usr/local/bin/lockscreen"]) == nil)
     }
 
     @Test func readsWhetherAnAgentStartsAtLogin() throws {

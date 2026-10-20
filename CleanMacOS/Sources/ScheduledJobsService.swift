@@ -99,6 +99,17 @@ struct ScheduledJobsService: Sendable {
         return (keepAlive as? Bool) != false
     }
 
+    func setLockDelay(_ seconds: Int, of job: ScheduledJob) throws {
+        guard let path = job.plistPath, var plist = NSDictionary(contentsOfFile: path) as? [String: Any],
+              let arguments = StartupJobs.settingSleep(seconds, in: plist["ProgramArguments"] as? [String] ?? []) else {
+            throw PortsJobsError.commandFailed("\(job.label) has no delay to change.")
+        }
+        plist["ProgramArguments"] = arguments
+        guard (plist as NSDictionary).write(toFile: path, atomically: true) else {
+            throw PortsJobsError.commandFailed("Could not save \(path)")
+        }
+    }
+
     static func agentPlist(label: String, arguments: [String], keepsRunning: Bool = true, logPath: String? = nil) -> [String: Any] {
         var plist: [String: Any] = ["Label": label, "ProgramArguments": arguments, "RunAtLoad": true, "KeepAlive": keepsRunning]
         if let logPath {

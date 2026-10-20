@@ -30,30 +30,76 @@ struct HomeHealth: Equatable {
 }
 
 struct AuroraBackground: View {
-    private static let blobs: [(Color, CGFloat, CGFloat, Double)] = [
-        (Color(red: 0.42, green: 0.36, blue: 0.95), 0.15, 0.05, 0),
-        (Color(red: 0.95, green: 0.42, blue: 0.68), 0.85, 0.15, 2.1),
-        (Color(red: 0.25, green: 0.78, blue: 0.80), 0.70, 0.95, 4.2),
-    ]
-
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1 / 20)) { context in
-            let time = context.date.timeIntervalSinceReferenceDate / 9
-            GeometryReader { geo in
-                ZStack {
-                    Color(nsColor: .windowBackgroundColor)
-                    ForEach(Self.blobs.indices, id: \.self) { index in
-                        let blob = Self.blobs[index]
-                        let size = geo.size.width * 0.9
-                        SoftGlow(color: blob.0.opacity(0.22))
-                            .frame(width: size, height: size)
-                            .position(x: geo.size.width * (blob.1 + 0.06 * sin(time + blob.3)),
-                                      y: geo.size.height * (blob.2 + 0.05 * cos(time * 1.3 + blob.3)))
-                    }
-                }
-            }
+        ZStack {
+            Color(nsColor: .windowBackgroundColor)
+            AuroraLayers()
         }
         .ignoresSafeArea()
+    }
+}
+
+struct AuroraLayers: NSViewRepresentable {
+    func makeNSView(context: Context) -> AuroraView { AuroraView() }
+    func updateNSView(_ view: AuroraView, context: Context) {}
+
+    final class AuroraView: NSView {
+        private static let blobs: [(NSColor, CGFloat, CGFloat, Double)] = [
+            (NSColor(red: 0.42, green: 0.36, blue: 0.95, alpha: 1), 0.15, 0.05, 0),
+            (NSColor(red: 0.95, green: 0.42, blue: 0.68, alpha: 1), 0.85, 0.15, 2.1),
+            (NSColor(red: 0.25, green: 0.78, blue: 0.80, alpha: 1), 0.70, 0.95, 4.2),
+        ]
+        private static let period: CFTimeInterval = 2 * .pi * 9
+        private static let opacity: CGFloat = 0.22
+
+        private var glows: [CAGradientLayer] = []
+        private var laidOutSize: CGSize = .zero
+
+        override init(frame: NSRect) {
+            super.init(frame: frame)
+            wantsLayer = true
+            glows = Self.blobs.map { blob in
+                let glow = CAGradientLayer()
+                glow.type = .radial
+                glow.colors = [blob.0.withAlphaComponent(Self.opacity).cgColor, blob.0.withAlphaComponent(0).cgColor]
+                glow.startPoint = CGPoint(x: 0.5, y: 0.5)
+                glow.endPoint = CGPoint(x: 1, y: 1)
+                layer?.addSublayer(glow)
+                return glow
+            }
+        }
+
+        required init?(coder: NSCoder) { nil }
+
+        override var isFlipped: Bool { true }
+
+        override func layout() {
+            super.layout()
+            guard bounds.size != laidOutSize, bounds.width > 0 else { return }
+            laidOutSize = bounds.size
+            let side = bounds.width * 0.9
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            for (glow, blob) in zip(glows, Self.blobs) {
+                let center = CGPoint(x: bounds.width * blob.1, y: bounds.height * blob.2)
+                glow.bounds = CGRect(x: 0, y: 0, width: side, height: side)
+                glow.position = center
+                glow.add(drift(around: center, phase: blob.3), forKey: "drift")
+            }
+            CATransaction.commit()
+        }
+
+        private func drift(around center: CGPoint, phase: Double) -> CAAnimation {
+            let rect = CGRect(x: center.x - bounds.width * 0.06, y: center.y - bounds.height * 0.05,
+                              width: bounds.width * 0.12, height: bounds.height * 0.10)
+            let animation = CAKeyframeAnimation(keyPath: "position")
+            animation.path = CGPath(ellipseIn: rect, transform: nil)
+            animation.duration = Self.period
+            animation.timeOffset = phase / (2 * .pi) * Self.period
+            animation.repeatCount = .infinity
+            animation.calculationMode = .paced
+            return animation
+        }
     }
 }
 
