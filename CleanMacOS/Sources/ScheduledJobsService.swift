@@ -88,8 +88,27 @@ struct ScheduledJobsService: Sendable {
             return ScheduledJob(label: label, source: source, command: command(of: plist),
                                 schedule: describeSchedule(plist), plistPath: path,
                                 logPaths: Array(NSOrderedSet(array: [plist["StandardOutPath"], plist["StandardErrorPath"]].compactMap { $0 as? String })) as? [String] ?? [],
-                                isLoaded: status != nil, pid: status?.pid, lastExitStatus: status?.lastExitStatus)
+                                isLoaded: status != nil, pid: status?.pid, lastExitStatus: status?.lastExitStatus,
+                                startsAtLogin: startsAtLogin(plist))
         }
+    }
+
+    static func startsAtLogin(_ plist: [String: Any]) -> Bool {
+        if plist["RunAtLoad"] as? Bool == true { return true }
+        guard let keepAlive = plist["KeepAlive"] else { return false }
+        return (keepAlive as? Bool) != false
+    }
+
+    static func agentPlist(label: String, arguments: [String]) -> [String: Any] {
+        ["Label": label, "ProgramArguments": arguments, "RunAtLoad": true, "KeepAlive": true]
+    }
+
+    func addAgent(label: String, arguments: [String]) async throws {
+        let path = Self.directories[0].0 + "/\(label).plist"
+        guard (Self.agentPlist(label: label, arguments: arguments) as NSDictionary).write(toFile: path, atomically: true) else {
+            throw PortsJobsError.commandFailed("Could not write \(path)")
+        }
+        try await launchctl(["bootstrap", Self.domain, path])
     }
 
     static func command(of plist: [String: Any]) -> String {

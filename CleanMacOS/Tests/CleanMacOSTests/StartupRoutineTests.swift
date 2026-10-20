@@ -5,6 +5,11 @@ import Testing
 struct StartupRoutineTests {
     private let boot = Date(timeIntervalSince1970: 1_000_000)
 
+    private func job(_ label: String, _ command: String, startsAtLogin: Bool = true, source: ScheduledJobSource = .userAgent) -> ScheduledJob {
+        ScheduledJob(label: label, source: source, command: command, schedule: "", plistPath: nil, logPaths: [],
+                     isLoaded: true, pid: nil, lastExitStatus: nil, startsAtLogin: startsAtLogin)
+    }
+
     @Test func runsOnceShortlyAfterBoot() {
         #expect(StartupRoutine.shouldRun(bootTime: boot, now: boot.addingTimeInterval(30), lastBoot: 0))
         #expect(!StartupRoutine.shouldRun(bootTime: boot, now: boot.addingTimeInterval(30), lastBoot: 1_000_000))
@@ -27,20 +32,46 @@ struct StartupRoutineTests {
         #expect(SystemPower.parseAutoLoginUser("") == nil)
     }
 
-    @Test func savesAppsWithTheirAction() throws {
-        let defaults = try #require(UserDefaults(suiteName: "startup-tests-\(UUID())"))
-        #expect(StartupSettings.apps(in: defaults) == [])
-        let apps = [StartupApp(path: "/Applications/Orca.app", action: .quit, delaySeconds: 8),
-                    StartupApp(path: "/Applications/Tailscale.app", action: .keepOpen)]
-        StartupSettings.save(apps, in: defaults)
-        #expect(StartupSettings.apps(in: defaults) == apps)
-        #expect(apps[0].name == "Orca")
+    @Test func listsWhatStillBlocksRecovery() {
+        #expect(StartupReadiness.missing(autoRestart: true, fileVaultIsOn: false, autoLoginUser: "me") == [])
+        #expect(StartupReadiness.missing(autoRestart: false, fileVaultIsOn: false, autoLoginUser: nil) == [.power, .password])
+        #expect(StartupReadiness.missing(autoRestart: nil, fileVaultIsOn: true, autoLoginUser: "me") == [.power, .password])
     }
 
-    @Test func listsWhatStillBlocksRecovery() {
-        #expect(StartupReadiness.missing(autoRestart: true, fileVaultIsOn: false, autoLoginUser: "me", opensAtLogin: true) == [])
-        #expect(StartupReadiness.missing(autoRestart: false, fileVaultIsOn: true, autoLoginUser: nil, opensAtLogin: false)
-                == [.power, .disk, .login, .app])
-        #expect(StartupReadiness.missing(autoRestart: nil, fileVaultIsOn: false, autoLoginUser: "me", opensAtLogin: true) == [.power])
+    @Test func picksBackgroundJobsThatStartAtLogin() {
+        let jobs = [job("local.caffeinate", "/usr/bin/caffeinate -d"),
+                    job("daily", "/bin/zsh run.sh", startsAtLogin: false),
+                    job("global", "/usr/bin/caffeinate -d", source: .globalAgent),
+                    job("local.autolock", "/bin/zsh -c sleep 1; /Users/me/.local/bin/lockscreen")]
+        #expect(StartupJobs.atLogin(jobs).map(\.label) == ["local.caffeinate", "local.autolock"])
+        #expect(StartupJobs.keepsAwake(jobs[0]))
+        #expect(!StartupJobs.keepsAwake(jobs[3]))
+        #expect(StartupJobs.locksScreen(jobs[3]))
+        #expect(!StartupJobs.locksScreen(jobs[0]))
+    }
+
+    @Test func readsWhetherAnAgentStartsAtLogin() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("agents-\(UUID())")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let plists: [String: [String: Any]] = [
+            "a": ["Label": "a", "ProgramArguments": ["/usr/bin/caffeinate", "-d"], "KeepAlive": true],
+            "b": ["Label": "b", "Program": "/bin/true", "RunAtLoad": true],
+            "c": ["Label": "c", "Program": "/bin/true", "StartInterval": 60],
+            "d": ["Label": "d", "Program": "/bin/true", "KeepAlive": false],
+        ]
+        for (name, plist) in plists {
+            (plist as NSDictionary).write(to: directory.appendingPathComponent("\(name).plist"), atomically: true)
+        }
+        let jobs = ScheduledJobsService.readPlists(in: directory.path, source: .userAgent, statuses: [:])
+        #expect(jobs.filter(\.startsAtLogin).map(\.label) == ["a", "b"])
+    }
+
+    @Test func buildsAKeepAwakeAgent() {
+        let plist = ScheduledJobsService.agentPlist(label: StartupJobs.keepAwakeLabel, arguments: StartupJobs.keepAwakeArguments)
+        #expect(plist["Label"] as? String == "click.ngoctruong.CleanMacOS.caffeinate")
+        #expect(plist["ProgramArguments"] as? [String] == ["/usr/bin/caffeinate", "-d"])
+        #expect(plist["RunAtLoad"] as? Bool == true)
+        #expect(plist["KeepAlive"] as? Bool == true)
     }
 }

@@ -1,55 +1,63 @@
 import SwiftUI
-import UniformTypeIdentifiers
 
 struct StartupSettingsView: View {
     @AppStorage(StartupSettings.lockKey) private var locksScreen = false
-    @AppStorage(StartupSettings.keepAwakeKey) private var keepsAwake = false
-    @State private var apps = StartupSettings.apps()
-    @State private var opensAtLogin = OpenAtLogin.isEnabled
+    @AppStorage(StartupSettings.lockDelayKey) private var lockDelay = StartupSettings.defaultLockDelay
     @State private var autoRestart: Bool?
     @State private var fileVaultIsOn: Bool?
     @State private var autoLoginUser: String?
+    @State private var loginItems: [LoginItem] = []
+    @State private var jobs: [ScheduledJob] = []
+    @State private var opensAtLogin = OpenAtLogin.isEnabled
     @State private var hasLoaded = false
-    @State private var isChangingAutoRestart = false
-    @State private var autoRestartError = ""
+    @State private var isWorking = false
+    @State private var message = ""
+    @State private var selected: StartupStep?
 
-    private var missing: [StartupReadiness] {
-        StartupReadiness.missing(autoRestart: autoRestart, fileVaultIsOn: fileVaultIsOn,
-                                 autoLoginUser: autoLoginUser, opensAtLogin: opensAtLogin)
+    private let loginItemsService = LoginItemsService()
+    private let jobsService = ScheduledJobsService()
+
+    init(initialStep: StartupStep? = nil) {
+        _selected = State(initialValue: initialStep)
     }
 
-    @State private var selected: StartupStep?
+    private var missing: [StartupReadiness] {
+        StartupReadiness.missing(autoRestart: autoRestart, fileVaultIsOn: fileVaultIsOn, autoLoginUser: autoLoginUser)
+    }
+
+    private var openApps: [LoginItem] { loginItems.filter { $0.isEnabled && !$0.isMissing } }
+    private var backgroundJobs: [ScheduledJob] { StartupJobs.atLogin(jobs) }
+    private var lockerJob: ScheduledJob? { backgroundJobs.first { StartupJobs.locksScreen($0) && $0.isLoaded } }
+    private var hasKeepAwake: Bool { backgroundJobs.contains(where: StartupJobs.keepsAwake) }
+    private var skipsPassword: Bool { autoLoginUser != nil && fileVaultIsOn != true }
 
     private var steps: [FlowNode] {
         [
-            FlowNode(step: .power, icon: "bolt.fill", colors: [.yellow, .orange], name: "Power", title: "Power returns",
+            FlowNode(step: .power, icon: "bolt.fill", colors: [.yellow, .orange], name: "Power", title: "Turn on when power returns",
                      detail: autoRestart == nil && hasLoaded ? "This Mac doesn't offer it — Mac laptops run on battery instead"
-                         : autoRestartError.isEmpty ? "The Mac turns itself on when power comes back. macOS asks for your password to change this."
-                         : autoRestartError,
+                         : "The Mac starts by itself once power is back. macOS asks for your password to change this.",
                      state: autoRestart == true ? .ready : autoRestart == nil ? .unavailable : .attention),
-            FlowNode(step: .disk, icon: "lock.open.fill", colors: [.teal, .cyan], name: "Unlock", title: "No disk password",
-                     detail: fileVaultIsOn == true ? "FileVault is on — the Mac stops and waits for your disk password, so nothing after this runs."
-                         : "FileVault is off, so the Mac can start up without anyone typing a password.",
-                     state: fileVaultIsOn == true ? .attention : .ready),
-            FlowNode(step: .login, icon: "person.crop.circle.fill", colors: [.blue, .indigo], name: "Log in", title: "Log in automatically",
-                     detail: autoLoginUser.map { "Signs in as \($0) without the login screen." } ?? "Off — the Mac waits at the login screen. Turn it on in Users & Groups.",
-                     state: autoLoginUser == nil ? .attention : .ready),
-            FlowNode(step: .app, icon: "sparkles", colors: [.purple, .pink], name: "Clean macOS", title: "Clean macOS opens",
-                     detail: "Opens at login so the next steps can run.", state: opensAtLogin ? .ready : .attention),
+            FlowNode(step: .password, icon: "key.fill", colors: [.teal, .cyan], name: "No password", title: "Log in without a password",
+                     detail: fileVaultIsOn == true ? "FileVault is on — the Mac waits for the disk password before anything below starts."
+                         : autoLoginUser.map { "Logs straight in as \($0). Turn it off and the Mac waits for your password; turning it on happens in Users & Groups." }
+                         ?? "Off — the Mac waits for your password. Turn it on in Users & Groups › Automatically log in as.",
+                     state: skipsPassword ? .ready : .attention),
             FlowNode(step: .apps, icon: "square.stack.3d.up.fill", colors: [.pink, .orange], name: "Apps", title: "Open your apps",
-                     detail: "Once per startup, within 10 minutes of the Mac turning on. Each app can stay open, hide or quit after a few seconds.",
-                     state: apps.isEmpty ? .off : .ready),
+                     detail: "macOS opens these right after logging in — the same list as Ports & Jobs › Login Items.",
+                     state: openApps.isEmpty ? .off : .ready),
+            FlowNode(step: .background, icon: "gearshape.2.fill", colors: [.purple, .pink], name: "Background", title: "Background jobs",
+                     detail: "Your LaunchAgents that start at login and keep running, like caffeinate -d to keep the screen awake.",
+                     state: backgroundJobs.contains(where: \.isLoaded) ? .ready : .off),
             FlowNode(step: .lock, icon: "lock.fill", colors: [.indigo, .purple], name: "Lock", title: "Lock the screen",
-                     detail: "Right after the apps start, so the desktop isn't left open.", state: locksScreen ? .ready : .off),
-            FlowNode(step: .awake, icon: "sun.max.fill", colors: [.orange, .yellow], name: "Stay awake", title: "Keep the screen awake",
-                     detail: "Like caffeinate -d, for as long as Clean macOS runs.", state: keepsAwake ? .ready : .off),
+                     detail: lockerJob.map { "\($0.label) already locks the screen after login. Turn this on only if you remove it." }
+                         ?? "\(lockDelay) s after logging in without a password, so the desktop isn't left open.",
+                     state: locksScreen || lockerJob != nil ? .ready : .off),
         ]
     }
 
     private var current: FlowNode {
         let steps = steps
-        let fallback = steps.first { $0.state == .attention } ?? steps[4]
-        return steps.first { $0.step == selected } ?? fallback
+        return steps.first { $0.step == selected } ?? steps.first { $0.state == .attention } ?? steps[2]
     }
 
     var body: some View {
@@ -61,10 +69,11 @@ struct StartupSettingsView: View {
             FlowInspector(node: current) { controls(current.step) } extra: { extra(current.step) }
                 .id(current.step)
                 .transition(.opacity)
+            if !message.isEmpty {
+                Text(message).font(.caption).foregroundStyle(.red).textSelection(.enabled)
+            }
         }
-        .task { await loadStatus() }
-        .onChange(of: apps) { _, apps in StartupSettings.save(apps) }
-        .onChange(of: keepsAwake) { _, isOn in StartupRoutine.shared.setKeepAwake(isOn) }
+        .task { await load() }
     }
 
     private var summary: some View {
@@ -82,11 +91,12 @@ struct StartupSettingsView: View {
                 Text(!hasLoaded ? "Checking this Mac…" : isReady ? "Recovers on its own after a power cut"
                      : "\(missing.count) \(missing.count == 1 ? "step needs" : "steps need") you")
                     .font(.headline)
-                Text("Power comes back, the Mac turns on, logs in and runs your apps — no one at the desk")
+                Text("Power comes back → the Mac turns on → logs in → opens your apps and background jobs → locks the screen")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
             Spacer()
+            if isWorking { ProgressView().controlSize(.small) }
         }
         .padding(14)
         .background(LinearGradient(colors: colors.map { $0.opacity(0.14) }, startPoint: .leading, endPoint: .trailing),
@@ -97,82 +107,135 @@ struct StartupSettingsView: View {
     @ViewBuilder private func controls(_ step: StartupStep) -> some View {
         switch step {
         case .power:
-            if isChangingAutoRestart { ProgressView().controlSize(.small) }
-            Toggle("", isOn: Binding(get: { autoRestart ?? false }, set: { changeAutoRestart($0) }))
-                .labelsHidden()
-                .toggleStyle(.switch)
-                .disabled(autoRestart == nil || isChangingAutoRestart)
-        case .disk:
+            switchToggle(Binding(get: { autoRestart ?? false }, set: { isOn in perform { SystemPower.setAutoRestart(isOn) } }))
+                .disabled(autoRestart == nil)
+        case .password:
             if fileVaultIsOn == true {
                 Button("FileVault…") { NSWorkspace.shared.open(SystemPower.fileVaultSettingsURL) }.pointerCursor()
             }
-        case .login:
-            Button("Users & Groups…") { NSWorkspace.shared.open(SystemPower.usersSettingsURL) }.pointerCursor()
-        case .app:
-            Toggle("", isOn: $opensAtLogin)
-                .labelsHidden()
-                .toggleStyle(.switch)
-                .onChange(of: opensAtLogin) { _, isOn in
-                    OpenAtLogin.set(isOn)
-                    opensAtLogin = OpenAtLogin.isEnabled
-                }
+            switchToggle(Binding(get: { autoLoginUser != nil }, set: { isOn in
+                if isOn { NSWorkspace.shared.open(SystemPower.usersSettingsURL) } else { perform { SystemPower.turnOffAutoLogin() } }
+            }))
         case .apps:
-            Button { addApps() } label: { Label("Add App…", systemImage: "plus") }.pointerCursor()
-            Button { Task { await StartupRoutine.shared.run(apps, locksScreen: false) } } label: {
-                Label("Run Now", systemImage: "play.fill")
+            Button { addApp() } label: { Label("Add App…", systemImage: "plus") }.pointerCursor()
+        case .background:
+            if !hasKeepAwake {
+                Button { addKeepAwake() } label: { Label("Add caffeinate -d", systemImage: "sun.max.fill") }
+                    .pointerCursor()
+                    .help("Keeps the screen awake from login on, as a LaunchAgent")
             }
-            .pointerCursor()
-            .disabled(apps.isEmpty)
-            .help("Open the apps now to test, without locking the screen")
         case .lock:
-            Toggle("", isOn: $locksScreen).labelsHidden().toggleStyle(.switch)
-        case .awake:
-            Toggle("", isOn: $keepsAwake).labelsHidden().toggleStyle(.switch)
+            Stepper("\(lockDelay) s", value: $lockDelay, in: 0...60)
+                .monospacedDigit()
+                .frame(width: 80)
+            switchToggle($locksScreen)
         }
     }
 
     @ViewBuilder private func extra(_ step: StartupStep) -> some View {
-        if step == .apps, !apps.isEmpty {
+        switch step {
+        case .apps:
             VStack(spacing: 6) {
-                ForEach($apps) { $app in StartupAppRow(app: $app) { apps.removeAll { $0.id == app.id } } }
+                ForEach(loginItems) { item in
+                    StartupRow(icon: Image(nsImage: NSWorkspace.shared.icon(forFile: item.path ?? "/Applications")),
+                               title: item.name, subtitle: item.statusLabel, tags: [],
+                               isOn: Binding(get: { item.isEnabled }, set: { setLoginItem(item, $0) }))
+                        .disabled(item.isMissing)
+                }
             }
+        case .background:
+            VStack(spacing: 6) {
+                ForEach(backgroundJobs) { job in
+                    StartupRow(icon: Image(systemName: "terminal.fill"), title: job.label,
+                               subtitle: "\(job.statusLabel) · \(job.command)",
+                               tags: [StartupJobs.keepsAwake(job) ? "keeps awake" : nil,
+                                      StartupJobs.locksScreen(job) ? "locks screen" : nil].compactMap { $0 },
+                               isOn: Binding(get: { job.isLoaded }, set: { setJob(job, $0) }))
+                }
+            }
+        case .lock:
+            if locksScreen && !opensAtLogin {
+                HStack {
+                    Label("Clean macOS must open at login to lock the screen", systemImage: "exclamationmark.triangle.fill")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                    Spacer()
+                    Button("Open at Login") {
+                        OpenAtLogin.set(true)
+                        opensAtLogin = OpenAtLogin.isEnabled
+                    }
+                    .pointerCursor()
+                }
+            }
+        case .power, .password:
+            EmptyView()
         }
     }
 
-    private func loadStatus() async {
+    private func switchToggle(_ isOn: Binding<Bool>) -> some View {
+        Toggle("", isOn: isOn).labelsHidden().toggleStyle(.switch).disabled(isWorking)
+    }
+
+    private func load() async {
         let (restart, fileVault, user) = await Task.detached(priority: .utility) {
             (SystemPower.autoRestart(), SystemPower.fileVaultIsOn(), SystemPower.autoLoginUser())
         }.value
         autoRestart = restart
         fileVaultIsOn = fileVault
         autoLoginUser = user
+        loginItems = loginItemsService.list()
+        jobs = await jobsService.list()
+        opensAtLogin = OpenAtLogin.isEnabled
         hasLoaded = true
     }
 
-    private func changeAutoRestart(_ isOn: Bool) {
-        isChangingAutoRestart = true
+    private func perform(_ adminChange: @escaping @Sendable () -> String?) {
+        isWorking = true
         Task {
-            let error = await Task.detached { SystemPower.setAutoRestart(isOn) }.value
-            autoRestartError = error ?? ""
-            await loadStatus()
-            isChangingAutoRestart = false
+            message = await Task.detached { adminChange() }.value ?? ""
+            await load()
+            isWorking = false
         }
     }
 
-    private func addApps() {
+    private func run(_ change: @escaping () async throws -> Void) {
+        isWorking = true
+        Task {
+            do {
+                try await change()
+                message = ""
+            } catch {
+                message = error.localizedDescription
+            }
+            await load()
+            isWorking = false
+        }
+    }
+
+    private func setLoginItem(_ item: LoginItem, _ isOn: Bool) {
+        run { isOn ? try loginItemsService.turnOn(item) : try loginItemsService.turnOff(item) }
+    }
+
+    private func setJob(_ job: ScheduledJob, _ isOn: Bool) {
+        run { isOn ? try await jobsService.turnOn(job) : try await jobsService.turnOff(job) }
+    }
+
+    private func addKeepAwake() {
+        run { try await jobsService.addAgent(label: StartupJobs.keepAwakeLabel, arguments: StartupJobs.keepAwakeArguments) }
+    }
+
+    private func addApp() {
         let panel = NSOpenPanel()
         panel.directoryURL = URL(fileURLWithPath: "/Applications")
         panel.allowedContentTypes = [.application]
-        panel.allowsMultipleSelection = true
         panel.prompt = "Add"
-        guard panel.runModal() == .OK else { return }
-        let known = Set(apps.map(\.path))
-        apps += panel.urls.map(\.path).filter { !known.contains($0) }.map { StartupApp(path: $0) }
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        run { try loginItemsService.add(url) }
     }
 }
 
 enum StartupStep: Hashable {
-    case power, disk, login, app, apps, lock, awake
+    case power, password, apps, background, lock
 }
 
 enum FlowStepState {
@@ -219,6 +282,7 @@ struct FlowCanvas: View {
             row(isCompact: false)
             ScrollView(.horizontal, showsIndicators: false) { row(isCompact: true) }
         }
+        .frame(maxWidth: .infinity)
         .padding(.vertical, 12)
         .padding(.horizontal, 4)
         .background(DotGrid().clipShape(RoundedRectangle(cornerRadius: 16)))
@@ -231,7 +295,7 @@ struct FlowCanvas: View {
             ForEach(Array(nodes.enumerated()), id: \.element.id) { index, node in
                 if index > 0 {
                     FlowConnector(from: nodes[index - 1], to: node)
-                        .frame(minWidth: 18, maxWidth: isCompact ? 18 : 56)
+                        .frame(minWidth: 18, maxWidth: isCompact ? 18 : 120)
                         .frame(height: 58)
                 }
                 FlowNodeTile(node: node, isSelected: node.step == selected) { select(node.step) }
@@ -388,33 +452,40 @@ struct FlowInspector<Controls: View, Extra: View>: View {
     }
 }
 
-struct StartupAppRow: View {
-    @Binding var app: StartupApp
-    let remove: () -> Void
+struct StartupRow: View {
+    let icon: Image
+    let title: String
+    let subtitle: String
+    let tags: [String]
+    @Binding var isOn: Bool
 
     var body: some View {
         HStack(spacing: 10) {
-            Image(nsImage: NSWorkspace.shared.icon(forFile: app.path))
+            icon
                 .resizable()
-                .frame(width: 24, height: 24)
-            Text(app.name).fontWeight(.medium).lineLimit(1)
+                .scaledToFit()
+                .foregroundStyle(.secondary)
+                .frame(width: 22, height: 22)
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
+                    Text(title).fontWeight(.medium).lineLimit(1)
+                    ForEach(tags, id: \.self) { tag in
+                        Text(tag)
+                            .font(.caption2.weight(.bold))
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 1)
+                            .foregroundStyle(.purple)
+                            .background(Color.purple.opacity(0.14), in: Capsule())
+                    }
+                }
+                Text(subtitle)
+                    .font(.system(size: 10, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
             Spacer()
-            Picker("", selection: $app.action) {
-                ForEach(StartupAction.allCases) { Text($0.label).tag($0) }
-            }
-            .labelsHidden()
-            .frame(width: 118)
-            if app.action != .keepOpen {
-                Stepper("\(app.delaySeconds) s", value: $app.delaySeconds, in: 1...300)
-                    .monospacedDigit()
-                    .frame(width: 84)
-            }
-            Button(action: remove) {
-                Image(systemName: "xmark.circle.fill").foregroundStyle(.tertiary)
-            }
-            .buttonStyle(.plain)
-            .pointerCursor()
-            .help("Remove")
+            Toggle("", isOn: $isOn).labelsHidden().toggleStyle(.switch).controlSize(.small)
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 6)

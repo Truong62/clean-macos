@@ -76,6 +76,7 @@ struct ScheduledJob: Identifiable, Hashable, Sendable {
     let pid: pid_t?
     let lastExitStatus: Int?
     var cronLine: String? = nil
+    var startsAtLogin = false
 
     var id: String { "\(source.rawValue):\(label)" }
     var isRunning: Bool { pid != nil }

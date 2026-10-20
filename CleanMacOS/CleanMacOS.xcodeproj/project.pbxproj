@@ -282,7 +282,7 @@
 			);
 			sourceTree = "<group>";
 		};
-		"TEMP_3008C640-6313-4497-A6B8-9CBC0324B1C2" /* Resources */ = {
+		"TEMP_D630508D-9029-452D-AB85-1CE8ACCAB4DE" /* Resources */ = {
 			isa = PBXGroup;
 			children = (
 			);
