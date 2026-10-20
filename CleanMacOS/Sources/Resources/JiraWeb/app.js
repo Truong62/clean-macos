@@ -141,6 +141,7 @@ const api = {
   users: (query) => api.call('GET', `/api/users?q=${encodeURIComponent(query)}`),
   editComment: (key, id, body) => api.call('PUT', `/api/issues/${key}/comment/${id}`, { body }),
   deleteComment: (key, id) => api.call('DELETE', `/api/issues/${key}/comment/${id}`),
+  react: (key, id, kind) => api.call('POST', `/api/issues/${key}/comment/${id}/reaction`, { kind }),
   render: (markup, issueKey) => api.call('POST', '/api/render', { markup, issueKey }),
   async upload(key, file, name) {
     const response = await fetch(`/api/issues/${key}/attachments?name=${encodeURIComponent(name)}`, { method: 'POST', body: await file.arrayBuffer() });
@@ -1086,12 +1087,27 @@ function descriptionHtml(d) {
   </section>`;
 }
 
+const REACTIONS = { like: '👍', love: '❤️', laugh: '😂', party: '🎉', look: '👀' };
+
+function reactionChip(c, r) {
+  const isMine = r.users.some((u) => u.name === myName());
+  const names = r.users.map((u) => u.displayName || u.name).join(', ');
+  return `<button type="button" data-react="${esc(r.kind)}" data-comment-id="${esc(c.id)}" aria-pressed="${isMine}" title="${esc(names)}" class="inline-flex cursor-pointer items-center gap-1 rounded-full border px-1.5 py-px text-xs tabular-nums ${isMine ? 'border-primary/40 bg-primary/15 text-foreground' : 'border-border bg-foreground/5 text-muted hover:text-foreground'}">${REACTIONS[r.kind] || ''}<span>${r.users.length}</span></button>`;
+}
+
+function commentFooter(c, isMine) {
+  const chips = (c.reactions || []).filter((r) => REACTIONS[r.kind]).map((r) => reactionChip(c, r)).join('');
+  const picker = Object.entries(REACTIONS).map(([kind, emoji]) => `<button type="button" data-react="${kind}" data-comment-id="${esc(c.id)}" aria-label="React ${kind}" class="cursor-pointer rounded px-0.5 grayscale-[40%] hover:scale-125 hover:grayscale-0 transition-transform">${emoji}</button>`).join('');
+  const edit = isMine ? `<button type="button" data-edit-comment="${esc(c.id)}" class="cursor-pointer hover:text-foreground">Edit</button>
+      <button type="button" data-delete-comment="${esc(c.id)}" class="cursor-pointer hover:text-danger-text data-[confirm]:font-semibold data-[confirm]:text-danger-text data-[confirm]:opacity-100">Delete</button>` : '';
+  return `<div class="mt-1 flex flex-wrap items-center gap-1 px-1 ${isMine ? 'flex-row-reverse' : ''}">${chips}
+    <div data-comment-actions class="flex items-center gap-3 text-xs text-muted opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100"><span class="flex items-center">${picker}</span>${edit}</div></div>`;
+}
+
 function commentBubble(c, isEditable = true) {
   const who = c.authorUser || { name: '', displayName: c.author || '', avatar: '' };
   const isMine = who.name === myName();
-  const actions = isMine && isEditable ? `<div class="mt-0.5 flex gap-3 px-1 text-xs text-muted opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
-      <button type="button" data-edit-comment="${esc(c.id)}" class="cursor-pointer hover:text-foreground">Edit</button>
-      <button type="button" data-delete-comment="${esc(c.id)}" class="cursor-pointer hover:text-danger-text data-[confirm]:font-semibold data-[confirm]:text-danger-text data-[confirm]:opacity-100">Delete</button></div>` : '';
+  const actions = isEditable ? commentFooter(c, isMine) : '';
   return `<div class="group flex items-start gap-2 py-1.5 ${isMine ? 'flex-row-reverse' : ''}">${avatar(who, 'size-7')}
     <div class="flex min-w-0 max-w-[85%] flex-col ${isMine ? 'items-end' : 'items-start'}" ${isEditable ? `data-comment="${esc(c.id)}"` : ''}>
       <p class="px-1 text-xs text-muted">${isMine ? '' : `<span class="font-medium text-foreground">${esc(who.displayName)}</span> · `}${esc(c.created)}</p>
@@ -1110,7 +1126,7 @@ function startEditComment(id) {
   container.querySelector('[data-comment-body]').outerHTML = `<div class="mt-0.5 w-full" data-comment-editor="${esc(id)}">
     <textarea rows="4" data-comment-edit-input class="${textareaClass}">${esc(comment.bodyRaw || '')}</textarea>
     <div class="mt-2 flex justify-end gap-2"><button type="button" data-cancel-comment-edit class="${buttonSecondary}">Cancel</button><button type="button" data-save-comment="${esc(id)}" class="${buttonPrimary}">Save</button></div></div>`;
-  container.querySelector('[data-edit-comment]')?.parentElement.remove();
+  container.querySelector('[data-comment-actions]')?.remove();
   container.querySelector('[data-comment-edit-input]').focus();
 }
 
@@ -1204,7 +1220,7 @@ async function uploadCommentImages(files) {
 
 function commentListHtml(d) {
   return d.comments.length
-    ? `<div class="mt-2 flex flex-col">${d.comments.map(commentBubble).join('')}</div>`
+    ? `<div class="mt-2 flex flex-col">${d.comments.map((c) => commentBubble(c)).join('')}</div>`
     : '<p class="py-2 text-sm text-muted">No comments yet.</p>';
 }
 
@@ -1438,6 +1454,19 @@ async function runWrite(action, successMessage) {
   } catch (error) {
     showToast(error.message, true);
     if (state.detail) renderPanel(state.detail);
+  }
+}
+
+async function toggleReaction(button) {
+  const key = state.detail.key;
+  button.disabled = true;
+  try {
+    const detail = await api.react(key, button.dataset.commentId, button.dataset.react);
+    if (state.detail?.key === detail.key) applyRemoteDetail(detail);
+    replaceIssue(detail);
+  } catch (error) {
+    showToast(error.message, true);
+    button.disabled = false;
   }
 }
 
@@ -1700,6 +1729,7 @@ const CLICK_ACTIONS = [
   ['[data-save-comment]', (el) => saveCommentEdit(el.dataset.saveComment)],
   ['[data-cancel-comment-edit]', () => renderPanel(state.detail)],
   ['[data-delete-comment]', (el) => deleteCommentWithConfirm(el)],
+  ['[data-react]', (el) => toggleReaction(el)],
   ['[data-remove-image]', (el) => { compose.images.splice(Number(el.dataset.removeImage), 1); renderComposeImages(); }],
   ['[data-lightbox]', (el) => openLightbox(el.dataset.lightbox, el.dataset.name)],
   ['[data-close-lightbox]', closeLightbox],

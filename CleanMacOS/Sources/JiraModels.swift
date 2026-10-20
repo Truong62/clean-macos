@@ -71,9 +71,11 @@ struct JiraMapper {
         let rawBodies = Dictionary(((f["comment"] as? JiraJSON)?["comments"] as? [JiraJSON] ?? []).compactMap { raw in
             (raw["id"] as? String).map { ($0, raw["body"] as? String ?? "") }
         }, uniquingKeysWith: { first, _ in first })
+        let reactions = (issue["properties"] as? JiraJSON)?[JiraReactions.propertyKey] as? JiraJSON ?? [:]
         detail["comments"] = comments.map { comment -> JiraJSON in
             let created = Self.prefix(comment["created"], 16) ?? ""
             return ["id": orNull(comment["id"]),
+                    "reactions": JiraReactions.list(reactions[comment["id"] as? String ?? ""] as? JiraJSON ?? [:]),
                     "bodyRaw": orNull((comment["id"] as? String).flatMap { rawBodies[$0] }),
                     "author": orNull((comment["author"] as? JiraJSON)?["displayName"]),
                     "authorUser": (comment["author"] as? JiraJSON).map(user) ?? NSNull(),
@@ -684,5 +686,32 @@ struct JiraBoardOption: Identifiable, Hashable {
 
     static func preferred(in boards: [JiraBoardOption], current: Int?) -> JiraBoardOption? {
         boards.first { $0.id == current } ?? boards.first(where: \.isScrum) ?? boards.first
+    }
+}
+
+enum JiraReactions {
+    static let propertyKey = "clean-macos.reactions"
+    static let kinds = ["like", "love", "laugh", "party", "look"]
+
+    static func list(_ byKind: JiraJSON) -> [JiraJSON] {
+        kinds.compactMap { kind in
+            let users = byKind[kind] as? [JiraJSON] ?? []
+            return users.isEmpty ? nil : ["kind": kind, "users": users]
+        }
+    }
+
+    static func toggled(_ store: JiraJSON, commentId: String, kind: String, by user: JiraJSON) -> JiraJSON {
+        let name = user["name"] as? String ?? ""
+        var byKind = store[commentId] as? JiraJSON ?? [:]
+        var users = byKind[kind] as? [JiraJSON] ?? []
+        if users.contains(where: { $0["name"] as? String == name }) {
+            users.removeAll { $0["name"] as? String == name }
+        } else {
+            users.append(["name": name, "displayName": user["displayName"] as? String ?? ""])
+        }
+        byKind[kind] = users.isEmpty ? nil : users
+        var next = store
+        next[commentId] = byKind.isEmpty ? nil : byKind
+        return next
     }
 }

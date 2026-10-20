@@ -93,6 +93,73 @@ struct JiraServiceTests {
         #expect(query(refetch, "expand") == "renderedFields,transitions,editmeta,changelog")
     }
 
+    @Test func toggleReactionWritesIssuePropertyThenRefetches() async throws {
+        let transport = FakeJiraTransport()
+        let property = "/rest/api/2/issue/FAL-1/properties/\(JiraReactions.propertyKey)"
+        transport.responder = { [fieldList, me] request in
+            switch (request.httpMethod!, request.url!.path) {
+            case ("GET", "/rest/api/2/field"): return (200, fieldList)
+            case ("GET", "/rest/api/2/myself"): return (200, me)
+            case ("GET", property): return (200, ["key": JiraReactions.propertyKey,
+                                                  "value": ["9": ["like": [["name": "tony", "displayName": "Tony"]]]]])
+            case ("PUT", property): return (200, nil)
+            case ("GET", "/rest/api/2/issue/FAL-1"): return (200, JiraFixtures.makeIssue())
+            default: return (404, nil)
+            }
+        }
+        let service = service(transport)
+        let response = await JiraRouter(service: { service }).handle(method: "POST", path: "/api/issues/FAL-1/comment/9/reaction",
+                                                                     query: nil, body: Data(#"{"kind":"like"}"#.utf8))
+        #expect(response.status == 200)
+        let put = try #require(transport.requests.first { $0.httpMethod == "PUT" })
+        let body = try JSONSerialization.jsonObject(with: put.httpBody!) as? JiraJSON
+        #expect(((body?["9"] as? JiraJSON)?["like"] as? [JiraJSON])?.compactMap { $0["name"] as? String } == ["tony", "truongnn"])
+        let refetch = try #require(transport.requests.last { $0.url!.path == "/rest/api/2/issue/FAL-1" })
+        #expect(query(refetch, "properties") == JiraReactions.propertyKey)
+    }
+
+    @Test func toggleReactionStartsEmptyWhenPropertyMissingAndDeletesWhenEmpty() async throws {
+        let transport = FakeJiraTransport()
+        let property = "/rest/api/2/issue/FAL-1/properties/\(JiraReactions.propertyKey)"
+        transport.responder = { [fieldList, me] request in
+            switch (request.httpMethod!, request.url!.path) {
+            case ("GET", "/rest/api/2/field"): return (200, fieldList)
+            case ("GET", "/rest/api/2/myself"): return (200, me)
+            case ("GET", property): return (200, ["value": ["9": ["like": [["name": "truongnn", "displayName": "Trường"]]]]])
+            case ("DELETE", property): return (204, nil)
+            case ("GET", "/rest/api/2/issue/FAL-1"): return (200, JiraFixtures.makeIssue())
+            default: return (404, nil)
+            }
+        }
+        _ = try await service(transport).toggleReaction("FAL-1", commentId: "9", kind: "like")
+        #expect(transport.requests.contains { $0.httpMethod == "DELETE" })
+        #expect(!transport.requests.contains { $0.httpMethod == "PUT" })
+
+        transport.responder = { [fieldList, me] request in
+            switch (request.httpMethod!, request.url!.path) {
+            case ("GET", "/rest/api/2/field"): return (200, fieldList)
+            case ("GET", "/rest/api/2/myself"): return (200, me)
+            case ("PUT", property): return (201, nil)
+            case ("GET", "/rest/api/2/issue/FAL-1"): return (200, JiraFixtures.makeIssue())
+            default: return (404, nil)
+            }
+        }
+        _ = try await service(transport).toggleReaction("FAL-1", commentId: "9", kind: "love")
+        let put = try #require(transport.requests.last { $0.httpMethod == "PUT" })
+        let body = try JSONSerialization.jsonObject(with: put.httpBody!) as? JiraJSON
+        #expect((body?["9"] as? JiraJSON)?.keys.sorted() == ["love"])
+    }
+
+    @Test func toggleReactionKeepsOthersWhenReadFails() async {
+        let transport = FakeJiraTransport { request -> (Int, Any?) in
+            request.url!.path.contains("/properties/") ? (500, ["errorMessages": ["boom"]]) : (200, [JiraJSON]())
+        }
+        await expectJiraError(500) { _ = try await service(transport).toggleReaction("FAL-1", commentId: "9", kind: "like") }
+        #expect(!transport.requests.contains { $0.httpMethod == "PUT" || $0.httpMethod == "DELETE" })
+        await expectJiraError(400) { _ = try await service(transport).toggleReaction("FAL-1", commentId: "9", kind: "boom") }
+        await expectJiraError(400) { _ = try await service(transport).toggleReaction("FAL-1", commentId: "x/y", kind: "like") }
+    }
+
     @Test func rejectsInvalidKeyAndUnknownColumn() async {
         let transport = FakeJiraTransport { [board] request -> (Int, Any?) in
             (200, request.url!.path.hasSuffix("/configuration") ? board : [JiraJSON]())

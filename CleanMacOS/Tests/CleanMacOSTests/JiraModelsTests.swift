@@ -242,6 +242,34 @@ struct JiraDetailTests {
     }
 }
 
+struct JiraReactionsTests {
+    private let tony: JiraJSON = ["name": "tony", "displayName": "Tony", "avatar": "/api/avatar?x"]
+    private let me: JiraJSON = ["name": "truongnn", "displayName": "Trường"]
+
+    @Test func togglesOneReactionPerUserAndKind() {
+        let liked = JiraReactions.toggled([:], commentId: "9", kind: "like", by: tony)
+        #expect(liked as NSDictionary == ["9": ["like": [["name": "tony", "displayName": "Tony"]]]] as NSDictionary)
+        let both = JiraReactions.toggled(liked, commentId: "9", kind: "like", by: me)
+        #expect(((both["9"] as? JiraJSON)?["like"] as? [JiraJSON])?.count == 2)
+        let undone = JiraReactions.toggled(JiraReactions.toggled(both, commentId: "9", kind: "like", by: me),
+                                           commentId: "9", kind: "like", by: tony)
+        #expect(undone.isEmpty)
+    }
+
+    @Test func mapsReactionsOntoCommentsInFixedOrder() {
+        var issue = JiraFixtures.makeIssue()
+        issue["renderedFields"] = ["comment": ["comments": [["id": "9", "body": "hi"], ["id": "10", "body": "yo"]]]]
+        issue["properties"] = [JiraReactions.propertyKey: [
+            "9": ["look": [["name": "tony", "displayName": "Tony"]], "like": [["name": "a", "displayName": "A"]], "bogus": [["name": "b"]]],
+            "77": ["like": [["name": "gone", "displayName": "Gone"]]],
+        ]]
+        let comments = JiraFixtures.mapper.detail(issue)["comments"] as? [JiraJSON] ?? []
+        let reactions = comments.map { ($0["reactions"] as? [JiraJSON] ?? []).compactMap { $0["kind"] as? String } }
+        #expect(reactions == [["like", "look"], []])
+        #expect(((comments[0]["reactions"] as? [JiraJSON])?.first?["users"] as? [JiraJSON])?.first?["displayName"] as? String == "A")
+    }
+}
+
 struct JiraUpdateFieldsTests {
     private let mapper = JiraFixtures.mapper
 

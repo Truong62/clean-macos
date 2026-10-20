@@ -75,6 +75,8 @@ struct JiraRouter {
         case ("POST", 3, "issues", "move"): return try await service.moveIssue(parts[1], column: try input("column"))
         case ("PUT", 4, "issues", let id?) where parts[2] == "comment":
             return try await service.updateComment(parts[1], id: id, body: try Self.bodyField(body, "body"))
+        case ("POST", 5, "issues", "reaction") where parts[2] == "comment":
+            return try await service.toggleReaction(parts[1], commentId: parts[3], kind: try input("kind"))
         case ("DELETE", 4, "issues", let id?) where parts[2] == "comment":
             return try await service.deleteComment(parts[1], id: id)
         case ("POST", 3, "issues", "attachments"):

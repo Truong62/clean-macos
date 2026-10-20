@@ -60,7 +60,8 @@ actor JiraService {
 
     func getIssue(_ key: String) async throws -> JiraJSON {
         try Self.validate(key: key)
-        let issue = try await object(path: "/rest/api/2/issue/\(key)", query: ["expand": Self.detailExpand])
+        let issue = try await object(path: "/rest/api/2/issue/\(key)",
+                                     query: ["expand": Self.detailExpand, "properties": JiraReactions.propertyKey])
         return try await mapper().detail(issue)
     }
 
@@ -116,6 +117,27 @@ actor JiraService {
         try Self.validate(commentId: id)
         _ = try await client.request(method: "DELETE", path: "/rest/api/2/issue/\(key)/comment/\(id)")
         return try await getIssue(key)
+    }
+
+    func toggleReaction(_ key: String, commentId id: String, kind: String) async throws -> JiraJSON {
+        try Self.validate(key: key)
+        try Self.validate(commentId: id)
+        guard JiraReactions.kinds.contains(kind) else { throw JiraError(status: 400, message: "Unknown reaction '\(kind)'") }
+        let path = "/rest/api/2/issue/\(key)/properties/\(JiraReactions.propertyKey)"
+        let me = try await mapper().user(try await object(path: "/rest/api/2/myself"))
+        let next = JiraReactions.toggled(try await reactionStore(path), commentId: id, kind: kind, by: me)
+        _ = next.isEmpty
+            ? try await client.request(method: "DELETE", path: path)
+            : try await client.request(method: "PUT", path: path, body: next)
+        return try await getIssue(key)
+    }
+
+    private func reactionStore(_ path: String) async throws -> JiraJSON {
+        do {
+            return try await object(path: path)["value"] as? JiraJSON ?? [:]
+        } catch let error as JiraError where error.status == 404 {
+            return [:]
+        }
     }
 
     func listProjects() async throws -> [JiraProjectOption] {
