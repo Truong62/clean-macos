@@ -43,12 +43,11 @@ struct AuroraLayers: NSViewRepresentable {
     func updateNSView(_ view: AuroraView, context: Context) {}
 
     final class AuroraView: NSView {
-        private static let blobs: [(NSColor, CGFloat, CGFloat, Double)] = [
-            (NSColor(red: 0.42, green: 0.36, blue: 0.95, alpha: 1), 0.15, 0.05, 0),
-            (NSColor(red: 0.95, green: 0.42, blue: 0.68, alpha: 1), 0.85, 0.15, 2.1),
-            (NSColor(red: 0.25, green: 0.78, blue: 0.80, alpha: 1), 0.70, 0.95, 4.2),
+        private static let blobs: [(NSColor, CGFloat, CGFloat)] = [
+            (NSColor(red: 0.42, green: 0.36, blue: 0.95, alpha: 1), 0.15, 0.05),
+            (NSColor(red: 0.95, green: 0.42, blue: 0.68, alpha: 1), 0.85, 0.15),
+            (NSColor(red: 0.25, green: 0.78, blue: 0.80, alpha: 1), 0.70, 0.95),
         ]
-        private static let period: CFTimeInterval = 2 * .pi * 9
         private static let opacity: CGFloat = 0.22
 
         private var glows: [CAGradientLayer] = []
@@ -83,21 +82,8 @@ struct AuroraLayers: NSViewRepresentable {
                 let center = CGPoint(x: bounds.width * blob.1, y: bounds.height * blob.2)
                 glow.bounds = CGRect(x: 0, y: 0, width: side, height: side)
                 glow.position = center
-                glow.add(drift(around: center, phase: blob.3), forKey: "drift")
             }
             CATransaction.commit()
-        }
-
-        private func drift(around center: CGPoint, phase: Double) -> CAAnimation {
-            let rect = CGRect(x: center.x - bounds.width * 0.06, y: center.y - bounds.height * 0.05,
-                              width: bounds.width * 0.12, height: bounds.height * 0.10)
-            let animation = CAKeyframeAnimation(keyPath: "position")
-            animation.path = CGPath(ellipseIn: rect, transform: nil)
-            animation.duration = Self.period
-            animation.timeOffset = phase / (2 * .pi) * Self.period
-            animation.repeatCount = .infinity
-            animation.calculationMode = .paced
-            return animation
         }
     }
 }
