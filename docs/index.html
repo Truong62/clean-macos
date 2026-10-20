@@ -136,6 +136,7 @@
 
         .showcase { display: grid; grid-template-columns: 5fr 7fr; gap: 56px; align-items: center; }
         .showcase + .showcase { margin-top: 110px; }
+        .showcase[id] { scroll-margin-top: 96px; }
         .showcase.flip { grid-template-columns: 7fr 5fr; }
         .showcase.flip .copy { order: 2; }
         .copy .eyebrow { color: var(--accent); }
@@ -360,7 +361,7 @@
             </div>
             <div class="shot"><div class="window"><div class="bar"><i></i><i></i><i></i></div><img src="images/jobs.png" width="2000" height="1360" alt="Scheduled jobs with log output" loading="lazy"></div></div>
         </div>
-        <div class="showcase flip reveal" style="--accent: #f5a524">
+        <div class="showcase flip reveal" id="power-recovery" style="--accent: #f5a524">
             <div class="copy">
                 <div class="eyebrow">Power recovery</div>
                 <h3>Power cut at night? Your Mac picks itself back up</h3>
