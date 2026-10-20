@@ -1,4 +1,3 @@
-import Charts
 import SwiftUI
 
 struct HomeHealth: Equatable {
@@ -184,8 +183,6 @@ struct VitalTile: View {
             }
             Text(value)
                 .font(.system(size: 26, weight: .bold, design: .rounded))
-                .contentTransition(.numericText())
-                .animation(.snappy, value: value)
             Text(caption)
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -209,21 +206,38 @@ struct Sparkline: View {
     let colors: [Color]
 
     var body: some View {
-        Chart(Array(values.enumerated()), id: \.offset) { point in
-            AreaMark(x: .value("t", point.offset), y: .value("v", point.element))
-                .interpolationMethod(.catmullRom)
-                .foregroundStyle(LinearGradient(colors: [colors[0].opacity(0.35), colors[0].opacity(0)],
-                                                startPoint: .top, endPoint: .bottom))
-            LineMark(x: .value("t", point.offset), y: .value("v", point.element))
-                .interpolationMethod(.catmullRom)
-                .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round))
-                .foregroundStyle(LinearGradient(colors: colors, startPoint: .leading, endPoint: .trailing))
+        ZStack {
+            SparklineShape(values: values, isClosed: true)
+                .fill(LinearGradient(colors: [colors[0].opacity(0.35), colors[0].opacity(0)], startPoint: .top, endPoint: .bottom))
+            SparklineShape(values: values, isClosed: false)
+                .stroke(LinearGradient(colors: colors, startPoint: .leading, endPoint: .trailing),
+                        style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
         }
-        .chartXAxis(.hidden)
-        .chartYAxis(.hidden)
-        .chartYScale(domain: 0...100)
-        .chartXScale(domain: 0...max(values.count - 1, 1))
-        .animation(.easeInOut(duration: 0.6), value: values)
+    }
+}
+
+struct SparklineShape: Shape {
+    let values: [Double]
+    let isClosed: Bool
+
+    func path(in rect: CGRect) -> Path {
+        guard values.count > 1 else { return Path() }
+        let step = rect.width / CGFloat(values.count - 1)
+        let points = values.enumerated().map { index, value in
+            CGPoint(x: CGFloat(index) * step, y: rect.maxY - rect.height * CGFloat(min(max(value, 0), 100) / 100))
+        }
+        var path = Path()
+        path.move(to: points[0])
+        for (previous, point) in zip(points, points.dropFirst()) {
+            let midX = (previous.x + point.x) / 2
+            path.addCurve(to: point, control1: CGPoint(x: midX, y: previous.y), control2: CGPoint(x: midX, y: point.y))
+        }
+        if isClosed {
+            path.addLine(to: CGPoint(x: points[points.count - 1].x, y: rect.maxY))
+            path.addLine(to: CGPoint(x: points[0].x, y: rect.maxY))
+            path.closeSubpath()
+        }
+        return path
     }
 }
 

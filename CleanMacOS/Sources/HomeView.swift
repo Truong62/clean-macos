@@ -83,7 +83,7 @@ struct HomeView: View {
                     Image(systemName: health.icon)
                         .font(.title3)
                         .foregroundStyle(health.isWarning ? Color.yellow : .white)
-                        .symbolEffect(.pulse, options: .repeating, isActive: health.isWarning)
+                        .symbolEffect(.bounce, value: health.isWarning)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(health.title).font(.headline).foregroundStyle(.white)
                         Text(health.detail).font(.subheadline).foregroundStyle(.white.opacity(0.75))
@@ -103,7 +103,7 @@ struct HomeView: View {
                 .padding(.top, 4)
             }
             Spacer(minLength: 0)
-            DiskGauge(usedPercent: monitor.diskPercent, freeText: freeText)
+            DiskGauge(usedPercent: monitor.diskPercent.rounded(), freeText: freeText)
         }
         .padding(28)
         .background(heroBackground)
@@ -164,7 +164,7 @@ struct HomeView: View {
                       history: memoryHistory, colors: [.purple, .pink])
             VitalTile(title: "Disk", icon: "internaldrive", value: monitor.diskFreeStr,
                       caption: "free of \(monitor.diskTotalStr) · up \(monitor.uptime)",
-                      fraction: monitor.diskPercent / 100, colors: [.orange, .yellow])
+                      fraction: monitor.diskPercent.rounded() / 100, colors: [.orange, .yellow])
         }
     }
 
