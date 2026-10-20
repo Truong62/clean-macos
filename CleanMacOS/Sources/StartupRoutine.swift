@@ -110,6 +110,10 @@ enum StartupJobs {
     static func locksScreen(_ job: ScheduledJob) -> Bool {
         job.command.localizedCaseInsensitiveContains("lockscreen")
     }
+
+    static func lockDelay(_ job: ScheduledJob) -> Int? {
+        job.command.firstMatch(of: #/sleep\s+(\d+)/#).flatMap { Int($0.1) }
+    }
 }
 
 enum ScreenLock {

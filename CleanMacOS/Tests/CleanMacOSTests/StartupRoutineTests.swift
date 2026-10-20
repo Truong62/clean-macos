@@ -48,6 +48,8 @@ struct StartupRoutineTests {
         #expect(!StartupJobs.keepsAwake(jobs[3]))
         #expect(StartupJobs.locksScreen(jobs[3]))
         #expect(!StartupJobs.locksScreen(jobs[0]))
+        #expect(StartupJobs.lockDelay(jobs[3]) == 1)
+        #expect(StartupJobs.lockDelay(job("x", "/usr/local/bin/lockscreen")) == nil)
     }
 
     @Test func readsWhetherAnAgentStartsAtLogin() throws {

@@ -28,7 +28,8 @@ struct StartupSettingsView: View {
 
     private var openApps: [LoginItem] { loginItems.filter { $0.isEnabled && !$0.isMissing } }
     private var backgroundJobs: [ScheduledJob] { StartupJobs.atLogin(jobs) }
-    private var lockerJob: ScheduledJob? { backgroundJobs.first { StartupJobs.locksScreen($0) && $0.isLoaded } }
+    private var lockerJob: ScheduledJob? { backgroundJobs.first(where: StartupJobs.locksScreen) }
+    private var isLocking: Bool { lockerJob?.isLoaded ?? locksScreen }
     private var hasKeepAwake: Bool { backgroundJobs.contains(where: StartupJobs.keepsAwake) }
     private var skipsPassword: Bool { autoLoginUser != nil && fileVaultIsOn != true }
 
@@ -50,9 +51,10 @@ struct StartupSettingsView: View {
                      detail: "Your LaunchAgents that start at login and keep running, like caffeinate -d to keep the screen awake.",
                      state: backgroundJobs.contains(where: \.isLoaded) ? .ready : .off),
             FlowNode(step: .lock, icon: "lock.fill", colors: [.indigo, .purple], name: "Lock", title: "Lock the screen",
-                     detail: lockerJob.map { "\($0.label) already locks the screen after login. Turn this on only if you remove it." }
-                         ?? "\(lockDelay) s after logging in without a password, so the desktop isn't left open.",
-                     state: locksScreen || lockerJob != nil ? .ready : .off),
+                     detail: lockerJob.map { job in
+                         "Done by your job \(job.label)\(StartupJobs.lockDelay(job).map { ", \($0) s after logging in" } ?? " after logging in"). The switch turns that job on or off."
+                     } ?? "Done by Clean macOS, \(lockDelay) s after logging in without a password, so the desktop isn't left open.",
+                     state: isLocking ? .ready : .off),
         ]
     }
 
@@ -135,10 +137,14 @@ struct StartupSettingsView: View {
                     .help("Keeps the screen awake from login on, as a LaunchAgent")
             }
         case .lock:
-            Stepper("\(lockDelay) s", value: $lockDelay, in: 0...60)
-                .monospacedDigit()
-                .frame(width: 80)
-            switchToggle($locksScreen)
+            if let lockerJob {
+                switchToggle(Binding(get: { lockerJob.isLoaded }, set: { setJob(lockerJob, $0) }))
+            } else {
+                Stepper("\(lockDelay) s", value: $lockDelay, in: 0...60)
+                    .monospacedDigit()
+                    .frame(width: 80)
+                switchToggle($locksScreen)
+            }
         }
     }
 
@@ -164,7 +170,7 @@ struct StartupSettingsView: View {
                 }
             }
         case .lock:
-            if locksScreen && !opensAtLogin {
+            if lockerJob == nil && locksScreen && !opensAtLogin {
                 HStack {
                     Label("Clean macOS must open at login to lock the screen", systemImage: "exclamationmark.triangle.fill")
                         .font(.caption)
