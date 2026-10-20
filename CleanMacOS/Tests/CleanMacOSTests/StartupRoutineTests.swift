@@ -44,8 +44,8 @@ struct StartupRoutineTests {
                     job("global", "/usr/bin/caffeinate -d", source: .globalAgent),
                     job("local.autolock", "/bin/zsh -c sleep 1; /Users/me/.local/bin/lockscreen")]
         #expect(StartupJobs.atLogin(jobs).map(\.label) == ["local.caffeinate", "local.autolock"])
-        #expect(StartupJobs.keepsAwake(jobs[0]))
-        #expect(!StartupJobs.keepsAwake(jobs[3]))
+        #expect(StartupJobs.tags(jobs[0]) == ["keeps awake"])
+        #expect(StartupJobs.tags(jobs[3]) == ["locks screen"])
         #expect(StartupJobs.locksScreen(jobs[3]))
         #expect(!StartupJobs.locksScreen(jobs[0]))
         #expect(StartupJobs.lockDelay(jobs[3]) == 1)
@@ -69,13 +69,28 @@ struct StartupRoutineTests {
         #expect(jobs.filter(\.startsAtLogin).map(\.label) == ["a", "b"])
     }
 
-    @Test func buildsAKeepAwakeAgent() {
-        let plist = ScheduledJobsService.agentPlist(label: StartupJobs.keepAwakeLabel, arguments: StartupJobs.keepAwakeArguments)
-        #expect(plist["Label"] as? String == "click.ngoctruong.CleanMacOS.caffeinate")
+    @Test func buildsAnAgentThatStartsAtLogin() {
+        let plist = ScheduledJobsService.agentPlist(label: "local.x", arguments: ["/usr/bin/caffeinate", "-d"])
+        #expect(plist["Label"] as? String == "local.x")
         #expect(plist["ProgramArguments"] as? [String] == ["/usr/bin/caffeinate", "-d"])
         #expect(plist["RunAtLoad"] as? Bool == true)
         #expect(plist["KeepAlive"] as? Bool == true)
         #expect(plist["StandardOutPath"] == nil)
+    }
+
+    @Test func presetsBecomeJobsAndSpotOnesAlreadyThere() throws {
+        #expect(Set(JobPreset.all.map(\.id)).count == JobPreset.all.count)
+        let screen = try #require(JobPreset.all.first { $0.command == "/usr/bin/caffeinate -d" })
+        let job = try screen.job()
+        #expect(job.label == "local.keep-the-screen-on")
+        #expect(job.arguments.last == "/usr/bin/caffeinate -d")
+        #expect(job.keepsRunning)
+        let mute = try #require(JobPreset.all.first { !$0.keepsRunning })
+        #expect(try mute.job().keepsRunning == false)
+        let mine = self.job("local.caffeinate", "/usr/bin/caffeinate -d")
+        #expect(screen.isAdded(in: [mine]))
+        #expect(!screen.isAdded(in: [self.job("other", "/usr/bin/caffeinate -i")]))
+        #expect(!screen.isAdded(in: [self.job("off", "/usr/bin/caffeinate -d", startsAtLogin: false)]))
     }
 
     @Test func buildsACustomJobFromNameAndCommand() throws {

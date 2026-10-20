@@ -77,9 +77,6 @@ enum SystemPower {
 }
 
 enum StartupJobs {
-    static let keepAwakeLabel = "click.ngoctruong.CleanMacOS.caffeinate"
-    static let keepAwakeArguments = ["/usr/bin/caffeinate", "-d"]
-
     struct CustomJob: Equatable, Sendable {
         let label: String
         let arguments: [String]
@@ -103,8 +100,8 @@ enum StartupJobs {
         jobs.filter { $0.source == .userAgent && $0.startsAtLogin }
     }
 
-    static func keepsAwake(_ job: ScheduledJob) -> Bool {
-        job.command.contains("caffeinate")
+    static func tags(_ job: ScheduledJob) -> [String] {
+        [job.command.contains("caffeinate") ? "keeps awake" : nil, locksScreen(job) ? "locks screen" : nil].compactMap { $0 }
     }
 
     static func locksScreen(_ job: ScheduledJob) -> Bool {
@@ -157,5 +154,38 @@ enum StartupReadiness: Equatable, Sendable {
     static func missing(autoRestart: Bool?, fileVaultIsOn: Bool?, autoLoginUser: String?) -> [StartupReadiness] {
         [autoRestart == true ? nil : .power,
          fileVaultIsOn == true || autoLoginUser == nil ? .password : nil].compactMap { $0 }
+    }
+}
+
+struct JobPreset: Identifiable, Sendable {
+    let id: String
+    let icon: String
+    let title: String
+    let detail: String
+    let command: String
+    let signature: String
+    let keepsRunning: Bool
+
+    static let all = [
+        JobPreset(id: "screen", icon: "sun.max.fill", title: "Keep the screen on",
+                  detail: "The display never turns off", command: "/usr/bin/caffeinate -d",
+                  signature: "caffeinate -d", keepsRunning: true),
+        JobPreset(id: "awake", icon: "moon.zzz.fill", title: "Keep the Mac awake",
+                  detail: "Screen may sleep, apps keep running", command: "/usr/bin/caffeinate -i",
+                  signature: "caffeinate -i", keepsRunning: true),
+        JobPreset(id: "plugged", icon: "powerplug.fill", title: "Awake on power",
+                  detail: "No sleep while plugged in", command: "/usr/bin/caffeinate -s",
+                  signature: "caffeinate -s", keepsRunning: true),
+        JobPreset(id: "mute", icon: "speaker.slash.fill", title: "Mute at login",
+                  detail: "Silent when it turns on at night", command: "/usr/bin/osascript -e 'set volume output muted true'",
+                  signature: "output muted true", keepsRunning: false),
+    ]
+
+    func job() throws -> StartupJobs.CustomJob {
+        try StartupJobs.custom(name: title, command: command, keepsRunning: keepsRunning)
+    }
+
+    func isAdded(in jobs: [ScheduledJob]) -> Bool {
+        StartupJobs.atLogin(jobs).contains { $0.command.contains(signature) }
     }
 }

@@ -30,7 +30,6 @@ struct StartupSettingsView: View {
     private var backgroundJobs: [ScheduledJob] { StartupJobs.atLogin(jobs) }
     private var lockerJob: ScheduledJob? { backgroundJobs.first(where: StartupJobs.locksScreen) }
     private var isLocking: Bool { lockerJob?.isLoaded ?? locksScreen }
-    private var hasKeepAwake: Bool { backgroundJobs.contains(where: StartupJobs.keepsAwake) }
     private var skipsPassword: Bool { autoLoginUser != nil && fileVaultIsOn != true }
 
     private var steps: [FlowNode] {
@@ -127,15 +126,9 @@ struct StartupSettingsView: View {
                 .popover(isPresented: $isAddingJob, arrowEdge: .bottom) {
                     AddJobForm { job in
                         isAddingJob = false
-                        run { try await jobsService.addAgent(label: job.label, arguments: job.arguments,
-                                                             keepsRunning: job.keepsRunning, logPath: job.logPath) }
+                        addJob(job)
                     }
                 }
-            if !hasKeepAwake {
-                Button { addKeepAwake() } label: { Label("Add caffeinate -d", systemImage: "sun.max.fill") }
-                    .pointerCursor()
-                    .help("Keeps the screen awake from login on, as a LaunchAgent")
-            }
         case .lock:
             if let lockerJob {
                 switchToggle(Binding(get: { lockerJob.isLoaded }, set: { setJob(lockerJob, $0) }))
@@ -160,12 +153,20 @@ struct StartupSettingsView: View {
                 }
             }
         case .background:
-            VStack(spacing: 6) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("QUICK ADD").font(.caption2.weight(.semibold)).foregroundStyle(.tertiary).tracking(1)
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 280), spacing: 8)], spacing: 8) {
+                    ForEach(JobPreset.all) { preset in
+                        PresetCard(preset: preset, isAdded: preset.isAdded(in: jobs)) { addPreset(preset) }
+                            .disabled(isWorking)
+                    }
+                }
+                .padding(.bottom, 6)
+                Text("RUNNING AT LOGIN").font(.caption2.weight(.semibold)).foregroundStyle(.tertiary).tracking(1)
                 ForEach(backgroundJobs) { job in
                     StartupRow(icon: Image(systemName: "terminal.fill"), title: job.label,
                                subtitle: "\(job.statusLabel) · \(job.command)",
-                               tags: [StartupJobs.keepsAwake(job) ? "keeps awake" : nil,
-                                      StartupJobs.locksScreen(job) ? "locks screen" : nil].compactMap { $0 },
+                               tags: StartupJobs.tags(job),
                                isOn: Binding(get: { job.isLoaded }, set: { setJob(job, $0) }))
                 }
             }
@@ -236,8 +237,13 @@ struct StartupSettingsView: View {
         run { isOn ? try await jobsService.turnOn(job) : try await jobsService.turnOff(job) }
     }
 
-    private func addKeepAwake() {
-        run { try await jobsService.addAgent(label: StartupJobs.keepAwakeLabel, arguments: StartupJobs.keepAwakeArguments) }
+    private func addJob(_ job: StartupJobs.CustomJob) {
+        run { try await jobsService.addAgent(label: job.label, arguments: job.arguments,
+                                             keepsRunning: job.keepsRunning, logPath: job.logPath) }
+    }
+
+    private func addPreset(_ preset: JobPreset) {
+        do { addJob(try preset.job()) } catch { message = error.localizedDescription }
     }
 
     private func addApp() {
@@ -570,5 +576,48 @@ struct AddJobForm: View {
         } catch {
             self.error = error.localizedDescription
         }
+    }
+}
+
+struct PresetCard: View {
+    let preset: JobPreset
+    let isAdded: Bool
+    let add: () -> Void
+    @State private var isHovered = false
+
+    private static let colors: [String: [Color]] = [
+        "screen": [.yellow, .orange], "awake": [.indigo, .blue], "plugged": [.green, .teal], "mute": [.pink, .red],
+    ]
+
+    var body: some View {
+        let colors = Self.colors[preset.id] ?? [.purple, .pink]
+        Button(action: add) {
+            HStack(spacing: 10) {
+                Image(systemName: preset.icon)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 32, height: 32)
+                    .background(LinearGradient(colors: colors, startPoint: .topLeading, endPoint: .bottomTrailing),
+                                in: RoundedRectangle(cornerRadius: 9))
+                    .shadow(color: colors[0].opacity(isHovered && !isAdded ? 0.5 : 0), radius: 6, y: 2)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(preset.title).font(.callout.weight(.semibold)).lineLimit(1)
+                    Text(preset.detail).font(.caption2).foregroundStyle(.secondary).lineLimit(2)
+                }
+                Spacer(minLength: 4)
+                Image(systemName: isAdded ? "checkmark.circle.fill" : "plus.circle.fill")
+                    .font(.system(size: 18))
+                    .foregroundStyle(isAdded ? AnyShapeStyle(Color.green) : AnyShapeStyle(colors[1]))
+            }
+            .padding(10)
+            .background(Color.primary.opacity(isHovered && !isAdded ? 0.08 : 0.04), in: RoundedRectangle(cornerRadius: 12))
+            .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(colors[0].opacity(isAdded ? 0.15 : 0.35)))
+            .contentShape(RoundedRectangle(cornerRadius: 12))
+        }
+        .buttonStyle(.plain)
+        .disabled(isAdded)
+        .onHover { hovering in withAnimation(.easeOut(duration: 0.15)) { isHovered = hovering } }
+        .pointerCursor()
+        .help(isAdded ? "Already runs at login" : "Adds a job that runs \(preset.command)")
     }
 }
