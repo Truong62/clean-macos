@@ -65,6 +65,7 @@ final class PortsJobsViewModel: ObservableObject {
     @Published var statusMessage = ""
     @Published var confirmation: PortsJobsConfirmation?
     @Published var portDetails: ProcessDetails?
+    @Published var jobProcess: ProcessDetails?
     @Published var jobLog = ""
 
     private static let refreshInterval: Duration = .seconds(5)
@@ -134,6 +135,11 @@ final class PortsJobsViewModel: ObservableObject {
             portDetails = await portsService.details(pid: port.pid)
         } else {
             portDetails = nil
+        }
+        if let pid = selectedJob?.pid {
+            jobProcess = await portsService.details(pid: pid)
+        } else {
+            jobProcess = nil
         }
         let paths = selectedJob?.logPaths ?? []
         jobLog = await Task.detached(priority: .utility) {

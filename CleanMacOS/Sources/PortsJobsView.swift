@@ -297,10 +297,19 @@ struct PortsJobsView: View {
         }
         detailRow("PID", "\(port.pid) · \(port.user)")
         detailRow("Address", port.addresses.map { $0 == "*" ? "All interfaces" : $0 }.joined(separator: ", "))
-        if let details = vm.portDetails {
-            detailRow("Running for", details.elapsed)
-            detailRow("Command", details.arguments, monospaced: true)
+        if let details = vm.portDetails { processRows(details) }
+    }
+
+    @ViewBuilder private func processRows(_ details: ProcessDetails) -> some View {
+        if let directory = details.directory {
+            detailRow("Folder", (directory as NSString).abbreviatingWithTildeInPath, monospaced: true)
         }
+        detailRow("Running for", details.readableElapsed)
+        detailRow("Usage", "CPU \(details.cpuPercent.formatted(.number.precision(.fractionLength(1))))% · Memory \(formatBytes(Int64(details.rssKilobytes) * 1_024))")
+        if details.parentPID > 1 {
+            detailRow("Started by", "\(details.parentName) · PID \(details.parentPID)")
+        }
+        detailRow("Command", details.arguments, monospaced: true)
     }
 
     @ViewBuilder private func portButtons(_ port: ListeningPort) -> some View {
@@ -323,7 +332,7 @@ struct PortsJobsView: View {
         }
         detailRow("Schedule", job.schedule)
         detailRow("Status", job.statusLabel)
-        detailRow("Command", job.command, monospaced: true)
+        if let process = vm.jobProcess { processRows(process) } else { detailRow("Command", job.command, monospaced: true) }
         if let plist = job.plistPath { detailRow("Plist", plist, monospaced: true) }
         if !job.logPaths.isEmpty {
             detailRow("Log", job.logPaths.joined(separator: "  ·  "), monospaced: true)

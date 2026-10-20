@@ -40,6 +40,24 @@ enum ScheduledJobSource: String, CaseIterable, Sendable {
 struct ProcessDetails: Equatable, Sendable {
     let elapsed: String
     let arguments: String
+    var cpuPercent: Double = 0
+    var rssKilobytes: UInt64 = 0
+    var parentPID: pid_t = 0
+    var parentName = ""
+    var directory: String?
+
+    var readableElapsed: String { Self.readableElapsed(elapsed) }
+
+    static func readableElapsed(_ etime: String) -> String {
+        let dayParts = etime.split(separator: "-")
+        let clock = (dayParts.last ?? "").split(separator: ":").compactMap { Int($0) }
+        let days = dayParts.count == 2 ? Int(dayParts[0]) : 0
+        guard let days, (2...3).contains(clock.count) else { return etime }
+        let (hours, minutes, seconds) = clock.count == 3 ? (clock[0], clock[1], clock[2]) : (0, clock[0], clock[1])
+        if days > 0 { return "\(days)d \(hours)h" }
+        if hours > 0 { return "\(hours)h \(minutes)m" }
+        return minutes > 0 ? "\(minutes)m" : "\(seconds)s"
+    }
 }
 
 struct LaunchctlStatus: Equatable, Sendable {

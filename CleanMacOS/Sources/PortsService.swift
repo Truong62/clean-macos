@@ -45,15 +45,32 @@ struct PortsService: Sendable {
 
     func details(pid: pid_t) async -> ProcessDetails? {
         await Task.detached(priority: .utility) {
-            Self.parseDetails(CommandRunner.run("/bin/ps", ["-o", "etime=,args=", "-p", "\(pid)"]).output)
+            guard var details = Self.parseDetails(
+                CommandRunner.run("/bin/ps", ["-o", "etime=,%cpu=,rss=,ppid=,args=", "-p", "\(pid)"]).output
+            ) else { return nil }
+            let parent = CommandRunner.run("/bin/ps", ["-o", "comm=", "-p", "\(details.parentPID)"]).output
+            details.parentName = URL(fileURLWithPath: parent.trimmingCharacters(in: .whitespacesAndNewlines)).lastPathComponent
+            details.directory = Self.parseDirectory(
+                CommandRunner.run("/usr/sbin/lsof", ["-a", "-p", "\(pid)", "-d", "cwd", "-Fn"]).output
+            )
+            return details
         }.value
     }
 
     static func parseDetails(_ output: String) -> ProcessDetails? {
         let fields = output.trimmingCharacters(in: .whitespacesAndNewlines)
-            .split(maxSplits: 1, omittingEmptySubsequences: true, whereSeparator: \.isWhitespace)
-        guard fields.count == 2 else { return nil }
-        return ProcessDetails(elapsed: String(fields[0]), arguments: String(fields[1]))
+            .split(maxSplits: 4, omittingEmptySubsequences: true, whereSeparator: \.isWhitespace)
+        guard fields.count == 5, let cpu = Double(fields[1]), let rss = UInt64(fields[2]),
+              let parentPID = pid_t(fields[3]) else { return nil }
+        return ProcessDetails(elapsed: String(fields[0]), arguments: String(fields[4]),
+                              cpuPercent: cpu, rssKilobytes: rss, parentPID: parentPID)
+    }
+
+    static func parseDirectory(_ output: String) -> String? {
+        output.split(whereSeparator: \.isNewline)
+            .first { $0.hasPrefix("n") }
+            .map { String($0.dropFirst()) }
+            .flatMap { $0 == "/" ? nil : $0 }
     }
 
     static func parse(_ output: String) -> [ListeningPort] {

@@ -44,9 +44,25 @@ struct PortsJobsTests {
     }
 
     @Test func parsesPsDetails() {
-        #expect(PortsService.parseDetails("   01:02:03 /usr/local/bin/node server.js --port 3000\n")
-                == ProcessDetails(elapsed: "01:02:03", arguments: "/usr/local/bin/node server.js --port 3000"))
+        #expect(PortsService.parseDetails("   01:02:03  12.5 204800  4321 /usr/local/bin/node server.js --port 3000\n")
+                == ProcessDetails(elapsed: "01:02:03", arguments: "/usr/local/bin/node server.js --port 3000",
+                                  cpuPercent: 12.5, rssKilobytes: 204_800, parentPID: 4321))
         #expect(PortsService.parseDetails("") == nil)
+        #expect(PortsService.parseDetails("01:02:03 node") == nil)
+    }
+
+    @Test func readsElapsedTimeLikeAPerson() {
+        #expect(ProcessDetails.readableElapsed("08-03:01:33") == "8d 3h")
+        #expect(ProcessDetails.readableElapsed("02:16:05") == "2h 16m")
+        #expect(ProcessDetails.readableElapsed("28:16") == "28m")
+        #expect(ProcessDetails.readableElapsed("00:09") == "9s")
+        #expect(ProcessDetails.readableElapsed("weird") == "weird")
+    }
+
+    @Test func parsesWorkingDirectoryFromLsof() {
+        #expect(PortsService.parseDirectory("p123\nfcwd\nn/Users/me/my app\n") == "/Users/me/my app")
+        #expect(PortsService.parseDirectory("p123\nfcwd\nn/\n") == nil)
+        #expect(PortsService.parseDirectory("") == nil)
     }
 
     @Test func logTailReturnsWholeLinesFromTheEnd() throws {
