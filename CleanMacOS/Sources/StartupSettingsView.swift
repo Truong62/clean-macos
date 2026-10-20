@@ -18,18 +18,49 @@ struct StartupSettingsView: View {
                                  autoLoginUser: autoLoginUser, opensAtLogin: opensAtLogin)
     }
 
+    @State private var selected: StartupStep?
+
+    private var steps: [FlowNode] {
+        [
+            FlowNode(step: .power, icon: "bolt.fill", colors: [.yellow, .orange], name: "Power", title: "Power returns",
+                     detail: autoRestart == nil && hasLoaded ? "This Mac doesn't offer it — Mac laptops run on battery instead"
+                         : autoRestartError.isEmpty ? "The Mac turns itself on when power comes back. macOS asks for your password to change this."
+                         : autoRestartError,
+                     state: autoRestart == true ? .ready : autoRestart == nil ? .unavailable : .attention),
+            FlowNode(step: .disk, icon: "lock.open.fill", colors: [.teal, .cyan], name: "Unlock", title: "No disk password",
+                     detail: fileVaultIsOn == true ? "FileVault is on — the Mac stops and waits for your disk password, so nothing after this runs."
+                         : "FileVault is off, so the Mac can start up without anyone typing a password.",
+                     state: fileVaultIsOn == true ? .attention : .ready),
+            FlowNode(step: .login, icon: "person.crop.circle.fill", colors: [.blue, .indigo], name: "Log in", title: "Log in automatically",
+                     detail: autoLoginUser.map { "Signs in as \($0) without the login screen." } ?? "Off — the Mac waits at the login screen. Turn it on in Users & Groups.",
+                     state: autoLoginUser == nil ? .attention : .ready),
+            FlowNode(step: .app, icon: "sparkles", colors: [.purple, .pink], name: "Clean macOS", title: "Clean macOS opens",
+                     detail: "Opens at login so the next steps can run.", state: opensAtLogin ? .ready : .attention),
+            FlowNode(step: .apps, icon: "square.stack.3d.up.fill", colors: [.pink, .orange], name: "Apps", title: "Open your apps",
+                     detail: "Once per startup, within 10 minutes of the Mac turning on. Each app can stay open, hide or quit after a few seconds.",
+                     state: apps.isEmpty ? .off : .ready),
+            FlowNode(step: .lock, icon: "lock.fill", colors: [.indigo, .purple], name: "Lock", title: "Lock the screen",
+                     detail: "Right after the apps start, so the desktop isn't left open.", state: locksScreen ? .ready : .off),
+            FlowNode(step: .awake, icon: "sun.max.fill", colors: [.orange, .yellow], name: "Stay awake", title: "Keep the screen awake",
+                     detail: "Like caffeinate -d, for as long as Clean macOS runs.", state: keepsAwake ? .ready : .off),
+        ]
+    }
+
+    private var current: FlowNode {
+        let steps = steps
+        let fallback = steps.first { $0.state == .attention } ?? steps[4]
+        return steps.first { $0.step == selected } ?? fallback
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
+        VStack(alignment: .leading, spacing: 16) {
             summary
-            VStack(spacing: 0) {
-                powerStep
-                diskStep
-                loginStep
-                appStep
-                appsStep
-                lockStep
-                awakeStep
+            FlowCanvas(nodes: steps, selected: current.step) { step in
+                withAnimation(.spring(duration: 0.3)) { selected = step }
             }
+            FlowInspector(node: current) { controls(current.step) } extra: { extra(current.step) }
+                .id(current.step)
+                .transition(.opacity)
         }
         .task { await loadStatus() }
         .onChange(of: apps) { _, apps in StartupSettings.save(apps) }
@@ -63,42 +94,21 @@ struct StartupSettingsView: View {
         .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(colors[0].opacity(0.35)))
     }
 
-    private var powerStep: some View {
-        FlowStep(icon: "bolt.fill", colors: [.yellow, .orange], title: "Power returns",
-                 detail: autoRestart == nil && hasLoaded ? "This Mac doesn't offer it — Mac laptops run on battery instead"
-                     : autoRestartError.isEmpty ? "The Mac turns itself on · macOS asks for your password to change this" : autoRestartError,
-                 state: autoRestart == true ? .ready : autoRestart == nil ? .unavailable : .attention) {
+    @ViewBuilder private func controls(_ step: StartupStep) -> some View {
+        switch step {
+        case .power:
             if isChangingAutoRestart { ProgressView().controlSize(.small) }
             Toggle("", isOn: Binding(get: { autoRestart ?? false }, set: { changeAutoRestart($0) }))
                 .labelsHidden()
                 .toggleStyle(.switch)
                 .disabled(autoRestart == nil || isChangingAutoRestart)
-        }
-    }
-
-    private var diskStep: some View {
-        FlowStep(icon: "lock.open.fill", colors: [.teal, .cyan], title: "No disk password",
-                 detail: fileVaultIsOn == true ? "FileVault is on — the Mac stops and waits for your disk password"
-                     : "FileVault is off, so the Mac can start up without you",
-                 state: fileVaultIsOn == true ? .attention : .ready) {
+        case .disk:
             if fileVaultIsOn == true {
                 Button("FileVault…") { NSWorkspace.shared.open(SystemPower.fileVaultSettingsURL) }.pointerCursor()
             }
-        }
-    }
-
-    private var loginStep: some View {
-        FlowStep(icon: "person.crop.circle.fill", colors: [.blue, .indigo], title: "Log in automatically",
-                 detail: autoLoginUser.map { "Signs in as \($0)" } ?? "Off — the Mac waits at the login screen",
-                 state: autoLoginUser == nil ? .attention : .ready) {
+        case .login:
             Button("Users & Groups…") { NSWorkspace.shared.open(SystemPower.usersSettingsURL) }.pointerCursor()
-        }
-    }
-
-    private var appStep: some View {
-        FlowStep(icon: "sparkles", colors: [.purple, .pink], title: "Clean macOS opens",
-                 detail: "Opens at login so the steps below can run",
-                 state: opensAtLogin ? .ready : .attention) {
+        case .app:
             Toggle("", isOn: $opensAtLogin)
                 .labelsHidden()
                 .toggleStyle(.switch)
@@ -106,13 +116,7 @@ struct StartupSettingsView: View {
                     OpenAtLogin.set(isOn)
                     opensAtLogin = OpenAtLogin.isEnabled
                 }
-        }
-    }
-
-    private var appsStep: some View {
-        FlowStep(icon: "square.stack.3d.up.fill", colors: [.pink, .orange], title: "Open your apps",
-                 detail: "Once per startup, within 10 minutes of the Mac turning on",
-                 state: apps.isEmpty ? .off : .ready) {
+        case .apps:
             Button { addApps() } label: { Label("Add App…", systemImage: "plus") }.pointerCursor()
             Button { Task { await StartupRoutine.shared.run(apps, locksScreen: false) } } label: {
                 Label("Run Now", systemImage: "play.fill")
@@ -120,28 +124,18 @@ struct StartupSettingsView: View {
             .pointerCursor()
             .disabled(apps.isEmpty)
             .help("Open the apps now to test, without locking the screen")
-        } extra: {
-            if !apps.isEmpty {
-                VStack(spacing: 6) {
-                    ForEach($apps) { $app in StartupAppRow(app: $app) { apps.removeAll { $0.id == app.id } } }
-                }
-            }
-        }
-    }
-
-    private var lockStep: some View {
-        FlowStep(icon: "lock.fill", colors: [.indigo, .purple], title: "Lock the screen",
-                 detail: "Right after the apps start, so the desktop isn't left open",
-                 state: locksScreen ? .ready : .off) {
+        case .lock:
             Toggle("", isOn: $locksScreen).labelsHidden().toggleStyle(.switch)
+        case .awake:
+            Toggle("", isOn: $keepsAwake).labelsHidden().toggleStyle(.switch)
         }
     }
 
-    private var awakeStep: some View {
-        FlowStep(icon: "sun.max.fill", colors: [.orange, .yellow], title: "Keep the screen awake",
-                 detail: "Like caffeinate -d, for as long as Clean macOS runs",
-                 state: keepsAwake ? .ready : .off, isLast: true) {
-            Toggle("", isOn: $keepsAwake).labelsHidden().toggleStyle(.switch)
+    @ViewBuilder private func extra(_ step: StartupStep) -> some View {
+        if step == .apps, !apps.isEmpty {
+            VStack(spacing: 6) {
+                ForEach($apps) { $app in StartupAppRow(app: $app) { apps.removeAll { $0.id == app.id } } }
+            }
         }
     }
 
@@ -177,6 +171,10 @@ struct StartupSettingsView: View {
     }
 }
 
+enum StartupStep: Hashable {
+    case power, disk, login, app, apps, lock, awake
+}
+
 enum FlowStepState {
     case ready, attention, off, unavailable
 
@@ -198,105 +196,127 @@ enum FlowStepState {
     }
 }
 
-struct FlowStep<Trailing: View, Extra: View>: View {
+struct FlowNode: Identifiable {
+    let step: StartupStep
     let icon: String
     let colors: [Color]
+    let name: String
     let title: String
     let detail: String
     let state: FlowStepState
-    var isLast = false
-    @ViewBuilder let trailing: () -> Trailing
-    @ViewBuilder var extra: () -> Extra
 
-    init(icon: String, colors: [Color], title: String, detail: String, state: FlowStepState, isLast: Bool = false,
-         @ViewBuilder trailing: @escaping () -> Trailing, @ViewBuilder extra: @escaping () -> Extra = { EmptyView() }) {
-        self.icon = icon
-        self.colors = colors
-        self.title = title
-        self.detail = detail
-        self.state = state
-        self.isLast = isLast
-        self.trailing = trailing
-        self.extra = extra
-    }
+    var id: StartupStep { step }
+    var isLit: Bool { state == .ready }
+}
 
-    private var isLit: Bool { state == .ready }
+struct FlowCanvas: View {
+    let nodes: [FlowNode]
+    let selected: StartupStep
+    let select: (StartupStep) -> Void
 
     var body: some View {
-        HStack(alignment: .top, spacing: 14) {
-            VStack(spacing: 0) {
-                badge
-                if !isLast { FlowConnector(colors: colors, isFlowing: isLit) }
-            }
-            .frame(width: 40)
-            card.padding(.bottom, isLast ? 0 : 14)
+        ViewThatFits(in: .horizontal) {
+            row(isCompact: false)
+            ScrollView(.horizontal, showsIndicators: false) { row(isCompact: true) }
         }
-        .fixedSize(horizontal: false, vertical: true)
+        .padding(.vertical, 12)
+        .padding(.horizontal, 4)
+        .background(DotGrid().clipShape(RoundedRectangle(cornerRadius: 16)))
+        .background(Color.primary.opacity(0.03), in: RoundedRectangle(cornerRadius: 16))
+        .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Color.primary.opacity(0.08)))
     }
 
-    private var badge: some View {
-        Image(systemName: icon)
-            .font(.system(size: 16, weight: .semibold))
-            .foregroundStyle(.white)
-            .frame(width: 40, height: 40)
-            .background(LinearGradient(colors: colors, startPoint: .topLeading, endPoint: .bottomTrailing),
-                        in: RoundedRectangle(cornerRadius: 12))
-            .saturation(isLit ? 1 : 0.25)
-            .opacity(isLit ? 1 : 0.75)
-            .shadow(color: colors[0].opacity(isLit ? 0.5 : 0), radius: 8, y: 3)
-            .animation(.easeOut(duration: 0.3), value: isLit)
-    }
-
-    private var card: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .center, spacing: 10) {
-                VStack(alignment: .leading, spacing: 3) {
-                    HStack(spacing: 8) {
-                        Text(title).fontWeight(.semibold)
-                        Text(state.label)
-                            .font(.caption2.weight(.bold))
-                            .padding(.horizontal, 7)
-                            .padding(.vertical, 2)
-                            .foregroundStyle(state.color)
-                            .background(state.color.opacity(0.14), in: Capsule())
-                    }
-                    Text(detail).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+    private func row(isCompact: Bool) -> some View {
+        HStack(alignment: .top, spacing: 0) {
+            ForEach(Array(nodes.enumerated()), id: \.element.id) { index, node in
+                if index > 0 {
+                    FlowConnector(from: nodes[index - 1], to: node)
+                        .frame(minWidth: 18, maxWidth: isCompact ? 18 : 56)
+                        .frame(height: 58)
                 }
-                Spacer(minLength: 8)
-                trailing()
+                FlowNodeTile(node: node, isSelected: node.step == selected) { select(node.step) }
             }
-            extra()
         }
-        .padding(12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14))
-        .overlay(
-            RoundedRectangle(cornerRadius: 14)
-                .strokeBorder(LinearGradient(colors: colors.map { $0.opacity(isLit ? 0.55 : 0.12) },
-                                             startPoint: .leading, endPoint: .trailing), lineWidth: 1)
-        )
+        .padding(10)
+    }
+}
+
+struct FlowNodeTile: View {
+    let node: FlowNode
+    let isSelected: Bool
+    let action: () -> Void
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 8) {
+                ZStack(alignment: .topTrailing) {
+                    Image(systemName: node.icon)
+                        .font(.system(size: 22, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .frame(width: 58, height: 58)
+                        .background(LinearGradient(colors: node.colors, startPoint: .topLeading, endPoint: .bottomTrailing),
+                                    in: RoundedRectangle(cornerRadius: 16))
+                        .saturation(node.isLit ? 1 : 0.2)
+                        .opacity(node.isLit ? 1 : 0.7)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 16)
+                                .strokeBorder(isSelected ? Color.primary.opacity(0.85) : .clear, lineWidth: 2)
+                                .padding(-4)
+                        )
+                        .shadow(color: node.colors[0].opacity(node.isLit ? 0.55 : 0), radius: isSelected ? 14 : 8, y: 4)
+                        .overlay(alignment: .leading) { port.offset(x: -4) }
+                        .overlay(alignment: .trailing) { port.offset(x: 4) }
+                    Circle()
+                        .fill(node.state.color)
+                        .frame(width: 12, height: 12)
+                        .overlay(Circle().strokeBorder(Color(nsColor: .windowBackgroundColor), lineWidth: 2))
+                        .offset(x: 4, y: -4)
+                }
+                Text(node.name)
+                    .font(.caption.weight(isSelected ? .bold : .medium))
+                    .foregroundStyle(isSelected ? .primary : .secondary)
+                    .lineLimit(1)
+                    .fixedSize()
+            }
+            .frame(width: 72)
+            .scaleEffect(isSelected ? 1.06 : isHovered ? 1.03 : 1)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in withAnimation(.easeOut(duration: 0.15)) { isHovered = hovering } }
+        .pointerCursor()
+        .help(node.title)
+    }
+
+    private var port: some View {
+        Circle()
+            .fill(Color(nsColor: .windowBackgroundColor))
+            .frame(width: 8, height: 8)
+            .overlay(Circle().strokeBorder(node.isLit ? node.colors[0] : Color.secondary.opacity(0.5), lineWidth: 1.5))
     }
 }
 
 struct FlowConnector: View {
-    let colors: [Color]
-    let isFlowing: Bool
+    let from: FlowNode
+    let to: FlowNode
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var phase: CGFloat = 0
 
+    private var isFlowing: Bool { from.isLit }
+
     var body: some View {
-        VStack(spacing: 0) {
+        HStack(spacing: 0) {
             Line()
-                .stroke(LinearGradient(colors: isFlowing ? colors : [Color.secondary.opacity(0.35)], startPoint: .top, endPoint: .bottom),
+                .stroke(LinearGradient(colors: isFlowing ? [from.colors[1], to.colors[0]] : [Color.secondary.opacity(0.35)],
+                                       startPoint: .leading, endPoint: .trailing),
                         style: StrokeStyle(lineWidth: 2, lineCap: .round, dash: [5, 5], dashPhase: phase))
-                .frame(width: 2)
-                .frame(maxHeight: .infinity)
-            Image(systemName: "chevron.compact.down")
-                .font(.system(size: 12, weight: .bold))
-                .foregroundStyle(isFlowing ? colors[colors.count - 1] : Color.secondary.opacity(0.5))
-                .padding(.bottom, 2)
+                .frame(height: 2)
+            Image(systemName: "arrowtriangle.right.fill")
+                .font(.system(size: 7))
+                .foregroundStyle(isFlowing ? to.colors[0] : Color.secondary.opacity(0.5))
         }
-        .padding(.top, 4)
+        .padding(.horizontal, 6)
         .onAppear {
             guard !reduceMotion else { return }
             withAnimation(.linear(duration: 0.8).repeatForever(autoreverses: false)) { phase = -10 }
@@ -306,10 +326,65 @@ struct FlowConnector: View {
     private struct Line: Shape {
         func path(in rect: CGRect) -> Path {
             Path { path in
-                path.move(to: CGPoint(x: rect.midX, y: rect.minY))
-                path.addLine(to: CGPoint(x: rect.midX, y: rect.maxY))
+                path.move(to: CGPoint(x: rect.minX, y: rect.midY))
+                path.addLine(to: CGPoint(x: rect.maxX, y: rect.midY))
             }
         }
+    }
+}
+
+struct DotGrid: View {
+    var body: some View {
+        Canvas { context, size in
+            let spacing: CGFloat = 16
+            for x in stride(from: spacing / 2, to: size.width, by: spacing) {
+                for y in stride(from: spacing / 2, to: size.height, by: spacing) {
+                    context.fill(Path(ellipseIn: CGRect(x: x - 1, y: y - 1, width: 2, height: 2)), with: .color(.primary.opacity(0.12)))
+                }
+            }
+        }
+    }
+}
+
+struct FlowInspector<Controls: View, Extra: View>: View {
+    let node: FlowNode
+    @ViewBuilder let controls: () -> Controls
+    @ViewBuilder let extra: () -> Extra
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .center, spacing: 12) {
+                Image(systemName: node.icon)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 34, height: 34)
+                    .background(LinearGradient(colors: node.colors, startPoint: .topLeading, endPoint: .bottomTrailing),
+                                in: RoundedRectangle(cornerRadius: 10))
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack(spacing: 8) {
+                        Text(node.title).fontWeight(.semibold)
+                        Text(node.state.label)
+                            .font(.caption2.weight(.bold))
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 2)
+                            .foregroundStyle(node.state.color)
+                            .background(node.state.color.opacity(0.14), in: Capsule())
+                    }
+                    Text(node.detail).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 8)
+                controls()
+            }
+            extra()
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .strokeBorder(LinearGradient(colors: node.colors.map { $0.opacity(0.5) }, startPoint: .leading, endPoint: .trailing),
+                              lineWidth: 1)
+        )
     }
 }
 
