@@ -1,5 +1,4 @@
 import SwiftUI
-import ServiceManagement
 import KeyboardShortcuts
 
 struct SettingsView: View {
@@ -10,7 +9,7 @@ struct SettingsView: View {
     @AppStorage(ClipboardSettings.maxItemsKey) private var clipboardMaxItems = ClipboardSettings.defaultMaxItems
     @AppStorage(ClipboardSettings.skipConcealedKey) private var clipboardSkipConcealed = false
     @State private var accessibilityTrusted = PasteService.isAccessibilityTrusted
-    @State private var opensAtLogin = SMAppService.mainApp.status == .enabled
+    @State private var opensAtLogin = OpenAtLogin.isEnabled
     @AppStorage(SettingsTab.storageKey) private var tab = SettingsTab.general
 
     var body: some View {
@@ -21,6 +20,7 @@ struct SettingsView: View {
 
                 switch tab {
                 case .general: generalTab
+                case .startup: section(icon: "bolt.fill", iconColor: .orange, title: "Startup") { StartupSettingsView() }
                 case .cleaning: cleaningTab
                 case .clipboard: clipboardTab
                 case .jira: section(icon: "checklist", iconColor: .blue, title: "Jira") { JiraSettingsForm() }
@@ -115,12 +115,8 @@ struct SettingsView: View {
                 }
             }
             .onChange(of: opensAtLogin) { _, isOn in
-                do {
-                    try isOn ? SMAppService.mainApp.register() : SMAppService.mainApp.unregister()
-                } catch {
-                    NSLog("SettingsView.openAtLogin failed: \(error.localizedDescription)")
-                }
-                opensAtLogin = SMAppService.mainApp.status == .enabled
+                OpenAtLogin.set(isOn)
+                opensAtLogin = OpenAtLogin.isEnabled
             }
         }
 
@@ -305,7 +301,7 @@ struct SettingsView: View {
 }
 
 enum SettingsTab: String, CaseIterable, Identifiable {
-    case general, cleaning, clipboard, jira, updates
+    case general, startup, cleaning, clipboard, jira, updates
 
     static let storageKey = "settings.tab"
 
@@ -315,6 +311,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
     var icon: String {
         switch self {
         case .general: "gearshape.fill"
+        case .startup: "bolt.fill"
         case .cleaning: "sparkles"
         case .clipboard: "doc.on.clipboard"
         case .jira: "checklist"
@@ -325,6 +322,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
     var color: Color {
         switch self {
         case .general: .gray
+        case .startup: .orange
         case .cleaning: .green
         case .clipboard: .indigo
         case .jira: .blue
@@ -334,7 +332,8 @@ enum SettingsTab: String, CaseIterable, Identifiable {
 
     var subtitle: String {
         switch self {
-        case .general: "Menu bar and startup"
+        case .general: "Menu bar and open at login"
+        case .startup: "Start up on its own after a power cut"
         case .cleaning: "Scan scope and safety checks"
         case .clipboard: "History, shortcut and privacy"
         case .jira: "Connection, KPI and notifications"

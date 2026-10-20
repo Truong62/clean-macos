@@ -35,6 +35,7 @@
 		55D09845383469CB506D3E85 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13997B35568795BEA3BF3A64 /* ContentView.swift */; };
 		58F147DF5CA1C5EE46DBA025 /* JiraViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78E3D7D88AE05B4709A6FAE4 /* JiraViewModel.swift */; };
 		5B7456DF848FC407E1B1C316 /* ClipboardPanelController.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEBFF35EE02467C83ED9553C /* ClipboardPanelController.swift */; };
+		5BFE3184C5EBC13851AF4053 /* StartupSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C14516723EBF48D1B1FD224A /* StartupSettingsView.swift */; };
 		5DF8AD876142B74059E46536 /* PasteService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 938603F095D5C03621C2C879 /* PasteService.swift */; };
 		629F8B98ECF1850CAF10B28F /* AboutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F50E79083A48396AD0651E87 /* AboutView.swift */; };
 		6BF030E075601987D96F6EFF /* DevToolsModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA627A7F08BAF177E20286D7 /* DevToolsModels.swift */; };
@@ -53,6 +54,7 @@
 		96742BBF577C2662A06127C9 /* AppViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0CE374CA5CC2E8CA8FE9BB73 /* AppViewModel.swift */; };
 		9957F9ADE0BA6BA5A6F0268C /* JiraService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17FAB586E1DFF45338BEF8BB /* JiraService.swift */; };
 		997224C7A3D07647C2EBC8C5 /* SnapshotSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3554E40130351545D52C837D /* SnapshotSection.swift */; };
+		9AA36941E7F3C9F381E72BB7 /* StartupRoutine.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDF18DB363FF320F98DFF3AE /* StartupRoutine.swift */; };
 		9BACF5E03C14B194CB3FDA58 /* KeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = 325D204C31C3D5AAF952C5D9 /* KeyboardShortcuts */; };
 		9DD6BA1E28BA04A198D47BD5 /* ClipboardItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E43375821CBBE9DA578E345 /* ClipboardItem.swift */; };
 		9FB7AC07F1831FD94F649E30 /* CleanMacOSApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7CB583C51545CB2D5649473 /* CleanMacOSApp.swift */; };
@@ -141,6 +143,7 @@
 		B95A1CC4923CA37289806A62 /* JiraKpiStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JiraKpiStore.swift; sourceTree = "<group>"; };
 		BC661B5A58FE8B57EF1C939C /* PermissionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionView.swift; sourceTree = "<group>"; };
 		BCA21C6DF18A5F4914577A05 /* ClipboardHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardHistoryView.swift; sourceTree = "<group>"; };
+		C14516723EBF48D1B1FD224A /* StartupSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StartupSettingsView.swift; sourceTree = "<group>"; };
 		C3E23E9045ECAC8FF3EB37FF /* ProcessModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProcessModels.swift; sourceTree = "<group>"; };
 		CA9E35C7D8B82601564C5468 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
 		CBA9BF13C88EF3811FB1AA05 /* DevToolsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevToolsService.swift; sourceTree = "<group>"; };
@@ -149,6 +152,7 @@
 		D85914B532348C7D1A34CFC8 /* JiraSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JiraSettings.swift; sourceTree = "<group>"; };
 		D9F0CECE9C5D38132E03B61B /* JiraFieldDiscovery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JiraFieldDiscovery.swift; sourceTree = "<group>"; };
 		DA627A7F08BAF177E20286D7 /* DevToolsModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevToolsModels.swift; sourceTree = "<group>"; };
+		DDF18DB363FF320F98DFF3AE /* StartupRoutine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StartupRoutine.swift; sourceTree = "<group>"; };
 		DEBFF35EE02467C83ED9553C /* ClipboardPanelController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardPanelController.swift; sourceTree = "<group>"; };
 		E1FC8128FEE8FEEE7743FF7B /* GlobalShortcuts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlobalShortcuts.swift; sourceTree = "<group>"; };
 		E7CB583C51545CB2D5649473 /* CleanMacOSApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CleanMacOSApp.swift; sourceTree = "<group>"; };
@@ -257,6 +261,8 @@
 				185CCDDE3D43CD6FEF6FDA72 /* SettingsView.swift */,
 				3A1479088579DC6E2A293A68 /* SidebarView.swift */,
 				3554E40130351545D52C837D /* SnapshotSection.swift */,
+				DDF18DB363FF320F98DFF3AE /* StartupRoutine.swift */,
+				C14516723EBF48D1B1FD224A /* StartupSettingsView.swift */,
 				7BCCBE4E7BC381BBBE85076E /* Style.swift */,
 				146D7CD67B5D337110ABE8C9 /* SystemMonitor.swift */,
 				76B7603C695D7E900696BC7D /* TokenFileStore.swift */,
@@ -276,7 +282,7 @@
 			);
 			sourceTree = "<group>";
 		};
-		"TEMP_424C559B-5B33-4C4B-84C3-214A35159AB0" /* Resources */ = {
+		"TEMP_3008C640-6313-4497-A6B8-9CBC0324B1C2" /* Resources */ = {
 			isa = PBXGroup;
 			children = (
 			);
@@ -425,6 +431,8 @@
 				F25497E5A5FCBDEB50858F3C /* SettingsView.swift in Sources */,
 				10BB5BA2697E75F5C92A0868 /* SidebarView.swift in Sources */,
 				997224C7A3D07647C2EBC8C5 /* SnapshotSection.swift in Sources */,
+				9AA36941E7F3C9F381E72BB7 /* StartupRoutine.swift in Sources */,
+				5BFE3184C5EBC13851AF4053 /* StartupSettingsView.swift in Sources */,
 				8261125933A50008A2E302C7 /* Style.swift in Sources */,
 				EB2804A3FF935E9CF1A4AE3F /* SystemMonitor.swift in Sources */,
 				23D50491F3450FCA148381C4 /* TokenFileStore.swift in Sources */,

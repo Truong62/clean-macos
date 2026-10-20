@@ -6,6 +6,10 @@ import KeyboardShortcuts
 /// clipboard monitor and the ⌘⇧V hotkey keep working in the background.
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        StartupRoutine.shared.start()
+    }
+
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         false
     }
