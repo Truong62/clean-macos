@@ -208,6 +208,61 @@
             .window .bar { height: 24px; }
             .window .bar i { width: 9px; height: 9px; }
         }
+
+        .mock { padding: 18px; display: grid; gap: 12px; font-size: 12px; color: #ecebf2; text-align: left; }
+        .mock-sum { display: flex; gap: 12px; align-items: center; padding: 12px; border-radius: 14px;
+            background: linear-gradient(90deg, rgba(61,220,132,.16), rgba(80,220,200,.08)); border: 1px solid rgba(61,220,132,.35); }
+        .mock-sum .ic { width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center; font-size: 18px;
+            background: linear-gradient(135deg, #34c759, #5ad8c4); box-shadow: 0 6px 18px rgba(52,199,89,.4); }
+        .mock-sum b { display: block; font-size: 13px; }
+        .mock-sum span { color: #a29db6; font-size: 11px; }
+        .mock-canvas { position: relative; display: flex; align-items: flex-start; justify-content: space-between; gap: 4px;
+            padding: 18px 14px 14px; border-radius: 14px; border: 1px solid rgba(255,255,255,.08);
+            background: radial-gradient(rgba(255,255,255,.13) 1px, transparent 1.2px) 0 0 / 14px 14px, rgba(255,255,255,.025); }
+        .node { flex: none; width: 64px; display: grid; justify-items: center; gap: 6px; font-size: 10.5px; color: #a29db6; }
+        .node .t { position: relative; width: 46px; height: 46px; border-radius: 13px; display: grid; place-items: center; font-size: 19px;
+            background: linear-gradient(135deg, var(--a), var(--b)); box-shadow: 0 8px 20px color-mix(in srgb, var(--a) 45%, transparent); }
+        .node .t::after { content: ""; position: absolute; top: -4px; right: -4px; width: 11px; height: 11px; border-radius: 50%;
+            background: #34c759; border: 2px solid #1c1b20; }
+        .node .t::before { content: ""; position: absolute; inset: 0; border-radius: inherit;
+            box-shadow: -27px 0 0 -23px #1c1b20, -27px 0 0 -21.5px var(--a), 27px 0 0 -23px #1c1b20, 27px 0 0 -21.5px var(--b); }
+        .node.sel .t { outline: 2px solid rgba(255,255,255,.85); outline-offset: 3px; }
+        .node.sel { color: #fff; font-weight: 700; }
+        .wire { flex: 1; height: 2px; margin-top: 22px; position: relative;
+            background: repeating-linear-gradient(90deg, var(--a) 0 5px, transparent 5px 10px); background-size: 10px 2px;
+            animation: flow .8s linear infinite; }
+        .wire::after { content: ""; position: absolute; right: -2px; top: -3px; border: 4px solid transparent; border-left: 6px solid var(--a); border-right: 0; }
+        @keyframes flow { to { background-position: 10px 0; } }
+        .mock-card { padding: 12px; border-radius: 14px; background: rgba(255,255,255,.04); border: 1px solid rgba(224,90,200,.4); display: grid; gap: 8px; }
+        .mock-card .hd { display: flex; align-items: center; gap: 10px; }
+        .mock-card .hd .ic { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; font-size: 14px; background: linear-gradient(135deg, #c84fe0, #ec6fae); }
+        .mock-card .hd b { font-size: 12.5px; }
+        .pill { font-size: 9.5px; font-weight: 800; padding: 1px 7px; border-radius: 100px; color: #3ddc84; background: rgba(61,220,132,.14); margin-left: 6px; }
+        .mock-card .lbl { font-size: 9px; font-weight: 700; letter-spacing: .12em; color: #6d6884; }
+        .presets { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+        .preset { display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: 10px; background: rgba(255,255,255,.04);
+            border: 1px solid color-mix(in srgb, var(--a) 40%, transparent); }
+        .preset i { flex: none; width: 24px; height: 24px; border-radius: 7px; display: grid; place-items: center; font-style: normal; font-size: 12px;
+            background: linear-gradient(135deg, var(--a), var(--b)); }
+        .preset b { font-size: 11px; display: block; line-height: 1.2; }
+        .preset span { font-size: 9.5px; color: #a29db6; }
+        .preset em { margin-left: auto; font-style: normal; font-weight: 900; color: var(--b); }
+        .preset.on { opacity: .55; } .preset.on em { color: #3ddc84; }
+        .job { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 9px; background: rgba(255,255,255,.05); }
+        .job b { font-size: 11px; }
+        .job code { font-size: 9.5px; color: #a29db6; display: block; }
+        .job .sw { margin-left: auto; flex: none; width: 26px; height: 15px; border-radius: 10px; background: #3478f6; position: relative; }
+        .job .sw::after { content: ""; position: absolute; right: 2px; top: 2px; width: 11px; height: 11px; border-radius: 50%; background: #fff; }
+        .chip { font-size: 8.5px; font-weight: 800; padding: 0 6px; border-radius: 100px; color: #d78cff; background: rgba(200,100,255,.16); margin-left: 4px; }
+        @media (max-width: 620px) {
+            .mock { padding: 12px; }
+            .node { width: 48px; font-size: 9px; }
+            .node .t { width: 36px; height: 36px; font-size: 15px; border-radius: 10px; }
+            .node .t::before { display: none; }
+            .wire { margin-top: 17px; }
+            .presets { grid-template-columns: 1fr; }
+        }
+        @media (prefers-reduced-motion: reduce) { .wire { animation: none; } }
     </style>
 </head>
 <body>
@@ -305,6 +360,53 @@
             </div>
             <div class="shot"><div class="window"><div class="bar"><i></i><i></i><i></i></div><img src="images/jobs.png" width="2000" height="1360" alt="Scheduled jobs with log output" loading="lazy"></div></div>
         </div>
+        <div class="showcase flip reveal" style="--accent: #f5a524">
+            <div class="copy">
+                <div class="eyebrow">Power recovery</div>
+                <h3>Power cut at night? Your Mac picks itself back up</h3>
+                <p>One flow shows every step that brings an unattended Mac back: power on, log in, open your apps, start background jobs and lock the screen.</p>
+                <ul>
+                    <li>Turn on when power returns, log in without a password</li>
+                    <li>Your login items and background jobs, toggled in place</li>
+                    <li>One-click jobs like keep the screen on or mute at login</li>
+                    <li>Lock the screen a few seconds after it logs in</li>
+                    <li>Asks for your password only when a setting needs it</li>
+                </ul>
+            </div>
+            <div class="shot">
+                <div class="window" role="img" aria-label="Illustration of the Power recovery flow: power, no password, apps, background and lock steps, all ready">
+                    <div class="bar"><i></i><i></i><i></i></div>
+                    <div class="mock" aria-hidden="true">
+                        <div class="mock-sum"><div class="ic">⚡</div><div><b>Recovers on its own after a power cut</b><span>Power comes back → turns on → logs in → opens apps and jobs → locks the screen</span></div></div>
+                        <div class="mock-canvas">
+                            <div class="node" style="--a:#ffd60a;--b:#ff9f0a"><div class="t">⚡</div>Power</div>
+                            <div class="wire" style="--a:#5ac8fa"></div>
+                            <div class="node" style="--a:#30b0c7;--b:#64d2ff"><div class="t">🔑</div>No password</div>
+                            <div class="wire" style="--a:#ff6482"></div>
+                            <div class="node" style="--a:#ff375f;--b:#ff9f0a"><div class="t">📦</div>Apps</div>
+                            <div class="wire" style="--a:#da5bf0"></div>
+                            <div class="node sel" style="--a:#bf5af2;--b:#ff375f"><div class="t">⚙️</div>Background</div>
+                            <div class="wire" style="--a:#7d7aff"></div>
+                            <div class="node" style="--a:#5e5ce6;--b:#bf5af2"><div class="t">🔒</div>Lock</div>
+                        </div>
+                        <div class="mock-card">
+                            <div class="hd"><div class="ic">⚙️</div><div><b>Background jobs</b><span class="pill">Ready</span></div></div>
+                            <div class="lbl">QUICK ADD</div>
+                            <div class="presets">
+                                <div class="preset on" style="--a:#ffd60a;--b:#ff9f0a"><i>☀️</i><div><b>Keep the screen on</b><span>The display never turns off</span></div><em>✓</em></div>
+                                <div class="preset" style="--a:#5e5ce6;--b:#0a84ff"><i>🌙</i><div><b>Keep the Mac awake</b><span>Screen may sleep, apps keep running</span></div><em>+</em></div>
+                                <div class="preset" style="--a:#30d158;--b:#40c8e0"><i>🔌</i><div><b>Awake on power</b><span>No sleep while plugged in</span></div><em>+</em></div>
+                                <div class="preset" style="--a:#ff375f;--b:#ff453a"><i>🔇</i><div><b>Mute at login</b><span>Silent when it turns on at night</span></div><em>+</em></div>
+                            </div>
+                            <div class="lbl">RUNNING AT LOGIN</div>
+                            <div class="job"><div><b>local.caffeinate</b><span class="chip">keeps awake</span><code>Running · /usr/bin/caffeinate -d</code></div><div class="sw"></div></div>
+                            <div class="job"><div><b>local.dev-server</b><code>Running · npm run dev --prefix ~/projects/site</code></div><div class="sw"></div></div>
+                            <div class="job"><div><b>local.lock-after-login</b><span class="chip">locks screen</span><code>Idle · sleep 1; lockscreen</code></div><div class="sw"></div></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </section>
 
     <section>
@@ -321,6 +423,7 @@
             <div class="feature"><div class="tile" style="background:rgba(236,111,174,.15)">🖥️</div><h4>Displays &amp; RAM</h4><p>Arrange monitors, pick the main one and set wallpapers. See memory pressure and quit the apps hogging RAM.</p></div>
             <div class="feature"><div class="tile" style="background:rgba(79,124,240,.15)">🐳</div><h4>Tool-aware cleanup</h4><p>Uses <code>docker system prune</code> and <code>brew cleanup</code> instead of deleting files those tools still need.</p></div>
             <div class="feature"><div class="tile" style="background:rgba(194,107,232,.15)">🔄</div><h4>Auto-updates</h4><p>New versions install themselves in place through Sparkle, verified with an EdDSA signature.</p></div>
+            <div class="feature"><div class="tile" style="background:rgba(245,165,36,.15)">⚡</div><h4>Power recovery</h4><p>After a power cut the Mac turns itself on, logs in, starts your apps and jobs, then locks the screen.</p></div>
             <div class="feature"><div class="tile" style="background:rgba(255,255,255,.08)">🔒</div><h4>Private by design</h4><p>No account, no analytics, no backend. Everything is measured and cleaned on your Mac.</p></div>
         </div>
     </section>

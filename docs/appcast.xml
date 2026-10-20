@@ -8,6 +8,19 @@
 
     <!-- Paste new <item> blocks here when releasing (newest first) -->
     <item>
+      <title>Version 1.0.38</title>
+      <pubDate>Tue, 20 Oct 2026 09:45:54 +0700</pubDate>
+      <sparkle:version>39</sparkle:version>
+      <sparkle:shortVersionString>1.0.38</sparkle:shortVersionString>
+      <description><![CDATA[
+        <ul><li>Power recovery now follows how your Mac really starts up: power on, log in without a password, your Login Items, your background jobs, then lock the screen</li><li>Background jobs: add your own command or one-click presets — keep the screen on, keep the Mac awake, awake on power, mute at login</li><li>Set how many seconds after login the screen locks, even when an existing job does the locking</li><li>Power Recovery shortcut on Home</li><li>Much lower CPU use: animated backgrounds and flow lines now run in Core Animation</li></ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/Truong62/clean-macos/releases/download/v1.0.38/CleanMacOS-1.0.38.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="LTVdNystq6wG3Szd2EgJR9NQFkmJejCTvUcpAcfIiSInRIPBHUt3f0P83UyY6s907yvmaMma52oLkh871UvUDg==" length="4650803" />
+    </item>
+    <item>
       <title>Version 1.0.37</title>
       <pubDate>Tue, 20 Oct 2026 09:10:56 +0700</pubDate>
       <sparkle:version>38</sparkle:version>
