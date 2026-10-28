@@ -34,6 +34,7 @@ targets:
         LSMinimumSystemVersion: "14.0"
         NSPrincipalClass: NSApplication
         NSHighResolutionCapable: true
+        NSMicrophoneUsageDescription: Clean macOS records your voice into screen recordings when the microphone is turned on.
         LSApplicationCategoryType: public.app-category.utilities
         SUFeedURL: https://truong62.github.io/clean-macos/appcast.xml
         SUPublicEDKey: aSo25KstkpaOi/z97B2XUDWXSv/R7TxPpHbLJ0RpOa8=

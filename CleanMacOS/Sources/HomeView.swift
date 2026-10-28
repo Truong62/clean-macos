@@ -293,6 +293,8 @@ struct HomeView: View {
                      colors: [.mint, .teal]) { navigate(.ram) }
             ToolTile(icon: "display.2", title: "Displays", stat: "\(NSScreen.screens.count) connected",
                      colors: [.purple, .blue]) { navigate(.displays) }
+            ToolTile(icon: "record.circle", title: "Screen Record", stat: "Screen, sound and mic",
+                     colors: [.red, .pink]) { navigate(.screenRecord) }
             ToolTile(icon: "bolt.fill", title: "Power Recovery",
                      stat: startupMissing.map { $0 == 0 ? "Ready after a power cut" : "\($0) \($0 == 1 ? "step needs" : "steps need") you" } ?? "",
                      colors: [.yellow, .orange]) {

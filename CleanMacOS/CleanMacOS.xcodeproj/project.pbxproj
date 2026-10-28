@@ -50,8 +50,10 @@
 		86F8FF339B20317441EBBA6D /* DisplaysViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 869943FA6706D69B21CE1402 /* DisplaysViewModel.swift */; };
 		879BF88DEA1C98DBB92D6264 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 84D76118D8D7A26DB9A6EDE1 /* Sparkle */; };
 		8898B200E4C8F6189458C3E8 /* ProcessService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACD43C271B2FC1F2DAB2E4D /* ProcessService.swift */; };
+		8F84EA87D991663E4071FDBF /* ScreenRecordView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 483AD0BC51C436C61A365E34 /* ScreenRecordView.swift */; };
 		91D5705DF41581EA40B80285 /* LargeFilesService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30AE1414B4AC514340366221 /* LargeFilesService.swift */; };
 		96742BBF577C2662A06127C9 /* AppViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0CE374CA5CC2E8CA8FE9BB73 /* AppViewModel.swift */; };
+		979846E85F8729D827D4C189 /* ScreenRecorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0341956B1B2E6DC78E634B4 /* ScreenRecorder.swift */; };
 		9957F9ADE0BA6BA5A6F0268C /* JiraService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17FAB586E1DFF45338BEF8BB /* JiraService.swift */; };
 		997224C7A3D07647C2EBC8C5 /* SnapshotSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3554E40130351545D52C837D /* SnapshotSection.swift */; };
 		9AA36941E7F3C9F381E72BB7 /* StartupRoutine.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDF18DB363FF320F98DFF3AE /* StartupRoutine.swift */; };
@@ -107,6 +109,7 @@
 		3A1479088579DC6E2A293A68 /* SidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarView.swift; sourceTree = "<group>"; };
 		3EEE3B129372B86AFA16DF07 /* JiraNav.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JiraNav.swift; sourceTree = "<group>"; };
 		44805A604CACFED574E48F5C /* ArtifactTableView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtifactTableView.swift; sourceTree = "<group>"; };
+		483AD0BC51C436C61A365E34 /* ScreenRecordView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenRecordView.swift; sourceTree = "<group>"; };
 		4A0A95590228EC533FD37160 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		4BDB8F98BBA9CA360C581E8E /* ClipboardStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardStore.swift; sourceTree = "<group>"; };
 		4F1B26E8270E9D56F4CCC044 /* JiraNotifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JiraNotifier.swift; sourceTree = "<group>"; };
@@ -143,6 +146,7 @@
 		B95A1CC4923CA37289806A62 /* JiraKpiStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JiraKpiStore.swift; sourceTree = "<group>"; };
 		BC661B5A58FE8B57EF1C939C /* PermissionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionView.swift; sourceTree = "<group>"; };
 		BCA21C6DF18A5F4914577A05 /* ClipboardHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardHistoryView.swift; sourceTree = "<group>"; };
+		C0341956B1B2E6DC78E634B4 /* ScreenRecorder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenRecorder.swift; sourceTree = "<group>"; };
 		C14516723EBF48D1B1FD224A /* StartupSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StartupSettingsView.swift; sourceTree = "<group>"; };
 		C3E23E9045ECAC8FF3EB37FF /* ProcessModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProcessModels.swift; sourceTree = "<group>"; };
 		CA9E35C7D8B82601564C5468 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
@@ -258,6 +262,8 @@
 				AE1934A02858991DBDBF4B53 /* ReleaseHistory.swift */,
 				0BB4842D79D5443DE4383C38 /* Scanner.swift */,
 				FECF4839A71B43575E966ED9 /* ScheduledJobsService.swift */,
+				C0341956B1B2E6DC78E634B4 /* ScreenRecorder.swift */,
+				483AD0BC51C436C61A365E34 /* ScreenRecordView.swift */,
 				185CCDDE3D43CD6FEF6FDA72 /* SettingsView.swift */,
 				3A1479088579DC6E2A293A68 /* SidebarView.swift */,
 				3554E40130351545D52C837D /* SnapshotSection.swift */,
@@ -282,7 +288,7 @@
 			);
 			sourceTree = "<group>";
 		};
-		"TEMP_D630508D-9029-452D-AB85-1CE8ACCAB4DE" /* Resources */ = {
+		"TEMP_8C1FE2A0-D7D4-44B2-BEA0-3151BE18B469" /* Resources */ = {
 			isa = PBXGroup;
 			children = (
 			);
@@ -428,6 +434,8 @@
 				D02C9240BF5C1DE815263131 /* ReleaseHistory.swift in Sources */,
 				82E93883DEBED57BE062E2C0 /* Scanner.swift in Sources */,
 				7BFE59FDA07DEEFDFB771804 /* ScheduledJobsService.swift in Sources */,
+				8F84EA87D991663E4071FDBF /* ScreenRecordView.swift in Sources */,
+				979846E85F8729D827D4C189 /* ScreenRecorder.swift in Sources */,
 				F25497E5A5FCBDEB50858F3C /* SettingsView.swift in Sources */,
 				10BB5BA2697E75F5C92A0868 /* SidebarView.swift in Sources */,
 				997224C7A3D07647C2EBC8C5 /* SnapshotSection.swift in Sources */,

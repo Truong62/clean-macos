@@ -31,6 +31,7 @@ struct CleanMacOSApp: App {
     @StateObject private var clipboard = ClipboardViewModel()
     @StateObject private var monitor = SystemMonitor()
     @StateObject private var jira = JiraViewModel()
+    @StateObject private var recorder = ScreenRecorder()
     @AppStorage("showMenuBar") private var showMenuBar = true
     @State private var panelController: ClipboardPanelController?
 
@@ -41,6 +42,7 @@ struct CleanMacOSApp: App {
                 .environmentObject(updater)
                 .environmentObject(clipboard)
                 .environmentObject(jira)
+                .environmentObject(recorder)
                 .frame(minWidth: 900, minHeight: 600)
                 .onAppear {
                     setAppIcon()
@@ -80,9 +82,9 @@ struct CleanMacOSApp: App {
         }
 
         MenuBarExtra(isInserted: $showMenuBar) {
-            MenuBarView(monitor: monitor, jira: jira)
+            MenuBarView(monitor: monitor, jira: jira, recorder: recorder)
         } label: {
-            Label(String(format: " %.0f%%", monitor.latestCPU), systemImage: "sparkles")
+            Label(String(format: " %.0f%%", monitor.latestCPU), systemImage: recorder.isRecording ? "record.circle.fill" : "sparkles")
         }
         .menuBarExtraStyle(.window)
     }

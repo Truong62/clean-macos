@@ -43,6 +43,9 @@ struct ContentView: View {
             case .displays:
                 DisplaysView()
 
+            case .screenRecord:
+                ScreenRecordView()
+
             case .ram:
                 RAMView()
 

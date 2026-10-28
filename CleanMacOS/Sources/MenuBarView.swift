@@ -3,6 +3,7 @@ import SwiftUI
 struct MenuBarView: View {
     @ObservedObject var monitor: SystemMonitor
     @ObservedObject var jira: JiraViewModel
+    @ObservedObject var recorder: ScreenRecorder
     @Environment(\.openWindow) private var openWindow
     @AppStorage(JiraSettings.menuBarEnabledKey) private var jiraMenuBarEnabled = true
 
@@ -12,6 +13,10 @@ struct MenuBarView: View {
         VStack(spacing: 0) {
             header
             Divider()
+            if case .recording(let since) = recorder.phase {
+                recordingRow(since: since)
+                Divider()
+            }
             if showsJira {
                 JiraMenuBarSection(jira: jira) { key in openMain { jira.openFromOutside(issueKey: key) } }
                 Divider()
@@ -43,6 +48,21 @@ struct MenuBarView: View {
         .padding(.horizontal, 14)
         .padding(.vertical, 8)
         .help(monitor.osVersion)
+    }
+
+    private func recordingRow(since: Date) -> some View {
+        HStack(spacing: 8) {
+            Circle().fill(.red).frame(width: 8, height: 8)
+            TimelineView(.periodic(from: since, by: 1)) { context in
+                Text("Recording \(ScreenRecording.elapsed(context.date.timeIntervalSince(since)))")
+                    .font(.system(size: 12, weight: .semibold).monospacedDigit())
+            }
+            Spacer()
+            Button("Stop") { Task { await recorder.stop() } }
+                .controlSize(.small)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
     }
 
     private var systemStats: some View {
