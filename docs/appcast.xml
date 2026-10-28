@@ -8,6 +8,19 @@
 
     <!-- Paste new <item> blocks here when releasing (newest first) -->
     <item>
+      <title>Version 1.0.41</title>
+      <pubDate>Wed, 28 Oct 2026 17:39:48 +0700</pubDate>
+      <sparkle:version>42</sparkle:version>
+      <sparkle:shortVersionString>1.0.41</sparkle:shortVersionString>
+      <description><![CDATA[
+        <ul><li>New Screen Record page: record a screen, a window or an app with system audio and your microphone, saved as MP4 in Movies (macOS 15 or later)</li><li>Stop a recording from the page or from the menu bar</li><li>System audio and microphone are mixed into one sound track, so the video plays everywhere</li></ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/Truong62/clean-macos/releases/download/v1.0.41/CleanMacOS-1.0.41.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="Ya5swH5BN2FHV1Ih+iqlKpU11u2cb/IgDod78RsADO2f5ONMQpoqDNmuhy94EvV8RS1PoIjENnGANgHMeAYxCQ==" length="4754224" />
+    </item>
+    <item>
       <title>Version 1.0.40</title>
       <pubDate>Tue, 20 Oct 2026 14:01:47 +0700</pubDate>
       <sparkle:version>41</sparkle:version>
