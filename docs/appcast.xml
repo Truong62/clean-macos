@@ -8,6 +8,19 @@
 
     <!-- Paste new <item> blocks here when releasing (newest first) -->
     <item>
+      <title>Version 1.0.44</title>
+      <pubDate>Thu, 29 Oct 2026 15:00:29 +0700</pubDate>
+      <sparkle:version>45</sparkle:version>
+      <sparkle:shortVersionString>1.0.44</sparkle:shortVersionString>
+      <description><![CDATA[
+        <ul><li>AI agents can now direct polished demo videos through the MCP server: title cards, captions, circles, boxes, arrows, numbered steps and spotlights drawn live on screen</li><li>Agents can click controls by name with a smooth cursor glide and click ripples, type text, press shortcuts and scroll</li><li>Smooth Screen Studio style zoom while recording, with captions and labels kept the same size</li><li>Only the actions are recorded: the time an agent spends thinking between steps is cut out automatically</li><li>Window recordings now include menus, popups and annotations, and agents can take screenshots to see the screen</li></ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/Truong62/clean-macos/releases/download/v1.0.44/CleanMacOS-1.0.44.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="oe8qGvYS3lhHxlLABkHGhlzX5iF3PtORABg5zdADE6yCn1413BDp49Gp6riMhOPItcTZ07sGGaKtwKf8G0cCDQ==" length="5020774" />
+    </item>
+    <item>
       <title>Version 1.0.43</title>
       <pubDate>Thu, 29 Oct 2026 14:09:16 +0700</pubDate>
       <sparkle:version>44</sparkle:version>
