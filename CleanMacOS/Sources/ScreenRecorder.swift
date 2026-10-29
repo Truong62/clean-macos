@@ -20,6 +20,14 @@ enum ScreenRecording {
         return "Screen Recording \(formatter.string(from: date)).mp4"
     }
 
+    static func customFileName(_ name: String) -> String? {
+        let cleaned = name.components(separatedBy: CharacterSet(charactersIn: "/:\\")).joined(separator: "-")
+            .trimmingCharacters(in: CharacterSet.whitespacesAndNewlines.union(CharacterSet(charactersIn: ".")))
+        guard !cleaned.isEmpty else { return nil }
+        let base = (cleaned as NSString).pathExtension.lowercased() == "mp4" ? (cleaned as NSString).deletingPathExtension : cleaned
+        return "\(base).mp4"
+    }
+
     static func fittedSize(_ size: CGSize, within limit: CGSize = maxSize) -> CGSize {
         let scale = min(1, limit.width / size.width, limit.height / size.height)
         let even = { (value: CGFloat) in max(2, (value * scale / 2).rounded(.down) * 2) }
@@ -348,7 +356,7 @@ final class ScreenRecorder: NSObject, ObservableObject {
         picker.present()
     }
 
-    func startPreview(_ filter: SCContentFilter, options: RecordingOptions, sourceRect: CGRect? = nil) async {
+    func startPreview(_ filter: SCContentFilter, options: RecordingOptions, sourceRect: CGRect? = nil, showsCursor: Bool = true) async {
         guard #available(macOS 15.0, *) else { return }
         self.options = options
         let (systemAudio, microphone) = (options.systemAudio, options.microphone)
@@ -361,7 +369,7 @@ final class ScreenRecorder: NSObject, ObservableObject {
         configuration.width = Int(size.width)
         configuration.height = Int(size.height)
         configuration.minimumFrameInterval = CMTime(value: 1, timescale: CMTimeScale(options.framesPerSecond))
-        configuration.showsCursor = true
+        configuration.showsCursor = showsCursor
         configuration.capturesAudio = systemAudio
         configuration.excludesCurrentProcessAudio = true
         configuration.captureMicrophone = microphone

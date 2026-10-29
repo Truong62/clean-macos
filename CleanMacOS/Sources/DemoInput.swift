@@ -1,10 +1,11 @@
 import AppKit
 import ApplicationServices
 
-struct FoundElement: Equatable {
+struct FoundElement {
     let role: String
     let label: String
     let frame: CGRect
+    let element: AXUIElement
 }
 
 enum ElementMatch {
@@ -51,25 +52,25 @@ enum AccessibilityFinder {
             guard score > 0, ElementMatch.roleMatches(elementRole, filter: role), let frame = frame(of: element),
                   frame.width > 0, frame.height > 0 else { continue }
             let label = labels.first { ElementMatch.score(query, labels: [$0]) == score } ?? labels.first ?? ""
-            matches.append((score, ElementMatch.rolePriority(elementRole), head, FoundElement(role: elementRole, label: label, frame: frame)))
+            matches.append((score, ElementMatch.rolePriority(elementRole), head, FoundElement(role: elementRole, label: label, frame: frame, element: element)))
         }
         return matches.sorted { ($0.score, $0.priority, -$0.order) > ($1.score, $1.priority, -$1.order) }.map(\.element)
     }
 
-    private static func children(of element: AXUIElement) -> [AXUIElement] {
+    static func children(of element: AXUIElement) -> [AXUIElement] {
         var value: CFTypeRef?
         guard AXUIElementCopyAttributeValue(element, kAXChildrenAttribute as CFString, &value) == .success else { return [] }
         return value as? [AXUIElement] ?? []
     }
 
-    private static func string(_ element: AXUIElement, _ attribute: String) -> String? {
+    static func string(_ element: AXUIElement, _ attribute: String) -> String? {
         var value: CFTypeRef?
         guard AXUIElementCopyAttributeValue(element, attribute as CFString, &value) == .success,
               let text = value as? String, !text.isEmpty else { return nil }
         return text
     }
 
-    private static func frame(of element: AXUIElement) -> CGRect? {
+    static func frame(of element: AXUIElement) -> CGRect? {
         var positionValue: CFTypeRef?
         var sizeValue: CFTypeRef?
         guard AXUIElementCopyAttributeValue(element, kAXPositionAttribute as CFString, &positionValue) == .success,
@@ -177,5 +178,142 @@ enum DemoInput {
                 .post(tap: .cghidEventTap)
             try? await Task.sleep(for: .milliseconds(16))
         }
+    }
+}
+
+enum BackgroundInput {
+    static let pressDepth = 8
+    static let scrollSteps = 18
+
+    static func element(at point: CGPoint, pid: pid_t) -> AXUIElement? {
+        var element: AXUIElement?
+        guard AXUIElementCopyElementAtPosition(AXUIElementCreateApplication(pid), Float(point.x), Float(point.y), &element) == .success else {
+            return nil
+        }
+        return element
+    }
+
+    static func press(_ element: AXUIElement) -> String? {
+        var current: AXUIElement? = element
+        for _ in 0..<pressDepth {
+            guard let candidate = current else { return nil }
+            if actions(of: candidate).contains(kAXPressAction), AXUIElementPerformAction(candidate, kAXPressAction as CFString) == .success {
+                return "press"
+            }
+            if AccessibilityFinder.string(candidate, kAXRoleAttribute) == kAXRowRole, isSettable(candidate, kAXSelectedAttribute),
+               AXUIElementSetAttributeValue(candidate, kAXSelectedAttribute as CFString, kCFBooleanTrue) == .success {
+                return "select"
+            }
+            current = parent(of: candidate)
+        }
+        return nil
+    }
+
+    static func focusedElement(pid: pid_t) -> AXUIElement? {
+        var value: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(AXUIElementCreateApplication(pid), kAXFocusedUIElementAttribute as CFString, &value) == .success,
+              let value, CFGetTypeID(value) == AXUIElementGetTypeID() else { return nil }
+        return (value as! AXUIElement)
+    }
+
+    static func type(_ text: String, into element: AXUIElement, interval: TimeInterval) async -> Bool {
+        guard isSettable(element, kAXValueAttribute) else { return false }
+        AXUIElementSetAttributeValue(element, kAXFocusedAttribute as CFString, kCFBooleanTrue)
+        var typed = AccessibilityFinder.string(element, kAXValueAttribute) ?? ""
+        for character in text {
+            typed.append(character)
+            guard AXUIElementSetAttributeValue(element, kAXValueAttribute as CFString, typed as CFString) == .success else { return false }
+            try? await Task.sleep(for: .seconds(interval))
+        }
+        return true
+    }
+
+    static func reveal(_ element: AXUIElement) -> Bool {
+        AXUIElementPerformAction(element, "AXScrollToVisible" as CFString) == .success
+    }
+
+    static func scroll(near element: AXUIElement, by dy: CGFloat) async -> Bool {
+        if await scrollBar(near: element, by: dy) { return true }
+        return reveal(element)
+    }
+
+    private static func scrollBar(near element: AXUIElement, by dy: CGFloat) async -> Bool {
+        guard let area = ancestor(of: element, role: kAXScrollAreaRole), let bar = value(of: area, kAXVerticalScrollBarAttribute),
+              let content = (value(of: area, kAXContentsAttribute) as? [AXUIElement])?.first ?? AccessibilityFinder.children(of: area).first,
+              let areaFrame = AccessibilityFinder.frame(of: area), let contentFrame = AccessibilityFinder.frame(of: content),
+              let start = value(of: bar as! AXUIElement, kAXValueAttribute) as? Double else { return false }
+        let scrollable = contentFrame.height - areaFrame.height
+        guard scrollable > 0 else { return false }
+        let target = min(max(start + Double(dy / scrollable), 0), 1)
+        for step in 1...scrollSteps {
+            let value = start + (target - start) * Double(step) / Double(scrollSteps)
+            AXUIElementSetAttributeValue(bar as! AXUIElement, kAXValueAttribute as CFString, value as CFNumber)
+            try? await Task.sleep(for: .milliseconds(18))
+        }
+        return true
+    }
+
+    static func postKey(_ combo: KeyCombo, to pid: pid_t) {
+        for isDown in [true, false] {
+            let event = CGEvent(keyboardEventSource: nil, virtualKey: combo.keyCode, keyDown: isDown)
+            event?.flags = combo.flags
+            event?.postToPid(pid)
+        }
+    }
+
+    static func postText(_ text: String, to pid: pid_t, interval: TimeInterval) async {
+        for character in text {
+            let units = Array(String(character).utf16)
+            for isDown in [true, false] {
+                let event = CGEvent(keyboardEventSource: nil, virtualKey: 0, keyDown: isDown)
+                event?.keyboardSetUnicodeString(stringLength: units.count, unicodeString: units)
+                event?.postToPid(pid)
+            }
+            try? await Task.sleep(for: .seconds(interval))
+        }
+    }
+
+    static func postClick(at point: CGPoint, to pid: pid_t) {
+        for type in [CGEventType.leftMouseDown, .leftMouseUp] {
+            let event = CGEvent(mouseEventSource: nil, mouseType: type, mouseCursorPosition: point, mouseButton: .left)
+            event?.setIntegerValueField(.mouseEventClickState, value: 1)
+            event?.postToPid(pid)
+        }
+    }
+
+    static func windows(of pid: pid_t) -> [AXUIElement] {
+        value(of: AXUIElementCreateApplication(pid), kAXWindowsAttribute) as? [AXUIElement] ?? []
+    }
+
+    private static func ancestor(of element: AXUIElement, role: String) -> AXUIElement? {
+        var current: AXUIElement? = element
+        for _ in 0..<12 {
+            guard let candidate = current else { return nil }
+            if AccessibilityFinder.string(candidate, kAXRoleAttribute) == role { return candidate }
+            current = parent(of: candidate)
+        }
+        return nil
+    }
+
+    private static func parent(of element: AXUIElement) -> AXUIElement? {
+        guard let parent = value(of: element, kAXParentAttribute), CFGetTypeID(parent) == AXUIElementGetTypeID() else { return nil }
+        return (parent as! AXUIElement)
+    }
+
+    private static func value(of element: AXUIElement, _ attribute: String) -> CFTypeRef? {
+        var value: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(element, attribute as CFString, &value) == .success else { return nil }
+        return value
+    }
+
+    private static func actions(of element: AXUIElement) -> [String] {
+        var names: CFArray?
+        guard AXUIElementCopyActionNames(element, &names) == .success else { return [] }
+        return names as? [String] ?? []
+    }
+
+    private static func isSettable(_ element: AXUIElement, _ attribute: String) -> Bool {
+        var settable = DarwinBoolean(false)
+        return AXUIElementIsAttributeSettable(element, attribute as CFString, &settable) == .success && settable.boolValue
     }
 }

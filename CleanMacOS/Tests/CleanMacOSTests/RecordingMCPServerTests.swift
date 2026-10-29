@@ -24,7 +24,8 @@ struct RecordingMCPServerTests {
         let reply = try await call(#"{"jsonrpc":"2.0","id":"a","method":"tools/list"}"#)
         let tools = try #require((reply["result"] as? [String: Any])?["tools"] as? [[String: Any]])
         let names = tools.compactMap { $0["name"] as? String }
-        #expect(names.count == 15)
+        #expect(names.count == 17)
+        #expect(names.contains("navigate") && names.contains("review_recording"))
         #expect(Set(names).isSuperset(of: ["list_sources", "start_recording", "stop_recording", "annotate", "caption", "click", "zoom_in", "screenshot"]))
         #expect(tools.allSatisfy { ($0["inputSchema"] as? [String: Any])?["type"] as? String == "object" })
         #expect(reply["id"] as? String == "a")
@@ -157,5 +158,85 @@ struct RecordingMCPServerTests {
         #expect(timeline.outputTime(at: second(33)) == second(18))
         timeline.resume(at: second(40))
         #expect(timeline.pauses.count == 2)
+    }
+
+    @Test func readsDevToolsPortAndBrowserProcessArguments() {
+        #expect(HeadlessBrowserFiles.port(fromActivePortFile: "53122\n/devtools/browser/abc\n") == 53122)
+        #expect(HeadlessBrowserFiles.port(fromActivePortFile: "") == nil)
+        #expect(HeadlessBrowserFiles.processID(fromSingletonLock: "Mac-mini.local-4242") == 4242)
+        var bytes: [UInt8] = [2, 0, 0, 0]
+        bytes += Array("/Apps/Chrome".utf8) + [0, 0, 0]
+        bytes += Array("Chrome".utf8) + [0] + Array("--headless=new".utf8) + [0] + Array("PATH=/bin".utf8) + [0]
+        #expect(HeadlessBrowserFiles.arguments(fromProcessArgs: bytes) == ["Chrome", "--headless=new"])
+        #expect(HeadlessBrowserFiles.arguments(fromProcessArgs: [1, 0]).isEmpty)
+    }
+
+    @Test func composesFramesWithTheZoomCrop() {
+        let output = CGSize(width: 1920, height: 1080)
+        let full = FrameComposer.transform(imageSize: output, crop: CGRect(origin: .zero, size: output), output: output)
+        #expect(CGPoint(x: 100, y: 200).applying(full) == CGPoint(x: 100, y: 200))
+        let crop = CGRect(x: 960, y: 0, width: 960, height: 540)
+        let zoomed = FrameComposer.transform(imageSize: output, crop: crop, output: output)
+        #expect(CGPoint(x: 960, y: 540).applying(zoomed) == CGPoint(x: 0, y: 0))
+        #expect(CGPoint(x: 1920, y: 1080).applying(zoomed) == CGPoint(x: 1920, y: 1080))
+        let half = FrameComposer.transform(imageSize: CGSize(width: 960, height: 540), crop: CGRect(origin: .zero, size: output), output: output)
+        #expect(CGPoint(x: 960, y: 540).applying(half) == CGPoint(x: 1920, y: 1080))
+    }
+
+    @Test func zoomTrackEasesFromWhereItIsTowardsTheTarget() {
+        let base = CGRect(x: 0, y: 0, width: 1920, height: 1080)
+        let target = CGRect(x: 960, y: 540, width: 960, height: 540)
+        var track = ZoomTrack(base: base)
+        #expect(track.rect(at: 5) == base)
+        track.move(to: target, at: 10, duration: 1)
+        #expect(track.rect(at: 10) == base)
+        #expect(track.rect(at: 10.5).width == 1440)
+        #expect(track.rect(at: 11) == target)
+        track.move(to: base, at: 10.5, duration: 1)
+        #expect(track.rect(at: 10.5).width == 1440)
+        #expect(track.rect(at: 12) == base)
+    }
+
+    @Test func mapsKeysForTheHiddenBrowser() {
+        #expect(WebKey.parse("return") == WebKey(key: "Enter", code: "Enter", keyCode: 13, text: "\r", modifiers: 0))
+        #expect(WebKey.parse("shift+tab") == WebKey(key: "Tab", code: "Tab", keyCode: 9, text: nil, modifiers: 8))
+        #expect(WebKey.parse("cmd+a") == WebKey(key: "a", code: "KeyA", keyCode: 65, text: nil, modifiers: 4))
+        #expect(WebKey.parse("shift+k")?.text == "K")
+        #expect(WebKey.parse("7") == WebKey(key: "7", code: "Digit7", keyCode: 55, text: "7", modifiers: 0))
+        #expect(WebKey.parse("hyper+a") == nil)
+        #expect(WebKey.parse("f13") == nil)
+    }
+
+    @Test func encodesValuesForPageScripts() {
+        #expect(JSValue.encode("say \"hi\"\n</script>") == #""say \"hi\"\n</script>""#)
+        #expect(JSValue.encode(nil) == "null")
+        #expect(JSValue.encode(NSNull()) == "null")
+        #expect(JSValue.encode(3) == "3")
+        #expect(DemoColor.hex(DemoColor.parse("#12AB34")!) == "#12AB34")
+        #expect(BrowserURL.isAllowed("http://localhost:3000/app"))
+        #expect(BrowserURL.isAllowed("file:///tmp/demo.html"))
+        #expect(!BrowserURL.isAllowed("javascript:alert(1)"))
+        #expect(!BrowserURL.isAllowed("localhost:3000"))
+    }
+
+    @Test func cleansCustomVideoNames() {
+        #expect(ScreenRecording.customFileName("task-board-demo") == "task-board-demo.mp4")
+        #expect(ScreenRecording.customFileName("Demo.MP4") == "Demo.mp4")
+        #expect(ScreenRecording.customFileName("../../etc/passwd") == "-..-etc-passwd.mp4")
+        #expect(ScreenRecording.customFileName("a:b") == "a-b.mp4")
+        #expect(ScreenRecording.customFileName("  ...  ") == nil)
+    }
+
+    @Test func renamesWithoutOverwriting() throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("rename-\(UUID())")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let first = folder.appendingPathComponent("one.mp4")
+        let second = folder.appendingPathComponent("two.mp4")
+        try Data([1]).write(to: first)
+        try Data([2]).write(to: second)
+        #expect(try AgentRecordingSession.rename(first, to: "demo").lastPathComponent == "demo.mp4")
+        #expect(try AgentRecordingSession.rename(second, to: "demo").lastPathComponent == "demo 2.mp4")
+        #expect(try Data(contentsOf: folder.appendingPathComponent("demo.mp4")) == Data([1]))
     }
 }

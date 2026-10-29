@@ -39,11 +39,15 @@ struct StartRecordingArguments: Decodable {
     var folder: String?
     var showClicks: Bool?
     var skipIdle: Bool?
+    var background: Bool?
+    var url: String?
+    var browser: String?
+    var name: String?
 
     enum CodingKeys: String, CodingKey {
         case windowID = "window_id", window, app, displayID = "display_id", fps, resolution
         case systemAudio = "system_audio", microphone, maxSeconds = "max_seconds", folder, showClicks = "show_clicks"
-        case skipIdle = "skip_idle"
+        case skipIdle = "skip_idle", background, url, browser, name
     }
 }
 
@@ -144,8 +148,14 @@ final class AgentRecordingSession {
     private var isActive = false
     private var autoStop: Task<Void, Never>?
     private var skipsIdle = true
+    private var outputFolder = ScreenRecording.moviesFolder()
+    private var lastResult: Result<URL, Error>?
+    private var outputName: String?
+    var lastSavedRecording: URL?
     var recordingDisplay: CGRect?
     var targetProcessID: pid_t?
+    var isBackground = false
+    var web: WebDemo?
     var annotationCount = 0
     var stepCount = 0
 
@@ -153,7 +163,7 @@ final class AgentRecordingSession {
         self.defaults = defaults
     }
 
-    var isRecording: Bool { isActive && recorder.isRecording }
+    var isRecording: Bool { isActive && (web != nil || recorder.isRecording) }
 
     func listSources() async throws -> [String: Any] {
         let content = try await SCShareableContent.excludingDesktopWindows(true, onScreenWindowsOnly: true)
@@ -175,20 +185,22 @@ final class AgentRecordingSession {
         guard ScreenRecorder.isSupported else { throw MCPToolError.message("Screen recording needs macOS 15 or later.") }
         guard !isActive else { throw MCPToolError.message("A recording is already running. Call stop_recording first.") }
         let options = try options(from: arguments)
-        overlay.show(showsClicks: arguments.showClicks ?? true)
-        let target = try await resolveTarget(arguments)
-        recorder.message = nil
-        await recorder.startPreview(target.filter, options: options, sourceRect: target.sourceRect)
-        guard recorder.phase == .previewing else {
-            overlay.hide()
-            throw MCPToolError.message(recorder.message ?? "Recording could not start.")
-        }
-        recorder.startRecording()
+        isBackground = arguments.background ?? true
         skipsIdle = arguments.skipIdle ?? true
-        if skipsIdle { recorder.pauseCapture() }
+        outputFolder = options.folder
+        outputName = arguments.name
+        lastResult = nil
+        annotationCount = 0
+        stepCount = 0
+        var result: [String: Any]
+        if let url = arguments.url {
+            guard isBackground else { throw MCPToolError.message("url opens a hidden browser, so it needs background: true (the default).") }
+            result = try await startWeb(url, browserName: arguments.browser, options: options)
+            if skipsIdle { web?.writer.pause() }
+        } else {
+            result = try await startScreen(arguments, options: options)
+        }
         isActive = true
-        recordingDisplay = target.display
-        targetProcessID = target.processID
         AgentRecordingSignal.post(AgentRecordingSignal.started)
         let maxSeconds = min(max(arguments.maxSeconds ?? Self.defaultMaxSeconds, 1), Self.maxSecondsLimit)
         autoStop = Task { [weak self] in
@@ -196,27 +208,34 @@ final class AgentRecordingSession {
             guard !Task.isCancelled else { return }
             await self?.finishCapture()
         }
-        return ["recording": true, "target": target.description, "skip_idle": skipsIdle, "fps": options.framesPerSecond,
-                "resolution": options.resolution.title.lowercased(), "max_seconds": maxSeconds, "folder": options.folder.path,
-                "recorded_area": ["x": Int(target.display.minX + (target.sourceRect?.minX ?? 0)),
-                                  "y": Int(target.display.minY + (target.sourceRect?.minY ?? 0)),
-                                  "width": Int(target.sourceRect?.width ?? target.display.width),
-                                  "height": Int(target.sourceRect?.height ?? target.display.height)]]
+        result.merge(["recording": true, "skip_idle": skipsIdle, "background": isBackground, "fps": options.framesPerSecond,
+                      "resolution": options.resolution.title.lowercased(), "max_seconds": maxSeconds]) { first, _ in first }
+        return result
     }
 
-    func stop() async throws -> [String: Any] {
+    func stop(discard: Bool = false) async throws -> [String: Any] {
         guard isActive else { throw MCPToolError.message("No recording is running. Call start_recording first.") }
         isActive = false
         autoStop?.cancel()
         await finishCapture()
-        if let message = recorder.message { throw MCPToolError.message(message) }
-        guard let url = recorder.lastRecording else { throw MCPToolError.message("The recording could not be saved.") }
+        guard let result = lastResult else { throw MCPToolError.message("The recording could not be saved.") }
+        lastResult = nil
+        let url = try result.get()
+        if discard {
+            try FileManager.default.removeItem(at: url)
+            return ["discarded": true]
+        }
+        lastSavedRecording = url
         return try await Self.describe(url)
     }
 
     func beginAction() {
         guard isRecording else { return }
-        if let pid = targetProcessID, NSWorkspace.shared.frontmostApplication?.processIdentifier != pid {
+        if let web {
+            if skipsIdle { web.writer.resume() }
+            return
+        }
+        if !isBackground, let pid = targetProcessID, NSWorkspace.shared.frontmostApplication?.processIdentifier != pid {
             NSRunningApplication(processIdentifier: pid)?.activate()
         }
         if skipsIdle { recorder.resumeCapture() }
@@ -224,7 +243,11 @@ final class AgentRecordingSession {
 
     func endAction() {
         guard isRecording, skipsIdle else { return }
-        recorder.pauseCapture()
+        if let web {
+            web.writer.pause()
+        } else {
+            recorder.pauseCapture()
+        }
     }
 
     func shutdown() async {
@@ -233,12 +256,71 @@ final class AgentRecordingSession {
         overlay.hide()
     }
 
+    private func startScreen(_ arguments: StartRecordingArguments, options: RecordingOptions) async throws -> [String: Any] {
+        let target: RecordingTarget
+        do {
+            if isBackground {
+                target = try await inPlaceTarget(arguments)
+                let area = target.sourceRect.map { $0.offsetBy(dx: target.display.minX, dy: target.display.minY) } ?? target.display
+                overlay.model.moveCursor(to: CGPoint(x: area.midX, y: area.midY), duration: 0)
+            } else {
+                overlay.show(showsClicks: arguments.showClicks ?? true)
+                target = try await resolveTarget(arguments)
+            }
+        } catch {
+            overlay.hide()
+            throw error
+        }
+        recorder.message = nil
+        await recorder.startPreview(target.filter, options: options, sourceRect: target.sourceRect, showsCursor: !isBackground)
+        guard recorder.phase == .previewing else {
+            overlay.hide()
+            throw MCPToolError.message(recorder.message ?? "Recording could not start.")
+        }
+        recorder.startRecording()
+        if skipsIdle { recorder.pauseCapture() }
+        recordingDisplay = target.display
+        targetProcessID = target.processID
+        return ["target": target.description, "folder": options.folder.path,
+                "recorded_area": ["x": Int(target.display.minX + (target.sourceRect?.minX ?? 0)),
+                                  "y": Int(target.display.minY + (target.sourceRect?.minY ?? 0)),
+                                  "width": Int(target.sourceRect?.width ?? target.display.width),
+                                  "height": Int(target.sourceRect?.height ?? target.display.height)]]
+    }
+
     private func finishCapture() async {
-        guard recorder.isRecording else { return }
-        overlay.hide()
-        await recorder.stop()
+        if web != nil {
+            lastResult = await finishWeb(into: outputFolder)
+        } else if recorder.isRecording {
+            overlay.hide()
+            await recorder.stop()
+            if let message = recorder.message {
+                lastResult = .failure(MCPToolError.message(message))
+            } else if let url = recorder.lastRecording {
+                lastResult = .success(url)
+            }
+        } else {
+            return
+        }
+        if case .success(let url) = lastResult, let name = outputName {
+            lastResult = Result { try Self.rename(url, to: name) }
+        }
         recordingDisplay = nil
         AgentRecordingSignal.post(AgentRecordingSignal.stopped)
+    }
+
+    static func rename(_ url: URL, to name: String) throws -> URL {
+        guard let file = ScreenRecording.customFileName(name) else { return url }
+        let folder = url.deletingLastPathComponent()
+        let base = (file as NSString).deletingPathExtension
+        var destination = folder.appendingPathComponent(file)
+        var copy = 2
+        while FileManager.default.fileExists(atPath: destination.path) {
+            destination = folder.appendingPathComponent("\(base) \(copy).mp4")
+            copy += 1
+        }
+        try FileManager.default.moveItem(at: url, to: destination)
+        return destination
     }
 
     private func options(from arguments: StartRecordingArguments) throws -> RecordingOptions {
@@ -317,7 +399,7 @@ final class AgentRecordingSession {
         content.displays.first { $0.displayID == CGMainDisplayID() } ?? content.displays.first
     }
 
-    private static func recordableWindows(_ content: SCShareableContent) -> [SCWindow] {
+    static func recordableWindows(_ content: SCShareableContent) -> [SCWindow] {
         content.windows.filter { window in
             guard let app = window.owningApplication, app.bundleIdentifier != "com.apple.WindowManager",
                   app.processID != getpid() else { return false }
@@ -361,10 +443,26 @@ final class RecordingMCPServer {
         self.session = session
     }
 
+    static let stopSignals = [SIGTERM, SIGINT, SIGHUP]
+    private static var signalSources: [DispatchSourceSignal] = []
+
     static func run() -> Never {
         NSApplication.shared.setActivationPolicy(.accessory)
+        let session = AgentRecordingSession()
+        signalSources = stopSignals.map { number in
+            signal(number, SIG_IGN)
+            let source = DispatchSource.makeSignalSource(signal: number, queue: .main)
+            source.setEventHandler {
+                Task { @MainActor in
+                    await session.shutdown()
+                    exit(0)
+                }
+            }
+            source.resume()
+            return source
+        }
         Task { @MainActor in
-            let server = RecordingMCPServer(session: AgentRecordingSession())
+            let server = RecordingMCPServer(session: session)
             await server.serve()
             exit(0)
         }
@@ -441,11 +539,11 @@ final class RecordingMCPServer {
         switch name {
         case "list_sources": return .json(try await session.listSources())
         case "start_recording": return .json(try await session.start(JSONDecoder().decode(StartRecordingArguments.self, from: data)))
-        case "stop_recording": return .json(try await session.stop())
+        case "stop_recording": return .json(try await session.stop(discard: (try? demo())?.discard ?? false))
         case "annotate": return .json(try await session.annotate(demo()))
         case "caption": return .json(try await session.caption(demo()))
         case "clear_annotations": return .json(try await session.clearAnnotations(demo()))
-        case "find_element": return .json(try session.findElement(demo()))
+        case "find_element": return .json(try await session.findElement(demo()))
         case "click": return .json(try await session.click(demo()))
         case "type_text": return .json(try await session.typeText(demo()))
         case "press_key": return .json(try await session.pressKey(demo()))
@@ -453,7 +551,9 @@ final class RecordingMCPServer {
         case "zoom_in": return .json(try await session.zoomIn(demo()))
         case "zoom_out": return .json(try await session.zoomOut(demo()))
         case "wait": return .json(try await session.wait(demo()))
+        case "navigate": return .json(try await session.navigate(demo()))
         case "screenshot": return try await session.screenshot(demo())
+        case "review_recording": return try await session.reviewRecording(demo())
         default: throw MCPToolError.message("Unknown tool: \(name)")
         }
     }

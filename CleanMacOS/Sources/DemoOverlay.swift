@@ -28,6 +28,12 @@ enum DemoColor {
         "blue": .systemBlue, "purple": .systemPurple, "pink": .systemPink, "white": .white, "black": .black,
     ]
 
+    static func hex(_ color: NSColor) -> String {
+        let rgb = color.usingColorSpace(.sRGB) ?? accent
+        let channel = { (value: CGFloat) in Int((min(max(value, 0), 1) * 255).rounded()) }
+        return String(format: "#%02X%02X%02X", channel(rgb.redComponent), channel(rgb.greenComponent), channel(rgb.blueComponent))
+    }
+
     static func parse(_ text: String?) -> NSColor? {
         guard let raw = text?.trimmingCharacters(in: .whitespaces).lowercased(), !raw.isEmpty else { return accent }
         if let color = named[raw] { return color }
@@ -84,6 +90,7 @@ final class DemoOverlayModel: ObservableObject {
     @Published private(set) var captionScale: CGFloat = 1
     @Published private(set) var isCaptionAtTop = false
     @Published private(set) var ripples: [ClickRipple] = []
+    @Published private(set) var cursor: CGPoint?
 
     func add(_ annotation: Annotation) {
         withAnimation(.spring(duration: 0.35)) {
@@ -118,6 +125,18 @@ final class DemoOverlayModel: ObservableObject {
         captionScale = scale
     }
 
+    func moveCursor(to point: CGPoint, duration: TimeInterval) {
+        guard cursor != nil, duration > 0 else {
+            cursor = point
+            return
+        }
+        withAnimation(.easeInOut(duration: duration)) { cursor = point }
+    }
+
+    func hideCursor() {
+        cursor = nil
+    }
+
     func ripple(at point: CGPoint) {
         let ripple = ClickRipple(point: point)
         ripples.append(ripple)
@@ -137,9 +156,9 @@ final class DemoOverlay {
 
     var isShown: Bool { !panels.isEmpty }
 
-    func show(showsClicks: Bool) {
+    func show(showsClicks: Bool, only display: CGRect? = nil) {
         if panels.isEmpty {
-            panels = NSScreen.screens.map(makePanel)
+            panels = NSScreen.screens.filter { display == nil || ScreenGeometry.displayBounds(of: $0) == display }.map(makePanel)
         }
         if showsClicks, clickMonitor == nil {
             clickMonitor = NSEvent.addGlobalMonitorForEvents(matching: .leftMouseDown) { [weak self] _ in
@@ -151,6 +170,7 @@ final class DemoOverlay {
 
     func hide() {
         model.clear()
+        model.hideCursor()
         panels.forEach { $0.orderOut(nil) }
         panels.removeAll()
         if let clickMonitor { NSEvent.removeMonitor(clickMonitor) }
@@ -198,9 +218,13 @@ struct DemoOverlayView: View {
                 RippleView(color: Color(nsColor: DemoColor.accent))
                     .position(x: ripple.point.x - bounds.minX, y: ripple.point.y - bounds.minY)
             }
+            if let cursor = model.cursor, bounds.contains(cursor) {
+                FakeCursor().position(x: cursor.x - bounds.minX, y: cursor.y - bounds.minY)
+            }
             if let caption = model.caption, bounds.contains(CGPoint(x: model.captionArea.midX, y: model.captionArea.midY)) {
                 let area = local(model.captionArea)
-                let atTop = model.isCaptionAtTop || DemoOverlayView.captionBlocks(model.annotations, area: model.captionArea, scale: model.captionScale)
+                let atTop = model.isCaptionAtTop
+                    || DemoOverlayView.captionBlocks(model.annotations, cursor: model.cursor, area: model.captionArea, scale: model.captionScale)
                 CaptionView(text: caption)
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(width: min(area.width / model.captionScale - 80, 1100))
@@ -213,8 +237,9 @@ struct DemoOverlayView: View {
         .frame(width: bounds.width, height: bounds.height, alignment: .topLeading)
     }
 
-    static func captionBlocks(_ annotations: [Annotation], area: CGRect, scale: CGFloat) -> Bool {
+    static func captionBlocks(_ annotations: [Annotation], cursor: CGPoint?, area: CGRect, scale: CGFloat) -> Bool {
         let band = CGRect(x: area.minX, y: area.maxY - CaptionView.bandHeight * scale, width: area.width, height: CaptionView.bandHeight * scale)
+        if let cursor, band.insetBy(dx: 0, dy: -40 * scale).contains(cursor) { return true }
         return annotations.contains { $0.kind != .title && $0.kind != .spotlight && $0.rect.insetBy(dx: -20, dy: -50).intersects(band) }
     }
 
@@ -381,6 +406,18 @@ private struct CaptionView: View {
             .padding(.horizontal, 26)
             .padding(.vertical, 14)
             .background(RoundedRectangle(cornerRadius: 16).fill(.black.opacity(0.78)))
+    }
+}
+
+private struct FakeCursor: View {
+    private static let image = NSCursor.arrow.image
+    private static let hotSpot = NSCursor.arrow.hotSpot
+
+    var body: some View {
+        let size = Self.image.size
+        Image(nsImage: Self.image)
+            .shadow(color: .black.opacity(0.3), radius: 2, y: 1)
+            .offset(x: size.width / 2 - Self.hotSpot.x, y: size.height / 2 - Self.hotSpot.y)
     }
 }
 
