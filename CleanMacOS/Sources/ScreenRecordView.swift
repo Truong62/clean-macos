@@ -23,6 +23,7 @@ struct ScreenRecordView: View {
                     RecordingSettingsCard(framesPerSecond: $framesPerSecond, resolution: $resolution, folderPath: $folderPath)
                         .disabled(recorder.phase != .idle)
                     if let url = recorder.lastRecording { LastRecordingRow(url: url) }
+                    AgentSetupCard()
                 } else {
                     Label("Screen recording needs macOS 15 or later.", systemImage: "exclamationmark.triangle.fill")
                         .foregroundStyle(.orange)
@@ -318,6 +319,48 @@ private struct RecordingSettingsCard: View {
         panel.prompt = "Choose"
         guard panel.runModal() == .OK, let url = panel.url else { return }
         folderPath = url.path
+    }
+}
+
+private struct AgentSetupCard: View {
+    @State private var isCopied = false
+
+    private var command: String {
+        "claude mcp add screen-record -s user -- \"\(Bundle.main.executablePath ?? "")\" \(RecordingMCPServer.flag)"
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 28, height: 28)
+                    .background(Color.indigo.gradient, in: RoundedRectangle(cornerRadius: 8))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Use with AI agents").font(.system(size: 13, weight: .semibold))
+                    Text("Let Claude Code record real demo videos. Run this once in Terminal:")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            HStack(spacing: 8) {
+                Text(command)
+                    .font(.system(size: 11, design: .monospaced))
+                    .textSelection(.enabled)
+                    .lineLimit(2)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(8)
+                    .background(Color.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 8))
+                Button(isCopied ? "Copied" : "Copy") {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(command, forType: .string)
+                    isCopied = true
+                }
+            }
+        }
+        .padding(16)
+        .glassCard()
     }
 }
 

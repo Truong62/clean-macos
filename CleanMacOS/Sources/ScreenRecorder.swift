@@ -280,6 +280,7 @@ final class ScreenRecorder: NSObject, ObservableObject {
 
     func startPreview(_ filter: SCContentFilter, options: RecordingOptions) async {
         guard #available(macOS 15.0, *) else { return }
+        self.options = options
         let (systemAudio, microphone) = (options.systemAudio, options.microphone)
         let size = ScreenRecording.fittedSize(CGSize(width: filter.contentRect.width * CGFloat(filter.pointPixelScale),
                                                      height: filter.contentRect.height * CGFloat(filter.pointPixelScale)),

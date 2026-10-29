@@ -4,6 +4,7 @@ struct MenuBarView: View {
     @ObservedObject var monitor: SystemMonitor
     @ObservedObject var jira: JiraViewModel
     @ObservedObject var recorder: ScreenRecorder
+    @ObservedObject var agentRecording: AgentRecordingIndicator
     @Environment(\.openWindow) private var openWindow
     @AppStorage(JiraSettings.menuBarEnabledKey) private var jiraMenuBarEnabled = true
 
@@ -15,6 +16,10 @@ struct MenuBarView: View {
             Divider()
             if case .recording(let since) = recorder.phase {
                 recordingRow(since: since)
+                Divider()
+            }
+            if agentRecording.isRecording {
+                agentRecordingRow
                 Divider()
             }
             if showsJira {
@@ -60,6 +65,16 @@ struct MenuBarView: View {
             Spacer()
             Button("Stop") { Task { await recorder.stop() } }
                 .controlSize(.small)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+    }
+
+    private var agentRecordingRow: some View {
+        HStack(spacing: 8) {
+            Circle().fill(.red).frame(width: 8, height: 8)
+            Text("An AI agent is recording the screen").font(.system(size: 12, weight: .semibold))
+            Spacer()
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 8)

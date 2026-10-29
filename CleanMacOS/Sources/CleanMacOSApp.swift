@@ -24,6 +24,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 }
 
 @main
+enum AppEntry {
+    static func main() {
+        if CommandLine.arguments.contains(RecordingMCPServer.flag) {
+            RecordingMCPServer.run()
+        }
+        CleanMacOSApp.main()
+    }
+}
+
 struct CleanMacOSApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var vm = AppViewModel()
@@ -32,6 +41,7 @@ struct CleanMacOSApp: App {
     @StateObject private var monitor = SystemMonitor()
     @StateObject private var jira = JiraViewModel()
     @StateObject private var recorder = ScreenRecorder()
+    @StateObject private var agentRecording = AgentRecordingIndicator()
     @AppStorage("showMenuBar") private var showMenuBar = true
     @State private var panelController: ClipboardPanelController?
 
@@ -82,9 +92,9 @@ struct CleanMacOSApp: App {
         }
 
         MenuBarExtra(isInserted: $showMenuBar) {
-            MenuBarView(monitor: monitor, jira: jira, recorder: recorder)
+            MenuBarView(monitor: monitor, jira: jira, recorder: recorder, agentRecording: agentRecording)
         } label: {
-            Label(String(format: " %.0f%%", monitor.latestCPU), systemImage: recorder.isRecording ? "record.circle.fill" : "sparkles")
+            Label(String(format: " %.0f%%", monitor.latestCPU), systemImage: recorder.isRecording || agentRecording.isRecording ? "record.circle.fill" : "sparkles")
         }
         .menuBarExtraStyle(.window)
     }

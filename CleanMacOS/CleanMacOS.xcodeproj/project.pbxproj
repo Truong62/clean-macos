@@ -87,6 +87,7 @@
 		F46D4AD2FF7008D85A1CC143 /* JiraSettingsForm.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79D33A3D4889F2340E8FB307 /* JiraSettingsForm.swift */; };
 		F9C7FD9F9683F092A83E0ABE /* DisplayService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9832301F93D2207402FD0D3F /* DisplayService.swift */; };
 		FABD8B68B191996B3BAEB7E5 /* MenuBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAAA08ABC4C4FD3834BA928F /* MenuBarView.swift */; };
+		FB0625574C78B8AC4F719CDE /* RecordingMCPServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E113230622A0F6F81BE3C833 /* RecordingMCPServer.swift */; };
 		FD68EF4B8ED6EFEB3B1E7057 /* JiraView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 874D5290194904D2B767669A /* JiraView.swift */; };
 /* End PBXBuildFile section */
 
@@ -158,6 +159,7 @@
 		DA627A7F08BAF177E20286D7 /* DevToolsModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevToolsModels.swift; sourceTree = "<group>"; };
 		DDF18DB363FF320F98DFF3AE /* StartupRoutine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StartupRoutine.swift; sourceTree = "<group>"; };
 		DEBFF35EE02467C83ED9553C /* ClipboardPanelController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardPanelController.swift; sourceTree = "<group>"; };
+		E113230622A0F6F81BE3C833 /* RecordingMCPServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingMCPServer.swift; sourceTree = "<group>"; };
 		E1FC8128FEE8FEEE7743FF7B /* GlobalShortcuts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlobalShortcuts.swift; sourceTree = "<group>"; };
 		E7CB583C51545CB2D5649473 /* CleanMacOSApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CleanMacOSApp.swift; sourceTree = "<group>"; };
 		E9021792973FD87DC3FDF424 /* JiraClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JiraClient.swift; sourceTree = "<group>"; };
@@ -259,6 +261,7 @@
 				C3E23E9045ECAC8FF3EB37FF /* ProcessModels.swift */,
 				FACD43C271B2FC1F2DAB2E4D /* ProcessService.swift */,
 				6E5967A4047D750A42B3AC58 /* RAMView.swift */,
+				E113230622A0F6F81BE3C833 /* RecordingMCPServer.swift */,
 				AE1934A02858991DBDBF4B53 /* ReleaseHistory.swift */,
 				0BB4842D79D5443DE4383C38 /* Scanner.swift */,
 				FECF4839A71B43575E966ED9 /* ScheduledJobsService.swift */,
@@ -288,7 +291,7 @@
 			);
 			sourceTree = "<group>";
 		};
-		"TEMP_8C1FE2A0-D7D4-44B2-BEA0-3151BE18B469" /* Resources */ = {
+		"TEMP_EEF5581B-C73A-48BE-8509-F1EF59003A5C" /* Resources */ = {
 			isa = PBXGroup;
 			children = (
 			);
@@ -431,6 +434,7 @@
 				31B5D338F0B2D2941C130613 /* ProcessModels.swift in Sources */,
 				8898B200E4C8F6189458C3E8 /* ProcessService.swift in Sources */,
 				C5EA8F9FF738427D54D100F4 /* RAMView.swift in Sources */,
+				FB0625574C78B8AC4F719CDE /* RecordingMCPServer.swift in Sources */,
 				D02C9240BF5C1DE815263131 /* ReleaseHistory.swift in Sources */,
 				82E93883DEBED57BE062E2C0 /* Scanner.swift in Sources */,
 				7BFE59FDA07DEEFDFB771804 /* ScheduledJobsService.swift in Sources */,
