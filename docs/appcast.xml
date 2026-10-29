@@ -8,6 +8,19 @@
 
     <!-- Paste new <item> blocks here when releasing (newest first) -->
     <item>
+      <title>Version 1.0.43</title>
+      <pubDate>Thu, 29 Oct 2026 14:09:16 +0700</pubDate>
+      <sparkle:version>44</sparkle:version>
+      <sparkle:shortVersionString>1.0.43</sparkle:shortVersionString>
+      <description><![CDATA[
+        <ul><li>AI agents can now record real MP4 demo videos: Clean macOS includes an MCP server for Claude Code with list_sources, start_recording and stop_recording</li><li>Record a window, a whole app or a display, with your Screen Record settings as defaults and an automatic stop after a time limit</li><li>The menu bar shows when an AI agent is recording the screen</li><li>Screen Record shows the command to connect Claude Code, ready to copy</li></ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/Truong62/clean-macos/releases/download/v1.0.43/CleanMacOS-1.0.43.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="u85ZzF34Uog12kIh9TDJIsmP2mNG0Q2GT3RFFxP9ppCo9pFlpcBaJ6C7ISJgxBeLsPyKebWlKc4q8w0HYGEmCQ==" length="4864298" />
+    </item>
+    <item>
       <title>Version 1.0.42</title>
       <pubDate>Thu, 29 Oct 2026 08:48:15 +0700</pubDate>
       <sparkle:version>43</sparkle:version>
