@@ -8,6 +8,19 @@
 
     <!-- Paste new <item> blocks here when releasing (newest first) -->
     <item>
+      <title>Version 1.0.46</title>
+      <pubDate>Thu, 29 Oct 2026 17:16:43 +0700</pubDate>
+      <sparkle:version>47</sparkle:version>
+      <sparkle:shortVersionString>1.0.46</sparkle:shortVersionString>
+      <description><![CDATA[
+        <ul><li>Recordings now keep the colors you see on screen: videos are tagged correctly, so they no longer look washed out or lighter</li><li>Sharper video: the bitrate now scales with resolution and frame rate (about 16 Mbps for 1080p at 60 fps), with the H.264 High profile</li><li>Videos no longer end early in some players when the screen stays still at the end</li><li>Web demos recorded in the hidden browser use higher quality frames for crisper text</li></ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/Truong62/clean-macos/releases/download/v1.0.46/CleanMacOS-1.0.46.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="vGh7P0DotFewdoX+isFxIC3OA+zAZEd6VfVwM+SL/mc8VIj1qx42CsjXRRBI6KfdLtZhUyobrYi2eNPhBu2nDg==" length="5193791" />
+    </item>
+    <item>
       <title>Version 1.0.45</title>
       <pubDate>Thu, 29 Oct 2026 16:28:23 +0700</pubDate>
       <sparkle:version>46</sparkle:version>
