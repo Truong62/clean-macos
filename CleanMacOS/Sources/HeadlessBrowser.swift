@@ -141,6 +141,7 @@ final class HeadlessBrowser {
     let viewport: CGSize
     let scale: CGFloat
     private let process: Process
+    private var temporaryProfile: URL?
     private var loadWaiters: [CheckedContinuation<Void, Never>] = []
     private var contentHandler: (() -> Void)?
 
@@ -151,10 +152,10 @@ final class HeadlessBrowser {
         self.scale = scale
     }
 
-    static func launch(browser: String?, viewport: CGSize, scale: CGFloat, overlayScript: String) async throws -> HeadlessBrowser {
+    static func launch(browser: String?, viewport: CGSize, scale: CGFloat, overlayScript: String, fresh: Bool) async throws -> HeadlessBrowser {
         let executable = try executableURL(for: browser)
-        let profile = try profileFolder()
-        stopLeftover(in: profile)
+        let profile = fresh ? try temporaryProfileFolder() : try profileFolder()
+        if !fresh { stopLeftover(in: profile) }
         try? FileManager.default.removeItem(at: profile.appendingPathComponent("DevToolsActivePort"))
         let process = Process()
         process.executableURL = executable
@@ -171,10 +172,12 @@ final class HeadlessBrowser {
             let port = try await waitForPort(in: profile, process: process)
             let pageURL = try await pageSocketURL(port: port)
             let browser = HeadlessBrowser(process: process, connection: DevToolsConnection(url: pageURL), viewport: viewport, scale: scale)
+            browser.temporaryProfile = fresh ? profile : nil
             try await browser.prepare(overlayScript: overlayScript)
             return browser
         } catch {
             process.terminate()
+            if fresh { removeWhenStopped(process, profile: profile) }
             throw error
         }
     }
@@ -204,6 +207,15 @@ final class HeadlessBrowser {
     func close() {
         connection.close()
         if process.isRunning { process.terminate() }
+        if let temporaryProfile { Self.removeWhenStopped(process, profile: temporaryProfile) }
+        temporaryProfile = nil
+    }
+
+    static func removeWhenStopped(_ process: Process, profile: URL) {
+        DispatchQueue.global(qos: .utility).async {
+            process.waitUntilExit()
+            try? FileManager.default.removeItem(at: profile)
+        }
     }
 
     private func prepare(overlayScript: String) async throws {
@@ -239,7 +251,7 @@ final class HeadlessBrowser {
         waiters.forEach { $0.resume() }
     }
 
-    private static func executableURL(for name: String?) throws -> URL {
+    static func executableURL(for name: String?) throws -> URL {
         let wanted = name.map { [bundleIDs[$0.lowercased()]].compactMap { $0 } } ?? ["com.google.Chrome", "com.microsoft.edgemac", "com.brave.Browser", "org.chromium.Chromium"]
         for bundleID in wanted {
             if let app = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID), let executable = Bundle(url: app)?.executableURL {
@@ -249,23 +261,31 @@ final class HeadlessBrowser {
         throw MCPToolError.message("Background web recording needs Google Chrome, Microsoft Edge, Brave or Chromium installed.")
     }
 
-    private static func profileFolder() throws -> URL {
+    static func temporaryProfileFolder() throws -> URL {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("CleanMacOS-DemoBrowser-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        return folder
+    }
+
+    static func profileFolder() throws -> URL {
         let folder = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("CleanMacOS/DemoBrowser", isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         return folder
     }
 
-    private static func stopLeftover(in profile: URL) {
+    static func stopLeftover(in profile: URL) {
         let lock = profile.appendingPathComponent("SingletonLock").path
         guard let target = try? FileManager.default.destinationOfSymbolicLink(atPath: lock),
-              let pid = HeadlessBrowserFiles.processID(fromSingletonLock: target), pid > 0 else { return }
-        let arguments = HeadlessBrowserFiles.arguments(of: pid)
-        guard arguments.contains("--headless=new"), arguments.contains("--user-data-dir=\(profile.path)") else { return }
+              let pid = HeadlessBrowserFiles.processID(fromSingletonLock: target), pid > 0,
+              HeadlessBrowserFiles.arguments(of: pid).contains("--user-data-dir=\(profile.path)") else { return }
         kill(pid, SIGTERM)
+        for _ in 0..<50 where kill(pid, 0) == 0 {
+            usleep(100_000)
+        }
     }
 
-    private static func waitForPort(in profile: URL, process: Process) async throws -> Int {
+    static func waitForPort(in profile: URL, process: Process) async throws -> Int {
         let file = profile.appendingPathComponent("DevToolsActivePort")
         let deadline = ContinuousClock.now + startTimeout
         while ContinuousClock.now < deadline {

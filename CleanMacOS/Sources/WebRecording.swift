@@ -41,13 +41,13 @@ extension AgentRecordingSession {
     static let webScale: CGFloat = 1.25
     static let wheelSteps = 20
 
-    func startWeb(_ url: String, browserName: String?, options: RecordingOptions) async throws -> [String: Any] {
+    func startWeb(_ url: String, browserName: String?, fresh: Bool, options: RecordingOptions) async throws -> [String: Any] {
         guard BrowserURL.isAllowed(url) else { throw MCPToolError.message("url must start with http://, https:// or file://.") }
         let output = options.resolution == .hd720 ? CGSize(width: 1280, height: 720) : CGSize(width: 1920, height: 1080)
         let scale = options.resolution == .hd720 ? 1 : Self.webScale
         let viewport = CGSize(width: (output.width / scale).rounded(), height: (output.height / scale).rounded())
         let browser = try await HeadlessBrowser.launch(browser: browserName, viewport: viewport, scale: scale,
-                                                        overlayScript: BrowserOverlayScript.source)
+                                                        overlayScript: BrowserOverlayScript.source, fresh: fresh)
         do {
             try await browser.navigate(to: url)
             let temporary = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID().uuidString).mp4")
@@ -70,7 +70,7 @@ extension AgentRecordingSession {
             }
             try await demo.call("cursor", demo.cursor.x, demo.cursor.y, 0)
             writer.start()
-            return ["target": "\(url) in a hidden browser", "viewport": ["width": Int(viewport.width), "height": Int(viewport.height)],
+            return ["target": "\(url) in a hidden browser", "profile": fresh ? "fresh (signed out)" : "saved (keeps sign-ins)", "viewport": ["width": Int(viewport.width), "height": Int(viewport.height)],
                     "video": ["width": Int(output.width), "height": Int(output.height)], "folder": options.folder.path]
         } catch {
             browser.close()
@@ -97,6 +97,18 @@ extension AgentRecordingSession {
     }
 
     func webAnnotate(_ web: WebDemo, _ arguments: DemoArguments, kind: Annotation.Kind, color: NSColor) async throws -> [String: Any] {
+        if kind == .blur, arguments.element != nil || arguments.selector != nil {
+            let matches = try await webMatches(web, arguments)
+            let index = arguments.index ?? 0
+            guard matches.indices.contains(index) else { throw MCPToolError.message("Only \(matches.count) match(es). Use find_element to see them.") }
+            annotationCount += 1
+            let id = arguments.id ?? "a\(annotationCount)"
+            guard let rect = try await web.browser.evaluate("window.__cmBlurElement(\(index), \(JSValue.encode(id)))") as? [String: Any] else {
+                throw MCPToolError.message("That element disappeared from the page.")
+            }
+            return ["id": id, "kind": kind.rawValue, "blurs": "the element itself, so it stays hidden while it moves; remove with clear_annotations and this id",
+                    "rect": ["x": rect["x"] ?? 0, "y": rect["y"] ?? 0, "width": rect["width"] ?? 0, "height": rect["height"] ?? 0]]
+        }
         let rect: CGRect
         if kind == .title {
             rect = try await webTarget(web, arguments) ?? CGRect(origin: .zero, size: web.browser.viewport)
@@ -137,8 +149,9 @@ extension AgentRecordingSession {
         if let id {
             web.annotations.removeAll { $0["id"] as? String == id }
             try await web.call("remove", id)
+            try await web.browser.evaluate("window.__cmUnblur && window.__cmUnblur(\(JSValue.encode(id)))")
         } else {
-            web.annotations.removeAll()
+            web.annotations.removeAll { $0["kind"] as? String != Annotation.Kind.blur.rawValue }
             try await web.call("clear")
         }
     }

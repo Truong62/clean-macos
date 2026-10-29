@@ -32,11 +32,12 @@ struct DemoArguments: Decodable {
     var discard: Bool?
     var path: String?
     var frames: Int?
+    var browser: String?
 
     enum CodingKeys: String, CodingKey {
         case kind, element, app, role, index, x, y, width, height, text, color, number, id, seconds
         case holdSeconds = "hold_seconds", keys, dx, dy, count, scale, displayID = "display_id", interval, keepAnnotations = "keep_annotations", position
-        case selector, url, discard, path, frames
+        case selector, url, discard, path, frames, browser
     }
 }
 
@@ -264,6 +265,14 @@ extension AgentRecordingSession {
         let seconds = min(max(arguments.seconds ?? 1, 0), Self.maxWaitSeconds)
         try await Task.sleep(for: .seconds(seconds))
         return ["waited": seconds]
+    }
+
+    func signIn(_ arguments: DemoArguments) async throws -> [String: Any] {
+        guard web == nil else {
+            throw MCPToolError.message("The hidden browser is recording. Stop it first (stop_recording with discard: true), then call sign_in, then start again.")
+        }
+        guard let url = arguments.url else { throw MCPToolError.message("url is required.") }
+        return try await SignInBrowser.run(url: url, browser: arguments.browser, timeout: arguments.seconds ?? SignInBrowser.defaultTimeout)
     }
 
     func navigate(_ arguments: DemoArguments) async throws -> [String: Any] {

@@ -24,8 +24,8 @@ struct RecordingMCPServerTests {
         let reply = try await call(#"{"jsonrpc":"2.0","id":"a","method":"tools/list"}"#)
         let tools = try #require((reply["result"] as? [String: Any])?["tools"] as? [[String: Any]])
         let names = tools.compactMap { $0["name"] as? String }
-        #expect(names.count == 17)
-        #expect(names.contains("navigate") && names.contains("review_recording"))
+        #expect(names.count == 18)
+        #expect(names.contains("navigate") && names.contains("review_recording") && names.contains("sign_in"))
         #expect(Set(names).isSuperset(of: ["list_sources", "start_recording", "stop_recording", "annotate", "caption", "click", "zoom_in", "screenshot"]))
         #expect(tools.allSatisfy { ($0["inputSchema"] as? [String: Any])?["type"] as? String == "object" })
         #expect(reply["id"] as? String == "a")
@@ -238,5 +238,18 @@ struct RecordingMCPServerTests {
         #expect(try AgentRecordingSession.rename(first, to: "demo").lastPathComponent == "demo.mp4")
         #expect(try AgentRecordingSession.rename(second, to: "demo").lastPathComponent == "demo 2.mp4")
         #expect(try Data(contentsOf: folder.appendingPathComponent("demo.mp4")) == Data([1]))
+    }
+
+    @Test func countsOpenPagesOfTheSignInBrowser() {
+        let targets = #"[{"type":"page","url":"https://a"},{"type":"service_worker"},{"type":"page","url":"chrome://newtab/"}]"#
+        #expect(SignInBrowser.pageCount(fromTargets: Data(targets.utf8)) == 2)
+        #expect(SignInBrowser.pageCount(fromTargets: Data("[]".utf8)) == 0)
+        #expect(SignInBrowser.pageCount(fromTargets: Data("oops".utf8)) == nil)
+    }
+
+    @Test func signInRefusesWhileAHiddenRecordingCouldUseTheProfile() async throws {
+        let reply = try await call(#"{"jsonrpc":"2.0","id":9,"method":"tools/call","params":{"name":"sign_in","arguments":{"url":"ftp://x"}}}"#)
+        #expect((reply["result"] as? [String: Any])?["isError"] as? Bool == true)
+        #expect(Annotation.Kind(rawValue: "blur") == .blur)
     }
 }

@@ -324,6 +324,8 @@ private struct RecordingSettingsCard: View {
 
 private struct AgentSetupCard: View {
     @State private var isCopied = false
+    @State private var signInURL = ""
+    @State private var isSigningIn = false
 
     private var command: String {
         "claude mcp add screen-record -s user -- \"\(Bundle.main.executablePath ?? "")\" \(RecordingMCPServer.flag)"
@@ -357,6 +359,19 @@ private struct AgentSetupCard: View {
                     NSPasteboard.general.setString(command, forType: .string)
                     isCopied = true
                 }
+            }
+            HStack(spacing: 8) {
+                TextField("Sign in once for web demos, e.g. https://localhost:3000/login", text: $signInURL)
+                    .textFieldStyle(.roundedBorder)
+                    .font(.caption)
+                Button(isSigningIn ? "Waiting…" : "Sign In…") {
+                    isSigningIn = true
+                    Task {
+                        _ = try? await SignInBrowser.run(url: signInURL, browser: nil, timeout: SignInBrowser.maxTimeout)
+                        isSigningIn = false
+                    }
+                }
+                .disabled(isSigningIn || !BrowserURL.isAllowed(signInURL))
             }
         }
         .padding(16)

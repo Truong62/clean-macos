@@ -152,6 +152,10 @@ enum BrowserOverlayScript {
           svg.appendChild(stroke(svgEl('path', { d: hole }), color, 3 * k));
           group.appendChild(svg);
           if (a.text) { const b = bubble(a.text, color); placeBubble(b, f); group.appendChild(b); }
+        } else if (a.kind === 'blur') {
+          const box = document.createElement('div');
+          box.style.cssText = `position:fixed;left:${r.x - 4}px;top:${r.y - 4}px;width:${r.w + 8}px;height:${r.h + 8}px;border-radius:8px;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);background:rgba(128,128,128,.18)`;
+          group.appendChild(box);
         } else if (a.kind === 'title') {
           const card = document.createElement('div');
           card.className = 'title';
@@ -203,7 +207,7 @@ enum BrowserOverlayScript {
           if (node) { node.remove(); nodes.delete(id); }
           if (!quiet) layoutCaption();
         },
-        clear() { state.annotations = []; stage.textContent = ''; nodes.clear(); layoutCaption(); },
+        clear() { state.annotations = state.annotations.filter(a => a.kind === 'blur'); redraw(); },
         caption(text, top) { mount(); state.caption = text || null; state.captionTop = !!top; layoutCaption(); },
         cursor(x, y, ms) {
           mount();
@@ -298,6 +302,21 @@ enum BrowserOverlayScript {
           r = boxOf(el, window.__cmUseText);
         }
         return { x: r.left, y: r.top, width: r.width, height: r.height };
+      };
+      window.__cmBlurElement = (index, id) => {
+        const el = (window.__cmFound || [])[index];
+        if (!el) return null;
+        el.style.setProperty('filter', 'blur(7px)', 'important');
+        el.setAttribute('data-cm-blur', id);
+        const r = el.getBoundingClientRect();
+        return { x: r.left, y: r.top, width: r.width, height: r.height };
+      };
+      window.__cmUnblur = (id) => {
+        for (const el of document.querySelectorAll('[data-cm-blur]')) {
+          if (el.getAttribute('data-cm-blur') !== id) continue;
+          el.style.removeProperty('filter');
+          el.removeAttribute('data-cm-blur');
+        }
       };
       window.__cmFocus = (index) => {
         const el = (window.__cmFound || [])[index];

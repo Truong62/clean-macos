@@ -11,6 +11,10 @@ enum RecordingMCPTools {
     and elements can be targeted by visible text, label or CSS selector. Use navigate to change pages.
     Native apps: start_recording with a window or app records it where it already is, even behind other windows, and acts through \
     Accessibility with a drawn cursor (annotations show over that window). It must not be minimized or in the Stage Manager strip.
+    Sign-ins in the hidden browser: by default it keeps sessions from earlier recordings and from sign_in. To show the login itself, \
+    start with fresh: true (a signed-out profile), type the test account the person gave you (password fields stay masked) and blur \
+    anything sensitive with annotate kind=blur. If you meet a login page without credentials, stop_recording with discard: true, call \
+    sign_in so the person signs in themselves, then record again.
     Use background: false only when the person explicitly wants the real screen, mouse and keyboard used.
     Only actions are recorded: the time you spend thinking between tool calls is cut out, so hold_seconds decides how long viewers see each step.
     A good demo: start_recording, screenshot to see the page, annotate kind=title for an intro, then for each step set a caption, \
@@ -54,6 +58,7 @@ enum RecordingMCPTools {
                 "url": ["type": "string", "description": "Web page to record in a hidden browser, for example http://localhost:3000. It uses its own profile, so log in during the demo if needed. No sound is recorded."],
                 "browser": ["type": "string", "enum": ["chrome", "edge", "brave", "chromium"], "description": "Installed browser engine to run hidden. Default chrome."],
                 "background": ["type": "boolean", "description": "Record without disturbing the person. Default true."],
+                "fresh": ["type": "boolean", "description": "With url: use a brand-new signed-out browser profile, to record a login from the start. Default false keeps saved sign-ins."],
                 "window_id": ["type": "integer", "description": "Window id from list_sources."],
                 "window": ["type": "string", "description": "Window title or app name to match, for example \"Google Chrome\"."],
                 "app": ["type": "string", "description": "App name or bundle id; records every window of that app."],
@@ -76,7 +81,7 @@ enum RecordingMCPTools {
         ],
         [
             "name": "annotate",
-            "description": "Draw an annotation on screen that appears in the video: circle, box, arrow, text, step (numbered badge), spotlight (dims everything else) or title (full-screen intro card; text lines become title and subtitle).",
+            "description": "Draw an annotation that appears in the video: circle, box, arrow, text, step (numbered badge), spotlight (dims everything else), title (full-screen intro card; text lines become title and subtitle) or blur (hides private data such as an email; in the hidden browser, targeting an element blurs the element itself so it stays hidden while it moves). Blurs stay until removed by id.",
             "inputSchema": schema(target, hold, [
                 "kind": ["type": "string", "enum": Annotation.Kind.allCases.map(\.rawValue)],
                 "text": ["type": "string", "description": "Label shown next to the annotation, or the title card text."],
@@ -96,7 +101,7 @@ enum RecordingMCPTools {
         ],
         [
             "name": "clear_annotations",
-            "description": "Remove one annotation by id, or every annotation. The caption stays; hide it with caption and empty text.",
+            "description": "Remove one annotation (or blur) by id, or every annotation except blurs. The caption stays; hide it with caption and empty text.",
             "inputSchema": schema(["id": ["type": "string"]]),
         ],
         [
@@ -153,6 +158,15 @@ enum RecordingMCPTools {
             "name": "wait",
             "description": "Wait a few seconds, for example while an app loads. Max 60.",
             "inputSchema": schema(["seconds": ["type": "number"]]),
+        ],
+        [
+            "name": "sign_in",
+            "description": "Open a normal browser window with the hidden browser's profile so the person can sign in to a site themselves. It waits until they close that window (up to seconds, default 300), then later hidden recordings are signed in. Not while a hidden browser recording is running.",
+            "inputSchema": schema([
+                "url": ["type": "string", "description": "Login page to open."],
+                "browser": ["type": "string", "enum": ["chrome", "edge", "brave", "chromium"]],
+                "seconds": ["type": "number", "description": "How long to wait for the person, up to 900. Default 300."],
+            ], required: ["url"]),
         ],
         [
             "name": "review_recording",

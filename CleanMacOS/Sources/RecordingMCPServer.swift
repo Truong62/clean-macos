@@ -43,11 +43,12 @@ struct StartRecordingArguments: Decodable {
     var url: String?
     var browser: String?
     var name: String?
+    var fresh: Bool?
 
     enum CodingKeys: String, CodingKey {
         case windowID = "window_id", window, app, displayID = "display_id", fps, resolution
         case systemAudio = "system_audio", microphone, maxSeconds = "max_seconds", folder, showClicks = "show_clicks"
-        case skipIdle = "skip_idle", background, url, browser, name
+        case skipIdle = "skip_idle", background, url, browser, name, fresh
     }
 }
 
@@ -195,7 +196,7 @@ final class AgentRecordingSession {
         var result: [String: Any]
         if let url = arguments.url {
             guard isBackground else { throw MCPToolError.message("url opens a hidden browser, so it needs background: true (the default).") }
-            result = try await startWeb(url, browserName: arguments.browser, options: options)
+            result = try await startWeb(url, browserName: arguments.browser, fresh: arguments.fresh ?? false, options: options)
             if skipsIdle { web?.writer.pause() }
         } else {
             result = try await startScreen(arguments, options: options)
@@ -218,13 +219,14 @@ final class AgentRecordingSession {
         isActive = false
         autoStop?.cancel()
         await finishCapture()
-        guard let result = lastResult else { throw MCPToolError.message("The recording could not be saved.") }
+        let result = lastResult
         lastResult = nil
-        let url = try result.get()
         if discard {
-            try FileManager.default.removeItem(at: url)
+            if case .success(let url) = result { try? FileManager.default.removeItem(at: url) }
             return ["discarded": true]
         }
+        guard let result else { throw MCPToolError.message("The recording could not be saved.") }
+        let url = try result.get()
         lastSavedRecording = url
         return try await Self.describe(url)
     }
@@ -554,6 +556,7 @@ final class RecordingMCPServer {
         case "navigate": return .json(try await session.navigate(demo()))
         case "screenshot": return try await session.screenshot(demo())
         case "review_recording": return try await session.reviewRecording(demo())
+        case "sign_in": return .json(try await session.signIn(demo()))
         default: throw MCPToolError.message("Unknown tool: \(name)")
         }
     }

@@ -5,7 +5,7 @@ struct Annotation: Identifiable, Equatable {
     static let wideRatio: CGFloat = 4
 
     enum Kind: String, CaseIterable {
-        case arrow, circle, box, text, step, spotlight, title
+        case arrow, circle, box, text, step, spotlight, title, blur
     }
 
     let id: String
@@ -104,7 +104,7 @@ final class DemoOverlayModel: ObservableObject {
     }
 
     func clearAnnotations() {
-        withAnimation(.easeOut(duration: 0.2)) { annotations.removeAll() }
+        withAnimation(.easeOut(duration: 0.2)) { annotations.removeAll { $0.kind != .blur } }
     }
 
     func clear() {
@@ -319,6 +319,12 @@ private struct AnnotationShape: View {
                 .frame(width: hole.width, height: hole.height)
                 .position(x: hole.midX, y: hole.midY)
             label(near: hole)
+        case .blur:
+            let frame = rect.insetBy(dx: -6, dy: -6)
+            BlurBox()
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .frame(width: frame.width, height: frame.height)
+                .position(x: frame.midX, y: frame.midY)
         case .title:
             TitleCard(text: annotation.text ?? "")
                 .frame(width: rect.width, height: rect.height)
@@ -407,6 +413,18 @@ private struct CaptionView: View {
             .padding(.vertical, 14)
             .background(RoundedRectangle(cornerRadius: 16).fill(.black.opacity(0.78)))
     }
+}
+
+private struct BlurBox: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSVisualEffectView {
+        let view = NSVisualEffectView()
+        view.material = .hudWindow
+        view.blendingMode = .behindWindow
+        view.state = .active
+        return view
+    }
+
+    func updateNSView(_ view: NSVisualEffectView, context: Context) {}
 }
 
 private struct FakeCursor: View {
