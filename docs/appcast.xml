@@ -8,6 +8,19 @@
 
     <!-- Paste new <item> blocks here when releasing (newest first) -->
     <item>
+      <title>Version 1.0.42</title>
+      <pubDate>Thu, 29 Oct 2026 08:48:15 +0700</pubDate>
+      <sparkle:version>43</sparkle:version>
+      <sparkle:shortVersionString>1.0.42</sparkle:shortVersionString>
+      <description><![CDATA[
+        <ul><li>Screen Record now shows a live preview of the screen, window or app before and while you record</li><li>New recording settings: resolution (Full, 1080p, 720p), frame rate (24, 30, 60 fps) and the folder videos are saved to</li><li>Change the source or cancel from the preview without creating a file</li></ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/Truong62/clean-macos/releases/download/v1.0.42/CleanMacOS-1.0.42.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="oTDHqXJzLqt2EdAf6I/yihXvM619O5moE0lLQu46Hhh7Vz9rPe9wE1t/QwzevdAI4hH9TzCMpX9a+3fAdCNRCw==" length="4801447" />
+    </item>
+    <item>
       <title>Version 1.0.41</title>
       <pubDate>Wed, 28 Oct 2026 17:39:48 +0700</pubDate>
       <sparkle:version>42</sparkle:version>
