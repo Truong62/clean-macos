@@ -18,6 +18,19 @@ struct ScreenRecorderTests {
         #expect(ScreenRecording.fittedSize(CGSize(width: 3456, height: 2234)) == CGSize(width: 3340, height: 2160))
     }
 
+    @Test func scalesDownToTheChosenResolution() {
+        let retina = CGSize(width: 3456, height: 2234)
+        #expect(ScreenRecording.fittedSize(retina, within: ScreenRecording.Resolution.hd1080.limit) == CGSize(width: 1670, height: 1080))
+        #expect(ScreenRecording.fittedSize(retina, within: ScreenRecording.Resolution.hd720.limit) == CGSize(width: 1112, height: 720))
+        #expect(ScreenRecording.fittedSize(CGSize(width: 1000, height: 600), within: ScreenRecording.Resolution.hd1080.limit)
+            == CGSize(width: 1000, height: 600))
+    }
+
+    @Test func savesToMoviesUntilAFolderIsChosen() {
+        #expect(ScreenRecording.folder(atPath: "") == ScreenRecording.moviesFolder())
+        #expect(ScreenRecording.folder(atPath: "/Users/me/Videos").path == "/Users/me/Videos")
+    }
+
     @Test func formatsElapsedTime() {
         #expect(ScreenRecording.elapsed(0) == "0:00")
         #expect(ScreenRecording.elapsed(65.9) == "1:05")

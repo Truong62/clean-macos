@@ -5,8 +5,11 @@ import ScreenCaptureKit
 enum ScreenRecording {
     static let systemAudioKey = "recorder.systemAudio"
     static let microphoneKey = "recorder.microphone"
-    static let maxSize = CGSize(width: 3840, height: 2160)
-    static let framesPerSecond: Int32 = 30
+    static let framesPerSecondKey = "recorder.framesPerSecond"
+    static let resolutionKey = "recorder.resolution"
+    static let folderKey = "recorder.folder"
+    static let frameRates = [24, 30, 60]
+    static let maxSize = Resolution.full.limit
     static let audioSettings: [String: Any] = [AVFormatIDKey: kAudioFormatMPEG4AAC, AVSampleRateKey: 48_000,
                                                AVNumberOfChannelsKey: 2, AVEncoderBitRateKey: 192_000]
 
@@ -32,6 +35,40 @@ enum ScreenRecording {
     static func moviesFolder() -> URL {
         FileManager.default.urls(for: .moviesDirectory, in: .userDomainMask)[0]
     }
+
+    static func folder(atPath path: String) -> URL {
+        path.isEmpty ? moviesFolder() : URL(fileURLWithPath: path, isDirectory: true)
+    }
+
+    enum Resolution: String, CaseIterable, Identifiable {
+        case full, hd1080, hd720
+
+        var id: Self { self }
+
+        var title: String {
+            switch self {
+            case .full: "Full"
+            case .hd1080: "1080p"
+            case .hd720: "720p"
+            }
+        }
+
+        var limit: CGSize {
+            switch self {
+            case .full: CGSize(width: 3840, height: 2160)
+            case .hd1080: CGSize(width: 1920, height: 1080)
+            case .hd720: CGSize(width: 1280, height: 720)
+            }
+        }
+    }
+}
+
+struct RecordingOptions: Equatable {
+    var systemAudio = true
+    var microphone = false
+    var framesPerSecond = 30
+    var resolution = ScreenRecording.Resolution.full
+    var folder = ScreenRecording.moviesFolder()
 }
 
 enum RecordingMixdown {
@@ -112,11 +149,14 @@ final class RecordingWriter: NSObject, SCStreamOutput, @unchecked Sendable {
     private let video: AVAssetWriterInput
     private let systemAudio: AVAssetWriterInput?
     private let microphone: AVAssetWriterInput?
+    private let onFrame: (IOSurfaceRef) -> Void
     private var endTime = CMTime.invalid
     private var hasStarted = false
+    private var isArmed = false
 
-    init(url: URL, size: CGSize, systemAudio: Bool, microphone: Bool) throws {
+    init(url: URL, size: CGSize, systemAudio: Bool, microphone: Bool, onFrame: @escaping (IOSurfaceRef) -> Void) throws {
         self.url = url
+        self.onFrame = onFrame
         writer = try AVAssetWriter(outputURL: url, fileType: .mp4)
         video = AVAssetWriterInput(mediaType: .video, outputSettings: [
             AVVideoCodecKey: AVVideoCodecType.h264, AVVideoWidthKey: Int(size.width), AVVideoHeightKey: Int(size.height),
@@ -133,11 +173,19 @@ final class RecordingWriter: NSObject, SCStreamOutput, @unchecked Sendable {
 
     var hasTwoAudioTracks: Bool { systemAudio != nil && microphone != nil }
 
+    func arm() {
+        queue.async { [self] in isArmed = true }
+    }
+
     func stream(_ stream: SCStream, didOutputSampleBuffer buffer: CMSampleBuffer, of type: SCStreamOutputType) {
         guard buffer.isValid else { return }
         switch type {
         case .screen:
             guard Self.isCompleteFrame(buffer) else { return }
+            if let pixels = CMSampleBufferGetImageBuffer(buffer), let surface = CVPixelBufferGetIOSurface(pixels) {
+                onFrame(surface.takeUnretainedValue())
+            }
+            guard isArmed else { return }
             if !hasStarted {
                 guard writer.startWriting() else { return }
                 writer.startSession(atSourceTime: buffer.presentationTimeStamp)
@@ -185,8 +233,14 @@ final class RecordingWriter: NSObject, SCStreamOutput, @unchecked Sendable {
 @MainActor
 final class ScreenRecorder: NSObject, ObservableObject {
     enum Phase: Equatable {
-        case idle, choosing, recording(since: Date), saving
+        case idle, choosing, previewing, recording(since: Date), saving
     }
+
+    let preview: CALayer = {
+        let layer = CALayer()
+        layer.contentsGravity = .resizeAspect
+        return layer
+    }()
 
     @Published private(set) var phase: Phase = .idle
     @Published private(set) var lastRecording: URL?
@@ -194,13 +248,7 @@ final class ScreenRecorder: NSObject, ObservableObject {
 
     private var stream: SCStream?
     private var writer: RecordingWriter?
-    private var wantsSystemAudio = true
-    private var wantsMicrophone = false
-    private let folder: URL
-
-    init(folder: URL = ScreenRecording.moviesFolder()) {
-        self.folder = folder
-    }
+    private var options = RecordingOptions()
 
     static var isSupported: Bool {
         if #available(macOS 15.0, *) { return true }
@@ -212,15 +260,14 @@ final class ScreenRecorder: NSObject, ObservableObject {
         return false
     }
 
-    func chooseAndRecord(systemAudio: Bool, microphone: Bool) async {
+    func chooseSource(_ options: RecordingOptions) async {
         guard phase == .idle, Self.isSupported else { return }
         message = nil
-        if microphone, !(await AVCaptureDevice.requestAccess(for: .audio)) {
+        if options.microphone, !(await AVCaptureDevice.requestAccess(for: .audio)) {
             message = "Clean macOS can't use the microphone. Allow it in System Settings › Privacy & Security › Microphone."
             return
         }
-        wantsSystemAudio = systemAudio
-        wantsMicrophone = microphone
+        self.options = options
         let picker = SCContentSharingPicker.shared
         var configuration = SCContentSharingPickerConfiguration()
         configuration.allowedPickerModes = [.singleDisplay, .singleWindow, .singleApplication]
@@ -231,21 +278,25 @@ final class ScreenRecorder: NSObject, ObservableObject {
         picker.present()
     }
 
-    func record(_ filter: SCContentFilter, systemAudio: Bool, microphone: Bool) async {
+    func startPreview(_ filter: SCContentFilter, options: RecordingOptions) async {
         guard #available(macOS 15.0, *) else { return }
+        let (systemAudio, microphone) = (options.systemAudio, options.microphone)
         let size = ScreenRecording.fittedSize(CGSize(width: filter.contentRect.width * CGFloat(filter.pointPixelScale),
-                                                     height: filter.contentRect.height * CGFloat(filter.pointPixelScale)))
+                                                     height: filter.contentRect.height * CGFloat(filter.pointPixelScale)),
+                                              within: options.resolution.limit)
         let configuration = SCStreamConfiguration()
         configuration.width = Int(size.width)
         configuration.height = Int(size.height)
-        configuration.minimumFrameInterval = CMTime(value: 1, timescale: ScreenRecording.framesPerSecond)
+        configuration.minimumFrameInterval = CMTime(value: 1, timescale: CMTimeScale(options.framesPerSecond))
         configuration.showsCursor = true
         configuration.capturesAudio = systemAudio
         configuration.excludesCurrentProcessAudio = true
         configuration.captureMicrophone = microphone
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID().uuidString).mp4")
         do {
-            let writer = try RecordingWriter(url: url, size: size, systemAudio: systemAudio, microphone: microphone)
+            let writer = try RecordingWriter(url: url, size: size, systemAudio: systemAudio, microphone: microphone) { [weak self] surface in
+                DispatchQueue.main.async { MainActor.assumeIsolated { self?.show(surface) } }
+            }
             let stream = SCStream(filter: filter, configuration: configuration, delegate: self)
             try stream.addStreamOutput(writer, type: .screen, sampleHandlerQueue: writer.queue)
             if systemAudio { try stream.addStreamOutput(writer, type: .audio, sampleHandlerQueue: writer.queue) }
@@ -253,7 +304,7 @@ final class ScreenRecorder: NSObject, ObservableObject {
             try await stream.startCapture()
             self.writer = writer
             self.stream = stream
-            phase = .recording(since: Date())
+            phase = .previewing
         } catch {
             endPicker()
             phase = .idle
@@ -261,10 +312,42 @@ final class ScreenRecorder: NSObject, ObservableObject {
         }
     }
 
+    func startRecording() {
+        guard phase == .previewing, let writer else { return }
+        writer.arm()
+        phase = .recording(since: Date())
+    }
+
     func stop() async {
-        guard isRecording, let stream else { return }
+        guard let stream else { return }
         try? await stream.stopCapture()
-        await save()
+        if isRecording {
+            await save()
+        } else {
+            discard()
+        }
+    }
+
+    func changeSource() async {
+        let options = options
+        await stop()
+        await chooseSource(options)
+    }
+
+    private func show(_ surface: IOSurfaceRef) {
+        guard stream != nil else { return }
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        preview.contents = surface
+        CATransaction.commit()
+    }
+
+    private func discard() {
+        stream = nil
+        writer = nil
+        preview.contents = nil
+        endPicker()
+        phase = .idle
     }
 
     private func save() async {
@@ -272,9 +355,12 @@ final class ScreenRecorder: NSObject, ObservableObject {
         phase = .saving
         stream = nil
         self.writer = nil
+        preview.contents = nil
         endPicker()
+        let folder = options.folder
         let destination = folder.appendingPathComponent(ScreenRecording.fileName(at: Date()))
         do {
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
             try await writer.finish()
             if writer.hasTwoAudioTracks {
                 try await RecordingMixdown.mix(writer.url, into: destination)
@@ -308,7 +394,7 @@ extension ScreenRecorder: SCContentSharingPickerObserver, SCStreamDelegate {
     nonisolated func contentSharingPicker(_ picker: SCContentSharingPicker, didUpdateWith filter: SCContentFilter, for stream: SCStream?) {
         Task { @MainActor in
             guard self.phase == .choosing else { return }
-            await self.record(filter, systemAudio: self.wantsSystemAudio, microphone: self.wantsMicrophone)
+            await self.startPreview(filter, options: self.options)
         }
     }
 
@@ -322,8 +408,11 @@ extension ScreenRecorder: SCContentSharingPickerObserver, SCStreamDelegate {
 
     nonisolated func stream(_ stream: SCStream, didStopWithError error: Error) {
         Task { @MainActor in
-            guard self.isRecording else { return }
-            await self.save()
+            if self.isRecording {
+                await self.save()
+            } else if self.phase == .previewing {
+                self.discard()
+            }
         }
     }
 }
