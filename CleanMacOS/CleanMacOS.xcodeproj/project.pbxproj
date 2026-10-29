@@ -16,6 +16,7 @@
 		171CB18E3F33997A33D09624 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 519973CA3556535EDD116B2C /* HomeView.swift */; };
 		179E822D590C3A03BCF4132C /* Cleaner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B132021AA2508B2000D6D63 /* Cleaner.swift */; };
 		1BF633E6145E7F8438492DAF /* UninstallerService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3910672BE6DD40B3BC79BCD2 /* UninstallerService.swift */; };
+		1C884A8C2CAAEF989A9A2FB3 /* AgentDemoTools.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44B45543D9D527DAF4698D0A /* AgentDemoTools.swift */; };
 		1CED90BCBBDD2A821C4DCD51 /* PortsJobsModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81091D6E9A716D758A5C5FDB /* PortsJobsModels.swift */; };
 		1D6A04FACE24BC65DB42E6BE /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 4A0A95590228EC533FD37160 /* Assets.xcassets */; };
 		216C011D736EB3C976E28957 /* ClipboardMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA3CBD4C77F83A3FBD2A5741 /* ClipboardMonitor.swift */; };
@@ -44,6 +45,7 @@
 		7BA19101C45ED46BA88C75C2 /* MenuBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A993B1ADB912A796AE468D9 /* MenuBarController.swift */; };
 		7BFE59FDA07DEEFDFB771804 /* ScheduledJobsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FECF4839A71B43575E966ED9 /* ScheduledJobsService.swift */; };
 		7DC398E5392F10BE021ED138 /* JiraNotifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F1B26E8270E9D56F4CCC044 /* JiraNotifier.swift */; };
+		7E893929047D6767AAD177F5 /* DemoOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 485DC44ED86D7BB2B5803378 /* DemoOverlay.swift */; };
 		816A9F028C615190B88FF2B6 /* JiraSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = D85914B532348C7D1A34CFC8 /* JiraSettings.swift */; };
 		8261125933A50008A2E302C7 /* Style.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BCCBE4E7BC381BBBE85076E /* Style.swift */; };
 		82E93883DEBED57BE062E2C0 /* Scanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BB4842D79D5443DE4383C38 /* Scanner.swift */; };
@@ -69,6 +71,7 @@
 		B94D5E73B6A99CD323DB3DA8 /* GlobalShortcuts.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1FC8128FEE8FEEE7743FF7B /* GlobalShortcuts.swift */; };
 		BC3CC10E02C22920507972BB /* UpdaterViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6961B68D8844C43ABA231FF8 /* UpdaterViewModel.swift */; };
 		C0C09283201CAAB4F21010B6 /* CleanResultsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB05C0D7D13AC0BE49A2C584 /* CleanResultsView.swift */; };
+		C4B33DDCF993CC523F222E50 /* DemoInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32689F128B9A23B9FE888D4E /* DemoInput.swift */; };
 		C5EA8F9FF738427D54D100F4 /* RAMView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E5967A4047D750A42B3AC58 /* RAMView.swift */; };
 		CCE08C41283FB6F5BA1463EE /* JiraNav.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3EEE3B129372B86AFA16DF07 /* JiraNav.swift */; };
 		D02C9240BF5C1DE815263131 /* ReleaseHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE1934A02858991DBDBF4B53 /* ReleaseHistory.swift */; };
@@ -85,6 +88,7 @@
 		F25497E5A5FCBDEB50858F3C /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 185CCDDE3D43CD6FEF6FDA72 /* SettingsView.swift */; };
 		F27D29FB6807060B945F8EC4 /* ClipboardSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 586232A2D65D100703262AB1 /* ClipboardSettings.swift */; };
 		F46D4AD2FF7008D85A1CC143 /* JiraSettingsForm.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79D33A3D4889F2340E8FB307 /* JiraSettingsForm.swift */; };
+		F6EF2B6C3FF094ECDBED34A6 /* RecordingMCPTools.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85E5F1BC51FD98D575D2728A /* RecordingMCPTools.swift */; };
 		F9C7FD9F9683F092A83E0ABE /* DisplayService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9832301F93D2207402FD0D3F /* DisplayService.swift */; };
 		FABD8B68B191996B3BAEB7E5 /* MenuBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAAA08ABC4C4FD3834BA928F /* MenuBarView.swift */; };
 		FB0625574C78B8AC4F719CDE /* RecordingMCPServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E113230622A0F6F81BE3C833 /* RecordingMCPServer.swift */; };
@@ -105,12 +109,15 @@
 		185CCDDE3D43CD6FEF6FDA72 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		30AE1414B4AC514340366221 /* LargeFilesService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LargeFilesService.swift; sourceTree = "<group>"; };
 		30D585B3710EAB1FA5FBF8DE /* PortsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortsService.swift; sourceTree = "<group>"; };
+		32689F128B9A23B9FE888D4E /* DemoInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoInput.swift; sourceTree = "<group>"; };
 		3554E40130351545D52C837D /* SnapshotSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnapshotSection.swift; sourceTree = "<group>"; };
 		3910672BE6DD40B3BC79BCD2 /* UninstallerService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UninstallerService.swift; sourceTree = "<group>"; };
 		3A1479088579DC6E2A293A68 /* SidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarView.swift; sourceTree = "<group>"; };
 		3EEE3B129372B86AFA16DF07 /* JiraNav.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JiraNav.swift; sourceTree = "<group>"; };
 		44805A604CACFED574E48F5C /* ArtifactTableView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtifactTableView.swift; sourceTree = "<group>"; };
+		44B45543D9D527DAF4698D0A /* AgentDemoTools.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentDemoTools.swift; sourceTree = "<group>"; };
 		483AD0BC51C436C61A365E34 /* ScreenRecordView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenRecordView.swift; sourceTree = "<group>"; };
+		485DC44ED86D7BB2B5803378 /* DemoOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoOverlay.swift; sourceTree = "<group>"; };
 		4A0A95590228EC533FD37160 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		4BDB8F98BBA9CA360C581E8E /* ClipboardStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardStore.swift; sourceTree = "<group>"; };
 		4F1B26E8270E9D56F4CCC044 /* JiraNotifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JiraNotifier.swift; sourceTree = "<group>"; };
@@ -129,6 +136,7 @@
 		79D33A3D4889F2340E8FB307 /* JiraSettingsForm.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JiraSettingsForm.swift; sourceTree = "<group>"; };
 		7BCCBE4E7BC381BBBE85076E /* Style.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Style.swift; sourceTree = "<group>"; };
 		81091D6E9A716D758A5C5FDB /* PortsJobsModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortsJobsModels.swift; sourceTree = "<group>"; };
+		85E5F1BC51FD98D575D2728A /* RecordingMCPTools.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingMCPTools.swift; sourceTree = "<group>"; };
 		8669187F5AE68DE7119775DC /* ClipboardViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardViewModel.swift; sourceTree = "<group>"; };
 		869943FA6706D69B21CE1402 /* DisplaysViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DisplaysViewModel.swift; sourceTree = "<group>"; };
 		86A59D9525758B79812B76C7 /* DisplayModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DisplayModels.swift; sourceTree = "<group>"; };
@@ -200,6 +208,7 @@
 			isa = PBXGroup;
 			children = (
 				F50E79083A48396AD0651E87 /* AboutView.swift */,
+				44B45543D9D527DAF4698D0A /* AgentDemoTools.swift */,
 				0CE374CA5CC2E8CA8FE9BB73 /* AppViewModel.swift */,
 				44805A604CACFED574E48F5C /* ArtifactTableView.swift */,
 				4A0A95590228EC533FD37160 /* Assets.xcassets */,
@@ -216,6 +225,8 @@
 				4BDB8F98BBA9CA360C581E8E /* ClipboardStore.swift */,
 				8669187F5AE68DE7119775DC /* ClipboardViewModel.swift */,
 				13997B35568795BEA3BF3A64 /* ContentView.swift */,
+				32689F128B9A23B9FE888D4E /* DemoInput.swift */,
+				485DC44ED86D7BB2B5803378 /* DemoOverlay.swift */,
 				DA627A7F08BAF177E20286D7 /* DevToolsModels.swift */,
 				CBA9BF13C88EF3811FB1AA05 /* DevToolsService.swift */,
 				7335EA96D5BFB7CA1CAAAD51 /* DevToolsView.swift */,
@@ -262,6 +273,7 @@
 				FACD43C271B2FC1F2DAB2E4D /* ProcessService.swift */,
 				6E5967A4047D750A42B3AC58 /* RAMView.swift */,
 				E113230622A0F6F81BE3C833 /* RecordingMCPServer.swift */,
+				85E5F1BC51FD98D575D2728A /* RecordingMCPTools.swift */,
 				AE1934A02858991DBDBF4B53 /* ReleaseHistory.swift */,
 				0BB4842D79D5443DE4383C38 /* Scanner.swift */,
 				FECF4839A71B43575E966ED9 /* ScheduledJobsService.swift */,
@@ -291,7 +303,7 @@
 			);
 			sourceTree = "<group>";
 		};
-		"TEMP_EEF5581B-C73A-48BE-8509-F1EF59003A5C" /* Resources */ = {
+		"TEMP_8629FCE9-5B9B-4E7F-9F8F-0A0ABF38C79B" /* Resources */ = {
 			isa = PBXGroup;
 			children = (
 			);
@@ -374,6 +386,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				629F8B98ECF1850CAF10B28F /* AboutView.swift in Sources */,
+				1C884A8C2CAAEF989A9A2FB3 /* AgentDemoTools.swift in Sources */,
 				96742BBF577C2662A06127C9 /* AppViewModel.swift in Sources */,
 				3869FF6969D2F5E7A44FDD87 /* ArtifactTableView.swift in Sources */,
 				6E46C6C1ECAB866E03951C47 /* CleanDiskView.swift in Sources */,
@@ -389,6 +402,8 @@
 				D40AB6773397246222493362 /* ClipboardStore.swift in Sources */,
 				4CF6E5A0E538D5932ADFBD84 /* ClipboardViewModel.swift in Sources */,
 				55D09845383469CB506D3E85 /* ContentView.swift in Sources */,
+				C4B33DDCF993CC523F222E50 /* DemoInput.swift in Sources */,
+				7E893929047D6767AAD177F5 /* DemoOverlay.swift in Sources */,
 				6BF030E075601987D96F6EFF /* DevToolsModels.swift in Sources */,
 				EC56BC63FAD43F0C90F5FAE1 /* DevToolsService.swift in Sources */,
 				4394A03F9FAB627AC78FF08C /* DevToolsView.swift in Sources */,
@@ -435,6 +450,7 @@
 				8898B200E4C8F6189458C3E8 /* ProcessService.swift in Sources */,
 				C5EA8F9FF738427D54D100F4 /* RAMView.swift in Sources */,
 				FB0625574C78B8AC4F719CDE /* RecordingMCPServer.swift in Sources */,
+				F6EF2B6C3FF094ECDBED34A6 /* RecordingMCPTools.swift in Sources */,
 				D02C9240BF5C1DE815263131 /* ReleaseHistory.swift in Sources */,
 				82E93883DEBED57BE062E2C0 /* Scanner.swift in Sources */,
 				7BFE59FDA07DEEFDFB771804 /* ScheduledJobsService.swift in Sources */,

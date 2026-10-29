@@ -339,7 +339,7 @@ private struct AgentSetupCard: View {
                     .background(Color.indigo.gradient, in: RoundedRectangle(cornerRadius: 8))
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Use with AI agents").font(.system(size: 13, weight: .semibold))
-                    Text("Let Claude Code record real demo videos. Run this once in Terminal:")
+                    Text("Let Claude Code record and direct demo videos: captions, arrows, clicks and smooth zoom. Run this once in Terminal:")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }

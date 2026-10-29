@@ -142,6 +142,40 @@ enum RecordingError: LocalizedError {
     }
 }
 
+struct RecordingTimeline {
+    private(set) var pauses: [(start: CMTime, end: CMTime?)] = []
+
+    var isPaused: Bool { pauses.last.map { $0.end == nil } ?? false }
+
+    mutating func pause(at time: CMTime) {
+        guard !isPaused else { return }
+        pauses.append((time, nil))
+    }
+
+    mutating func resume(at time: CMTime) {
+        guard isPaused, let start = pauses.last?.start else { return }
+        pauses[pauses.count - 1] = (start, max(time, start))
+    }
+
+    func adjusted(_ time: CMTime) -> CMTime? {
+        var offset = CMTime.zero
+        for pause in pauses where time >= pause.start {
+            guard let end = pause.end, time >= end else { return nil }
+            offset = offset + (end - pause.start)
+        }
+        return time - offset
+    }
+
+    func outputTime(at now: CMTime) -> CMTime {
+        let time = isPaused ? pauses[pauses.count - 1].start : now
+        let offset = pauses.reduce(CMTime.zero) { total, pause in
+            guard let end = pause.end, end <= time else { return total }
+            return total + (end - pause.start)
+        }
+        return time - offset
+    }
+}
+
 final class RecordingWriter: NSObject, SCStreamOutput, @unchecked Sendable {
     let queue = DispatchQueue(label: "click.ngoctruong.CleanMacOS.recording")
     let url: URL
@@ -153,6 +187,7 @@ final class RecordingWriter: NSObject, SCStreamOutput, @unchecked Sendable {
     private var endTime = CMTime.invalid
     private var hasStarted = false
     private var isArmed = false
+    private var timeline = RecordingTimeline()
 
     init(url: URL, size: CGSize, systemAudio: Bool, microphone: Bool, onFrame: @escaping (IOSurfaceRef) -> Void) throws {
         self.url = url
@@ -177,6 +212,16 @@ final class RecordingWriter: NSObject, SCStreamOutput, @unchecked Sendable {
         queue.async { [self] in isArmed = true }
     }
 
+    func pause() {
+        let now = CMClockGetTime(CMClockGetHostTimeClock())
+        queue.async { [self] in timeline.pause(at: now) }
+    }
+
+    func resume() {
+        let now = CMClockGetTime(CMClockGetHostTimeClock())
+        queue.async { [self] in timeline.resume(at: now) }
+    }
+
     func stream(_ stream: SCStream, didOutputSampleBuffer buffer: CMSampleBuffer, of type: SCStreamOutputType) {
         guard buffer.isValid else { return }
         switch type {
@@ -185,7 +230,7 @@ final class RecordingWriter: NSObject, SCStreamOutput, @unchecked Sendable {
             if let pixels = CMSampleBufferGetImageBuffer(buffer), let surface = CVPixelBufferGetIOSurface(pixels) {
                 onFrame(surface.takeUnretainedValue())
             }
-            guard isArmed else { return }
+            guard isArmed, let buffer = retimed(buffer) else { return }
             if !hasStarted {
                 guard writer.startWriting() else { return }
                 writer.startSession(atSourceTime: buffer.presentationTimeStamp)
@@ -193,9 +238,10 @@ final class RecordingWriter: NSObject, SCStreamOutput, @unchecked Sendable {
             }
             append(buffer, to: video)
         case .audio:
+            guard let buffer = retimed(buffer) else { return }
             append(buffer, to: systemAudio)
         default:
-            guard #available(macOS 15.0, *), type == .microphone else { return }
+            guard #available(macOS 15.0, *), type == .microphone, let buffer = retimed(buffer) else { return }
             append(buffer, to: microphone)
         }
     }
@@ -204,7 +250,7 @@ final class RecordingWriter: NSObject, SCStreamOutput, @unchecked Sendable {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             queue.async { [self] in
                 guard hasStarted else { return continuation.resume(throwing: RecordingError.failed("Nothing was recorded.")) }
-                let now = CMClockGetTime(CMClockGetHostTimeClock())
+                let now = timeline.outputTime(at: CMClockGetTime(CMClockGetHostTimeClock()))
                 writer.endSession(atSourceTime: endTime.isValid ? max(endTime, now) : now)
                 writer.finishWriting { [self] in
                     if writer.status == .completed {
@@ -215,6 +261,25 @@ final class RecordingWriter: NSObject, SCStreamOutput, @unchecked Sendable {
                 }
             }
         }
+    }
+
+    private func retimed(_ buffer: CMSampleBuffer) -> CMSampleBuffer? {
+        guard !timeline.pauses.isEmpty else { return buffer }
+        guard let presentation = timeline.adjusted(buffer.presentationTimeStamp) else { return nil }
+        let offset = buffer.presentationTimeStamp - presentation
+        guard offset != .zero else { return buffer }
+        var count: CMItemCount = 0
+        CMSampleBufferGetSampleTimingInfoArray(buffer, entryCount: 0, arrayToFill: nil, entriesNeededOut: &count)
+        var timings = [CMSampleTimingInfo](repeating: CMSampleTimingInfo(), count: count)
+        CMSampleBufferGetSampleTimingInfoArray(buffer, entryCount: count, arrayToFill: &timings, entriesNeededOut: &count)
+        for index in timings.indices {
+            timings[index].presentationTimeStamp = timings[index].presentationTimeStamp - offset
+            if timings[index].decodeTimeStamp.isValid { timings[index].decodeTimeStamp = timings[index].decodeTimeStamp - offset }
+        }
+        var copy: CMSampleBuffer?
+        CMSampleBufferCreateCopyWithNewTiming(allocator: nil, sampleBuffer: buffer, sampleTimingEntryCount: count,
+                                              sampleTimingArray: &timings, sampleBufferOut: &copy)
+        return copy
     }
 
     private func append(_ buffer: CMSampleBuffer, to input: AVAssetWriterInput?) {
@@ -249,6 +314,11 @@ final class ScreenRecorder: NSObject, ObservableObject {
     private var stream: SCStream?
     private var writer: RecordingWriter?
     private var options = RecordingOptions()
+    private var configuration: SCStreamConfiguration?
+    private(set) var baseSourceRect: CGRect = .zero
+    private(set) var currentSourceRect: CGRect = .zero
+    private(set) var outputSize: CGSize = .zero
+    var showsPreview = true
 
     static var isSupported: Bool {
         if #available(macOS 15.0, *) { return true }
@@ -278,14 +348,16 @@ final class ScreenRecorder: NSObject, ObservableObject {
         picker.present()
     }
 
-    func startPreview(_ filter: SCContentFilter, options: RecordingOptions) async {
+    func startPreview(_ filter: SCContentFilter, options: RecordingOptions, sourceRect: CGRect? = nil) async {
         guard #available(macOS 15.0, *) else { return }
         self.options = options
         let (systemAudio, microphone) = (options.systemAudio, options.microphone)
-        let size = ScreenRecording.fittedSize(CGSize(width: filter.contentRect.width * CGFloat(filter.pointPixelScale),
-                                                     height: filter.contentRect.height * CGFloat(filter.pointPixelScale)),
+        let region = sourceRect ?? CGRect(origin: .zero, size: filter.contentRect.size)
+        let size = ScreenRecording.fittedSize(CGSize(width: region.width * CGFloat(filter.pointPixelScale),
+                                                     height: region.height * CGFloat(filter.pointPixelScale)),
                                               within: options.resolution.limit)
         let configuration = SCStreamConfiguration()
+        if let sourceRect { configuration.sourceRect = sourceRect }
         configuration.width = Int(size.width)
         configuration.height = Int(size.height)
         configuration.minimumFrameInterval = CMTime(value: 1, timescale: CMTimeScale(options.framesPerSecond))
@@ -295,7 +367,9 @@ final class ScreenRecorder: NSObject, ObservableObject {
         configuration.captureMicrophone = microphone
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID().uuidString).mp4")
         do {
+            let showsPreview = showsPreview
             let writer = try RecordingWriter(url: url, size: size, systemAudio: systemAudio, microphone: microphone) { [weak self] surface in
+                guard showsPreview else { return }
                 DispatchQueue.main.async { MainActor.assumeIsolated { self?.show(surface) } }
             }
             let stream = SCStream(filter: filter, configuration: configuration, delegate: self)
@@ -305,6 +379,10 @@ final class ScreenRecorder: NSObject, ObservableObject {
             try await stream.startCapture()
             self.writer = writer
             self.stream = stream
+            self.configuration = configuration
+            baseSourceRect = region
+            currentSourceRect = region
+            outputSize = size
             phase = .previewing
         } catch {
             endPicker()
@@ -329,6 +407,21 @@ final class ScreenRecorder: NSObject, ObservableObject {
         }
     }
 
+    func pauseCapture() {
+        writer?.pause()
+    }
+
+    func resumeCapture() {
+        writer?.resume()
+    }
+
+    func setSourceRect(_ rect: CGRect) async throws {
+        guard let stream, let configuration else { return }
+        configuration.sourceRect = rect
+        currentSourceRect = rect
+        try await stream.updateConfiguration(configuration)
+    }
+
     func changeSource() async {
         let options = options
         await stop()
@@ -346,6 +439,7 @@ final class ScreenRecorder: NSObject, ObservableObject {
     private func discard() {
         stream = nil
         writer = nil
+        configuration = nil
         preview.contents = nil
         endPicker()
         phase = .idle
@@ -356,6 +450,7 @@ final class ScreenRecorder: NSObject, ObservableObject {
         phase = .saving
         stream = nil
         self.writer = nil
+        configuration = nil
         preview.contents = nil
         endPicker()
         let folder = options.folder
