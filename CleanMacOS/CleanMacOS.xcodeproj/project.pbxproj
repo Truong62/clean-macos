@@ -321,7 +321,7 @@
 			);
 			sourceTree = "<group>";
 		};
-		"TEMP_32336BE5-A121-4519-976B-FF7D9E8A705D" /* Resources */ = {
+		"TEMP_23D0B58B-CD72-4DA3-9177-D07F10E200DC" /* Resources */ = {
 			isa = PBXGroup;
 			children = (
 			);

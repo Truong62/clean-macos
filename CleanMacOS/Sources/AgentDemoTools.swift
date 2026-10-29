@@ -47,6 +47,7 @@ extension AgentRecordingSession {
     static let screenshotMaxWidth: CGFloat = 1600
     static let maxWaitSeconds = 60.0
     static let cursorGlide = 0.5
+    static let columnReach: CGFloat = 100_000
 
     func annotate(_ arguments: DemoArguments) async throws -> [String: Any] {
         guard let kindName = arguments.kind, let kind = Annotation.Kind(rawValue: kindName) else {
@@ -205,21 +206,40 @@ extension AgentRecordingSession {
         try DemoInput.ensureTrusted()
         if arguments.keepAnnotations != true { overlay.model.clearAnnotations() }
         if isBackground, let pid = targetProcessID {
-            let display = recordedArea
+            let window = targetWindowFrame ?? recordedArea
+            let center = CGPoint(x: window.midX, y: window.midY)
             let target = try targetElement(arguments)
-            let point = target.map { CGPoint(x: $0.rect.midX, y: $0.rect.midY) } ?? CGPoint(x: display.midX, y: display.midY)
+            if arguments.dy == nil, let element = target?.element {
+                overlay.model.moveCursor(to: center, duration: Self.cursorGlide)
+                try await Task.sleep(for: .seconds(Self.cursorGlide))
+                var method = "already visible"
+                if !BackgroundInput.isShown(element, in: window) {
+                    method = "reveal"
+                    _ = BackgroundInput.reveal(element)
+                    try await Task.sleep(for: .milliseconds(300))
+                }
+                if !BackgroundInput.isShown(element, in: window), let frame = AccessibilityFinder.frame(of: element) {
+                    method = "wheel"
+                    await BackgroundInput.postScroll(dy: frame.midY - window.midY, at: center, to: pid)
+                    try await Task.sleep(for: .milliseconds(300))
+                }
+                guard BackgroundInput.isShown(element, in: window) else {
+                    throw MCPToolError.message("This app did not scroll to \"\(arguments.element ?? "that element")\" in the background. Show what is already visible, or use background: false.")
+                }
+                try await hold(arguments, default: 0.5)
+                return ["scrolled_to": arguments.element ?? "element", "method": method]
+            }
+            let point = target.map { CGPoint(x: $0.rect.midX, y: $0.rect.midY) } ?? center
             overlay.model.moveCursor(to: point, duration: Self.cursorGlide)
             try await Task.sleep(for: .seconds(Self.cursorGlide))
-            if arguments.dy == nil, let element = target?.element, BackgroundInput.reveal(element) {
+            let dy = CGFloat(arguments.dy ?? 400)
+            if let element = target?.element ?? BackgroundInput.element(at: point, pid: pid), await BackgroundInput.scroll(near: element, by: dy) {
                 try await hold(arguments, default: 0.5)
-                return ["scrolled_to": arguments.element ?? "element", "method": "reveal"]
+                return ["scrolled": ["dy": dy], "method": "scrollbar"]
             }
-            guard let element = target?.element ?? BackgroundInput.element(at: point, pid: pid),
-                  await BackgroundInput.scroll(near: element, by: CGFloat(arguments.dy ?? 400)) else {
-                throw MCPToolError.message("Nothing scrollable was found there in the background. Point at a scrolling area, or use background: false.")
-            }
+            await BackgroundInput.postScroll(dy: dy, at: point, to: pid)
             try await hold(arguments, default: 0.5)
-            return ["scrolled": ["dy": arguments.dy ?? 400], "method": "scrollbar"]
+            return ["scrolled": ["dy": dy], "method": "wheel event (not verified; check with screenshot)"]
         }
         if let rect = try targetRect(arguments) {
             await DemoInput.glide(to: CGPoint(x: rect.midX, y: rect.midY), duration: 0.35)
@@ -353,8 +373,8 @@ extension AgentRecordingSession {
 
     private func elements(_ query: String, in app: NSRunningApplication, role: String?) throws -> [FoundElement] {
         try DemoInput.ensureTrusted()
-        let area = isBackground ? recordingDisplay : nil
-        let found = AccessibilityFinder.find(query, pid: app.processIdentifier, role: role).filter { area?.intersects($0.frame) ?? true }
+        let column = isBackground ? CGRect(x: recordedArea.minX, y: -Self.columnReach, width: recordedArea.width, height: 2 * Self.columnReach) : nil
+        let found = AccessibilityFinder.find(query, pid: app.processIdentifier, role: role).filter { column?.intersects($0.frame) ?? true }
         guard !found.isEmpty else {
             throw MCPToolError.message("No element labelled \"\(query)\" in \(app.localizedName ?? "the app"). Try another label, or take a screenshot and use x and y.")
         }

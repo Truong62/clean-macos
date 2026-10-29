@@ -3,6 +3,7 @@ import Foundation
 enum RecordingMCPTools {
     static let onCamera: Set<String> = ["annotate", "caption", "clear_annotations", "click", "type_text", "press_key", "scroll",
                                         "zoom_in", "zoom_out", "wait", "navigate"]
+    static let needsRecording = onCamera.subtracting(["wait", "clear_annotations"])
 
     static let instructions = """
     Clean macOS records real MP4 demo videos without disturbing the person using this Mac. Nothing of theirs is moved, focused or covered.
@@ -10,7 +11,9 @@ enum RecordingMCPTools {
     click ripples are drawn inside the page and clicks, typing and scrolling go straight into that browser. Coordinates are page CSS pixels, \
     and elements can be targeted by visible text, label or CSS selector. Use navigate to change pages.
     Native apps: start_recording with a window or app records it where it already is, even behind other windows, and acts through \
-    Accessibility with a drawn cursor (annotations show over that window). It must not be minimized or in the Stage Manager strip.
+    Accessibility with a drawn cursor (annotations show over that window). It must not be minimized or in the Stage Manager strip; \
+    if it gets hidden while recording, the recording pauses and actions fail until it is back. Some apps (often SwiftUI) cannot be \
+    scrolled in the background: scroll says so, then show what is visible instead.
     Sign-ins in the hidden browser: by default it keeps sessions from earlier recordings and from sign_in. To show the login itself, \
     start with fresh: true (a signed-out profile), type the test account the person gave you (password fields stay masked) and blur \
     anything sensitive with annotate kind=blur. If you meet a login page without credentials, stop_recording with discard: true, call \

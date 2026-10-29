@@ -253,6 +253,20 @@ enum BackgroundInput {
         return true
     }
 
+    static func postScroll(dy: CGFloat, at point: CGPoint, to pid: pid_t) async {
+        for _ in 0..<scrollSteps {
+            let event = CGEvent(scrollWheelEvent2Source: nil, units: .pixel, wheelCount: 1, wheel1: Int32(-dy / CGFloat(scrollSteps)), wheel2: 0, wheel3: 0)
+            event?.location = point
+            event?.postToPid(pid)
+            try? await Task.sleep(for: .milliseconds(18))
+        }
+    }
+
+    static func isShown(_ element: AXUIElement, in area: CGRect) -> Bool {
+        guard let frame = AccessibilityFinder.frame(of: element), frame.height > 0 else { return false }
+        return frame.intersection(area).height >= frame.height / 2
+    }
+
     static func postKey(_ combo: KeyCombo, to pid: pid_t) {
         for isDown in [true, false] {
             let event = CGEvent(keyboardEventSource: nil, virtualKey: combo.keyCode, keyDown: isDown)

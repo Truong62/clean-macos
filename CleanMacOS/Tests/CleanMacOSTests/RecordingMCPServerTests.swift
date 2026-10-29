@@ -252,4 +252,14 @@ struct RecordingMCPServerTests {
         #expect((reply["result"] as? [String: Any])?["isError"] as? Bool == true)
         #expect(Annotation.Kind(rawValue: "blur") == .blur)
     }
+
+    @Test func actionToolsDoNothingWithoutARecording() async throws {
+        for tool in ["click", "annotate", "caption", "type_text", "press_key", "scroll", "zoom_in", "navigate"] {
+            let line = #"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"\#(tool)","arguments":{"kind":"title","text":"x","keys":"return","x":1,"y":1}}}"#
+            let result = try #require(try await call(line)["result"] as? [String: Any])
+            #expect(result["isError"] as? Bool == true)
+            let text = (result["content"] as? [[String: Any]])?.first?["text"] as? String ?? ""
+            #expect(text.contains("No recording is running"))
+        }
+    }
 }

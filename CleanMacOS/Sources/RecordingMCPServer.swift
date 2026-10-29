@@ -132,11 +132,13 @@ struct RecordingTarget {
     let display: CGRect
     let description: String
     let processID: pid_t?
+    var windowFrame: CGRect?
 }
 
 @MainActor
 final class AgentRecordingSession {
     static let defaultMaxSeconds = 600
+    static let watchInterval: Duration = .milliseconds(400)
     static let maxSecondsLimit = 3600
 
     let recorder: ScreenRecorder = {
@@ -152,6 +154,11 @@ final class AgentRecordingSession {
     private var outputFolder = ScreenRecording.moviesFolder()
     private var lastResult: Result<URL, Error>?
     private var outputName: String?
+    private var watchdog: Task<Void, Never>?
+    private var isTargetHidden = false
+    private var isInAction = false
+    private var hiddenCount = 0
+    private(set) var targetWindowFrame: CGRect?
     var lastSavedRecording: URL?
     var recordingDisplay: CGRect?
     var targetProcessID: pid_t?
@@ -228,11 +235,19 @@ final class AgentRecordingSession {
         guard let result else { throw MCPToolError.message("The recording could not be saved.") }
         let url = try result.get()
         lastSavedRecording = url
-        return try await Self.describe(url)
+        var description = try await Self.describe(url)
+        if hiddenCount > 0 {
+            description["warning"] = "The window was hidden \(hiddenCount) time(s) during the recording (Stage Manager or minimized); those moments were cut. Review the video."
+        }
+        return description
     }
 
-    func beginAction() {
+    func beginAction() throws {
         guard isRecording else { return }
+        if isTargetHidden {
+            throw MCPToolError.message("The recorded window is hidden (Stage Manager strip or minimized), so the recording is paused and nothing was done. Ask the person to bring it back on screen, then continue, or stop_recording.")
+        }
+        isInAction = true
         if let web {
             if skipsIdle { web.writer.resume() }
             return
@@ -244,6 +259,7 @@ final class AgentRecordingSession {
     }
 
     func endAction() {
+        isInAction = false
         guard isRecording, skipsIdle else { return }
         if let web {
             web.writer.pause()
@@ -283,6 +299,10 @@ final class AgentRecordingSession {
         if skipsIdle { recorder.pauseCapture() }
         recordingDisplay = target.display
         targetProcessID = target.processID
+        isTargetHidden = false
+        hiddenCount = 0
+        targetWindowFrame = target.windowFrame
+        if isBackground, target.windowFrame != nil { watchTarget() }
         return ["target": target.description, "folder": options.folder.path,
                 "recorded_area": ["x": Int(target.display.minX + (target.sourceRect?.minX ?? 0)),
                                   "y": Int(target.display.minY + (target.sourceRect?.minY ?? 0)),
@@ -290,7 +310,32 @@ final class AgentRecordingSession {
                                   "height": Int(target.sourceRect?.height ?? target.display.height)]]
     }
 
+    private func watchTarget() {
+        watchdog?.cancel()
+        watchdog = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: Self.watchInterval)
+                self?.checkTargetIsShown()
+            }
+        }
+    }
+
+    private func checkTargetIsShown() {
+        guard isRecording, web == nil, let pid = targetProcessID, let window = targetWindowFrame else { return }
+        let isShown = BackgroundInput.windows(of: pid).compactMap(AccessibilityFinder.frame).contains { WindowFrames.matches($0, window) }
+        if !isShown, !isTargetHidden {
+            isTargetHidden = true
+            hiddenCount += 1
+            recorder.pauseCapture()
+        } else if isShown, isTargetHidden {
+            isTargetHidden = false
+            if !skipsIdle || isInAction { recorder.resumeCapture() }
+        }
+    }
+
     private func finishCapture() async {
+        watchdog?.cancel()
+        watchdog = nil
         if web != nil {
             lastResult = await finishWeb(into: outputFolder)
         } else if recorder.isRecording {
@@ -535,8 +580,11 @@ final class RecordingMCPServer {
 
     private func run(_ name: String, data: Data) async throws -> ToolOutput {
         let demo = { try JSONDecoder().decode(DemoArguments.self, from: data) }
+        if RecordingMCPTools.needsRecording.contains(name), !session.isRecording {
+            throw MCPToolError.message("No recording is running, so nothing was done. Call start_recording first and make sure it succeeded.")
+        }
         let isOnCamera = RecordingMCPTools.onCamera.contains(name)
-        if isOnCamera { session.beginAction() }
+        if isOnCamera { try session.beginAction() }
         defer { if isOnCamera { session.endAction() } }
         switch name {
         case "list_sources": return .json(try await session.listSources())

@@ -33,7 +33,7 @@ extension AgentRecordingSession {
         return RecordingTarget(filter: SCContentFilter(display: display, including: apps, exceptingWindows: []),
                                sourceRect: RecordingSources.region(of: window.frame, on: display.frame), display: display.frame,
                                description: "window \"\(window.title ?? "")\" of \(window.owningApplication?.applicationName ?? "an app"), recorded in place",
-                               processID: pid)
+                               processID: pid, windowFrame: window.frame)
     }
 
     private func pickWindow(_ arguments: StartRecordingArguments, from windows: [SCWindow]) throws -> SCWindow {
