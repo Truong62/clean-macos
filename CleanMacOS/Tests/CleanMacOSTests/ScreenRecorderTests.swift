@@ -31,6 +31,19 @@ struct ScreenRecorderTests {
         #expect(ScreenRecording.folder(atPath: "/Users/me/Videos").path == "/Users/me/Videos")
     }
 
+    @Test func encodesWithScreenColorsAndEnoughBitrate() {
+        #expect(ScreenRecording.videoBitRate(size: CGSize(width: 1920, height: 1080), framesPerSecond: 60) == 16_174_080)
+        #expect(ScreenRecording.videoBitRate(size: CGSize(width: 640, height: 360), framesPerSecond: 30) == 6_000_000)
+        #expect(ScreenRecording.videoBitRate(size: CGSize(width: 3840, height: 2160), framesPerSecond: 60) == 50_000_000)
+        let settings = ScreenRecording.videoSettings(size: CGSize(width: 1920, height: 1080), framesPerSecond: 30)
+        let color = settings[AVVideoColorPropertiesKey] as? [String: String]
+        #expect(color?[AVVideoTransferFunctionKey] == kCVImageBufferTransferFunction_sRGB as String)
+        #expect(color?[AVVideoColorPrimariesKey] == AVVideoColorPrimaries_ITU_R_709_2)
+        #expect(color?[AVVideoYCbCrMatrixKey] == AVVideoYCbCrMatrix_ITU_R_709_2)
+        let compression = settings[AVVideoCompressionPropertiesKey] as? [String: Any]
+        #expect(compression?[AVVideoAverageBitRateKey] as? Int == 8_087_040)
+    }
+
     @Test func formatsElapsedTime() {
         #expect(ScreenRecording.elapsed(0) == "0:00")
         #expect(ScreenRecording.elapsed(65.9) == "1:05")

@@ -12,6 +12,31 @@ enum ScreenRecording {
     static let maxSize = Resolution.full.limit
     static let audioSettings: [String: Any] = [AVFormatIDKey: kAudioFormatMPEG4AAC, AVSampleRateKey: 48_000,
                                                AVNumberOfChannelsKey: 2, AVEncoderBitRateKey: 192_000]
+    static let bitsPerPixel = 0.13
+    static let bitRateRange = 6_000_000.0...50_000_000.0
+    static let keyFrameInterval = 2.0
+
+    static func videoBitRate(size: CGSize, framesPerSecond: Int) -> Int {
+        let wanted = Double(size.width * size.height) * Double(max(framesPerSecond, 1)) * bitsPerPixel
+        return Int(min(max(wanted, bitRateRange.lowerBound), bitRateRange.upperBound))
+    }
+
+    static func videoSettings(size: CGSize, framesPerSecond: Int) -> [String: Any] {
+        [
+            AVVideoCodecKey: AVVideoCodecType.h264, AVVideoWidthKey: Int(size.width), AVVideoHeightKey: Int(size.height),
+            AVVideoCompressionPropertiesKey: [
+                AVVideoAverageBitRateKey: videoBitRate(size: size, framesPerSecond: framesPerSecond),
+                AVVideoProfileLevelKey: AVVideoProfileLevelH264HighAutoLevel,
+                AVVideoExpectedSourceFrameRateKey: framesPerSecond,
+                AVVideoMaxKeyFrameIntervalDurationKey: keyFrameInterval,
+            ],
+            AVVideoColorPropertiesKey: [
+                AVVideoColorPrimariesKey: AVVideoColorPrimaries_ITU_R_709_2,
+                AVVideoTransferFunctionKey: kCVImageBufferTransferFunction_sRGB as String,
+                AVVideoYCbCrMatrixKey: AVVideoYCbCrMatrix_ITU_R_709_2,
+            ],
+        ]
+    }
 
     static func fileName(at date: Date) -> String {
         let formatter = DateFormatter()
@@ -196,14 +221,13 @@ final class RecordingWriter: NSObject, SCStreamOutput, @unchecked Sendable {
     private var hasStarted = false
     private var isArmed = false
     private var timeline = RecordingTimeline()
+    private var lastFrame: CMSampleBuffer?
 
-    init(url: URL, size: CGSize, systemAudio: Bool, microphone: Bool, onFrame: @escaping (IOSurfaceRef) -> Void) throws {
+    init(url: URL, size: CGSize, framesPerSecond: Int, systemAudio: Bool, microphone: Bool, onFrame: @escaping (IOSurfaceRef) -> Void) throws {
         self.url = url
         self.onFrame = onFrame
         writer = try AVAssetWriter(outputURL: url, fileType: .mp4)
-        video = AVAssetWriterInput(mediaType: .video, outputSettings: [
-            AVVideoCodecKey: AVVideoCodecType.h264, AVVideoWidthKey: Int(size.width), AVVideoHeightKey: Int(size.height),
-        ])
+        video = AVAssetWriterInput(mediaType: .video, outputSettings: ScreenRecording.videoSettings(size: size, framesPerSecond: framesPerSecond))
         let audioInput = { (isOn: Bool) in isOn ? AVAssetWriterInput(mediaType: .audio, outputSettings: ScreenRecording.audioSettings) : nil }
         self.systemAudio = audioInput(systemAudio)
         self.microphone = audioInput(microphone)
@@ -245,6 +269,7 @@ final class RecordingWriter: NSObject, SCStreamOutput, @unchecked Sendable {
                 hasStarted = true
             }
             append(buffer, to: video)
+            lastFrame = buffer
         case .audio:
             guard let buffer = retimed(buffer) else { return }
             append(buffer, to: systemAudio)
@@ -259,6 +284,7 @@ final class RecordingWriter: NSObject, SCStreamOutput, @unchecked Sendable {
             queue.async { [self] in
                 guard hasStarted else { return continuation.resume(throwing: RecordingError.failed("Nothing was recorded.")) }
                 let now = timeline.outputTime(at: CMClockGetTime(CMClockGetHostTimeClock()))
+                holdLastFrame(until: now)
                 writer.endSession(atSourceTime: endTime.isValid ? max(endTime, now) : now)
                 writer.finishWriting { [self] in
                     if writer.status == .completed {
@@ -269,6 +295,18 @@ final class RecordingWriter: NSObject, SCStreamOutput, @unchecked Sendable {
                 }
             }
         }
+    }
+
+    private func holdLastFrame(until end: CMTime) {
+        guard let lastFrame, video.isReadyForMoreMediaData else { return }
+        let step = CMTime(value: 1, timescale: 60)
+        let time = end - step
+        guard time > lastFrame.presentationTimeStamp + step else { return }
+        var timing = CMSampleTimingInfo(duration: step, presentationTimeStamp: time, decodeTimeStamp: .invalid)
+        var copy: CMSampleBuffer?
+        CMSampleBufferCreateCopyWithNewTiming(allocator: nil, sampleBuffer: lastFrame, sampleTimingEntryCount: 1,
+                                              sampleTimingArray: &timing, sampleBufferOut: &copy)
+        if let copy, video.append(copy) { endTime = endTime.isValid ? max(endTime, end) : end }
     }
 
     private func retimed(_ buffer: CMSampleBuffer) -> CMSampleBuffer? {
@@ -370,13 +408,15 @@ final class ScreenRecorder: NSObject, ObservableObject {
         configuration.height = Int(size.height)
         configuration.minimumFrameInterval = CMTime(value: 1, timescale: CMTimeScale(options.framesPerSecond))
         configuration.showsCursor = showsCursor
+        configuration.colorSpaceName = CGColorSpace.sRGB
         configuration.capturesAudio = systemAudio
         configuration.excludesCurrentProcessAudio = true
         configuration.captureMicrophone = microphone
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID().uuidString).mp4")
         do {
             let showsPreview = showsPreview
-            let writer = try RecordingWriter(url: url, size: size, systemAudio: systemAudio, microphone: microphone) { [weak self] surface in
+            let writer = try RecordingWriter(url: url, size: size, framesPerSecond: options.framesPerSecond, systemAudio: systemAudio,
+                                             microphone: microphone) { [weak self] surface in
                 guard showsPreview else { return }
                 DispatchQueue.main.async { MainActor.assumeIsolated { self?.show(surface) } }
             }

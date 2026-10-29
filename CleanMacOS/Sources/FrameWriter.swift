@@ -42,6 +42,7 @@ final class FrameWriter: @unchecked Sendable {
     private let input: AVAssetWriterInput
     private let adaptor: AVAssetWriterInputPixelBufferAdaptor
     private let context = CIContext()
+    private let colorSpace = CGColorSpace(name: CGColorSpace.sRGB)!
     private let interval: Double
     private var timer: DispatchSourceTimer?
     private var latest: CIImage?
@@ -56,9 +57,7 @@ final class FrameWriter: @unchecked Sendable {
         interval = 1 / Double(max(framesPerSecond, 1))
         zoom = ZoomTrack(base: CGRect(origin: .zero, size: size))
         writer = try AVAssetWriter(outputURL: url, fileType: .mp4)
-        input = AVAssetWriterInput(mediaType: .video, outputSettings: [
-            AVVideoCodecKey: AVVideoCodecType.h264, AVVideoWidthKey: Int(size.width), AVVideoHeightKey: Int(size.height),
-        ])
+        input = AVAssetWriterInput(mediaType: .video, outputSettings: ScreenRecording.videoSettings(size: size, framesPerSecond: framesPerSecond))
         input.expectsMediaDataInRealTime = true
         adaptor = AVAssetWriterInputPixelBufferAdaptor(assetWriterInput: input, sourcePixelBufferAttributes: [
             kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA,
@@ -137,7 +136,11 @@ final class FrameWriter: @unchecked Sendable {
         guard CVPixelBufferPoolCreatePixelBuffer(nil, pool, &buffer) == kCVReturnSuccess, let buffer else { return }
         let crop = zoom.rect(at: now.seconds)
         let transform = FrameComposer.transform(imageSize: image.extent.size, crop: crop, output: size)
-        context.render(image.transformed(by: transform).cropped(to: CGRect(origin: .zero, size: size)), to: buffer)
+        CVBufferSetAttachment(buffer, kCVImageBufferCGColorSpaceKey, colorSpace, .shouldPropagate)
+        CVBufferSetAttachment(buffer, kCVImageBufferColorPrimariesKey, kCVImageBufferColorPrimaries_ITU_R_709_2, .shouldPropagate)
+        CVBufferSetAttachment(buffer, kCVImageBufferTransferFunctionKey, kCVImageBufferTransferFunction_sRGB, .shouldPropagate)
+        context.render(image.transformed(by: transform).cropped(to: CGRect(origin: .zero, size: size)), to: buffer,
+                       bounds: CGRect(origin: .zero, size: size), colorSpace: colorSpace)
         if adaptor.append(buffer, withPresentationTime: time) { lastTime = time }
     }
 }

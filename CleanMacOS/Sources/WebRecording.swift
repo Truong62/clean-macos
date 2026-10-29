@@ -61,7 +61,7 @@ extension AgentRecordingSession {
                 writer.update(image)
             }
             try await connection.send("Page.startScreencast", [
-                "format": "jpeg", "quality": 90, "maxWidth": Int(output.width), "maxHeight": Int(output.height), "everyNthFrame": 1,
+                "format": "jpeg", "quality": 100, "maxWidth": Int(output.width), "maxHeight": Int(output.height), "everyNthFrame": 1,
             ])
             let demo = WebDemo(browser: browser, writer: writer)
             web = demo
