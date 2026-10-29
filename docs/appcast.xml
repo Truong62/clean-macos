@@ -8,6 +8,19 @@
 
     <!-- Paste new <item> blocks here when releasing (newest first) -->
     <item>
+      <title>Version 1.0.45</title>
+      <pubDate>Thu, 29 Oct 2026 16:28:23 +0700</pubDate>
+      <sparkle:version>46</sparkle:version>
+      <sparkle:shortVersionString>1.0.45</sparkle:shortVersionString>
+      <description><![CDATA[
+        <ul><li>AI demo recordings now run in the background without touching your screen: web apps are recorded in a hidden browser with no window, and native apps are recorded in place without moving or focusing their windows</li><li>Record sign-ins: start from a fresh signed-out browser, sign in once yourself in a sign-in window, and blur private data such as emails</li><li>New agent tools: navigate, sign_in, review_recording to check the finished video, custom file names, discarding a take and scrolling to an element</li><li>Safer recordings: agent actions do nothing unless a recording is running, and recording pauses if the window gets hidden</li><li>Screen Record has a Sign In button to sign in once for web demos</li></ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/Truong62/clean-macos/releases/download/v1.0.45/CleanMacOS-1.0.45.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="wzE1EpF7VIIk+Gq6oZbr9PZptKLXqOSEn9lVnf5MWI4ZTjfZoDTxq4IDQPGq6vRZWCgMIPcfVGLaKU6nyDdmBg==" length="5190323" />
+    </item>
+    <item>
       <title>Version 1.0.44</title>
       <pubDate>Thu, 29 Oct 2026 15:00:29 +0700</pubDate>
       <sparkle:version>45</sparkle:version>
