@@ -31,11 +31,13 @@
 		41AA7E6D8BDB4A6438B2776C /* ClipboardHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCA21C6DF18A5F4914577A05 /* ClipboardHistoryView.swift */; };
 		4394A03F9FAB627AC78FF08C /* DevToolsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7335EA96D5BFB7CA1CAAAD51 /* DevToolsView.swift */; };
 		439C5FE692D89844CEEAEF39 /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76D6C63FE6785726A01BD9FB /* KeychainStore.swift */; };
+		44B54C4C2F4684FD5ED83382 /* AccountViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A3F25002FA4794F142BC7C1 /* AccountViewModel.swift */; };
 		4CF6E5A0E538D5932ADFBD84 /* ClipboardViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8669187F5AE68DE7119775DC /* ClipboardViewModel.swift */; };
 		4DE61E3589D07E845CBC2FF3 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA9E35C7D8B82601564C5468 /* Models.swift */; };
 		55D09845383469CB506D3E85 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13997B35568795BEA3BF3A64 /* ContentView.swift */; };
 		58F147DF5CA1C5EE46DBA025 /* JiraViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78E3D7D88AE05B4709A6FAE4 /* JiraViewModel.swift */; };
 		5B7456DF848FC407E1B1C316 /* ClipboardPanelController.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEBFF35EE02467C83ED9553C /* ClipboardPanelController.swift */; };
+		5B8ECCFB5679914BE826349C /* GoogleSignIn.swift in Sources */ = {isa = PBXBuildFile; fileRef = B812B3AB61307A3EEE428398 /* GoogleSignIn.swift */; };
 		5BFE3184C5EBC13851AF4053 /* StartupSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C14516723EBF48D1B1FD224A /* StartupSettingsView.swift */; };
 		5DF8AD876142B74059E46536 /* PasteService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 938603F095D5C03621C2C879 /* PasteService.swift */; };
 		629F8B98ECF1850CAF10B28F /* AboutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F50E79083A48396AD0651E87 /* AboutView.swift */; };
@@ -121,6 +123,7 @@
 		3554E40130351545D52C837D /* SnapshotSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnapshotSection.swift; sourceTree = "<group>"; };
 		3910672BE6DD40B3BC79BCD2 /* UninstallerService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UninstallerService.swift; sourceTree = "<group>"; };
 		3A1479088579DC6E2A293A68 /* SidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarView.swift; sourceTree = "<group>"; };
+		3A3F25002FA4794F142BC7C1 /* AccountViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountViewModel.swift; sourceTree = "<group>"; };
 		3EEE3B129372B86AFA16DF07 /* JiraNav.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JiraNav.swift; sourceTree = "<group>"; };
 		44805A604CACFED574E48F5C /* ArtifactTableView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtifactTableView.swift; sourceTree = "<group>"; };
 		44B45543D9D527DAF4698D0A /* AgentDemoTools.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentDemoTools.swift; sourceTree = "<group>"; };
@@ -162,6 +165,7 @@
 		A006AC3D753EA22E7DAE17A9 /* PortsJobsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortsJobsView.swift; sourceTree = "<group>"; };
 		AE1934A02858991DBDBF4B53 /* ReleaseHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReleaseHistory.swift; sourceTree = "<group>"; };
 		AEF83F7B546B77C747BCA698 /* CleanMacOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CleanMacOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		B812B3AB61307A3EEE428398 /* GoogleSignIn.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleSignIn.swift; sourceTree = "<group>"; };
 		B95A1CC4923CA37289806A62 /* JiraKpiStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JiraKpiStore.swift; sourceTree = "<group>"; };
 		BC661B5A58FE8B57EF1C939C /* PermissionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionView.swift; sourceTree = "<group>"; };
 		BCA21C6DF18A5F4914577A05 /* ClipboardHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardHistoryView.swift; sourceTree = "<group>"; };
@@ -220,6 +224,7 @@
 			isa = PBXGroup;
 			children = (
 				F50E79083A48396AD0651E87 /* AboutView.swift */,
+				3A3F25002FA4794F142BC7C1 /* AccountViewModel.swift */,
 				44B45543D9D527DAF4698D0A /* AgentDemoTools.swift */,
 				0CE374CA5CC2E8CA8FE9BB73 /* AppViewModel.swift */,
 				44805A604CACFED574E48F5C /* ArtifactTableView.swift */,
@@ -254,6 +259,7 @@
 				905A24394C7E6C4E7AE06DF2 /* FileThumbnail.swift */,
 				31AF67BD118549BEBA8736D7 /* FrameWriter.swift */,
 				E1FC8128FEE8FEEE7743FF7B /* GlobalShortcuts.swift */,
+				B812B3AB61307A3EEE428398 /* GoogleSignIn.swift */,
 				5DAB977EDC7157992917E243 /* HeadlessBrowser.swift */,
 				86DAF5317703A2819563D781 /* HomeComponents.swift */,
 				519973CA3556535EDD116B2C /* HomeView.swift */,
@@ -321,7 +327,7 @@
 			);
 			sourceTree = "<group>";
 		};
-		"TEMP_23D0B58B-CD72-4DA3-9177-D07F10E200DC" /* Resources */ = {
+		"TEMP_39FAD4DE-C280-49E8-BB86-C915B03A6141" /* Resources */ = {
 			isa = PBXGroup;
 			children = (
 			);
@@ -404,6 +410,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				629F8B98ECF1850CAF10B28F /* AboutView.swift in Sources */,
+				44B54C4C2F4684FD5ED83382 /* AccountViewModel.swift in Sources */,
 				1C884A8C2CAAEF989A9A2FB3 /* AgentDemoTools.swift in Sources */,
 				96742BBF577C2662A06127C9 /* AppViewModel.swift in Sources */,
 				3869FF6969D2F5E7A44FDD87 /* ArtifactTableView.swift in Sources */,
@@ -437,6 +444,7 @@
 				EC4CBF72FCB53432FB5C1E03 /* FileThumbnail.swift in Sources */,
 				C918CCDCC6945B3DCCEB870D /* FrameWriter.swift in Sources */,
 				B94D5E73B6A99CD323DB3DA8 /* GlobalShortcuts.swift in Sources */,
+				5B8ECCFB5679914BE826349C /* GoogleSignIn.swift in Sources */,
 				B078D1AAB8135A124C168355 /* HeadlessBrowser.swift in Sources */,
 				E046123F7CFDF6A8BEB1F1B1 /* HomeComponents.swift in Sources */,
 				171CB18E3F33997A33D09624 /* HomeView.swift in Sources */,

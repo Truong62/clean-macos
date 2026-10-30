@@ -5,6 +5,7 @@ struct SettingsView: View {
     @EnvironmentObject var vm: AppViewModel
     @EnvironmentObject var updater: UpdaterViewModel
     @EnvironmentObject var clipboard: ClipboardViewModel
+    @EnvironmentObject var account: AccountViewModel
     @AppStorage(ClipboardSettings.persistKey) private var clipboardPersist = true
     @AppStorage(ClipboardSettings.maxItemsKey) private var clipboardMaxItems = ClipboardSettings.defaultMaxItems
     @AppStorage(ClipboardSettings.skipConcealedKey) private var clipboardSkipConcealed = false
@@ -94,6 +95,21 @@ struct SettingsView: View {
     }
 
     @ViewBuilder private var generalTab: some View {
+        if let signedIn = account.account {
+            section(icon: "person.crop.circle.fill", iconColor: .blue, title: "Account") {
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(signedIn.name ?? signedIn.email)
+                            .fontWeight(.medium)
+                        Text(signedIn.email)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Button("Sign Out") { Task { await account.signOut() } }
+                }
+            }
+        }
         section(icon: "menubar.rectangle", iconColor: .cyan, title: "Menu Bar") {
             Toggle(isOn: $vm.showMenuBar) {
                 VStack(alignment: .leading, spacing: 2) {

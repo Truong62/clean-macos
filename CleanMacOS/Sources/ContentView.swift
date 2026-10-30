@@ -4,11 +4,14 @@ struct ContentView: View {
     @EnvironmentObject var vm: AppViewModel
     @EnvironmentObject var jira: JiraViewModel
     @EnvironmentObject var updater: UpdaterViewModel
+    @EnvironmentObject var account: AccountViewModel
     @State private var currentPage: SidebarPage = .home
 
     var body: some View {
         Group {
-            if vm.needsPermission {
+            if account.needsSignIn {
+                SignInView()
+            } else if vm.needsPermission {
                 PermissionView()
             } else {
                 mainContent

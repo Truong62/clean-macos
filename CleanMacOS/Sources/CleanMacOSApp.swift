@@ -42,6 +42,7 @@ struct CleanMacOSApp: App {
     @StateObject private var jira = JiraViewModel()
     @StateObject private var recorder = ScreenRecorder()
     @StateObject private var agentRecording = AgentRecordingIndicator()
+    @StateObject private var account = AccountViewModel()
     @AppStorage("showMenuBar") private var showMenuBar = true
     @State private var panelController: ClipboardPanelController?
 
@@ -53,8 +54,10 @@ struct CleanMacOSApp: App {
                 .environmentObject(clipboard)
                 .environmentObject(jira)
                 .environmentObject(recorder)
+                .environmentObject(account)
                 .frame(minWidth: 900, minHeight: 600)
                 .onAppear {
+                    Task { await account.refreshSession() }
                     setAppIcon()
                     monitor.startSampling(interval: 3)
                     clipboard.startMonitoring()
