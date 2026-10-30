@@ -8,6 +8,19 @@
 
     <!-- Paste new <item> blocks here when releasing (newest first) -->
     <item>
+      <title>Version 1.0.47</title>
+      <pubDate>Fri, 30 Oct 2026 09:58:23 +0700</pubDate>
+      <sparkle:version>48</sparkle:version>
+      <sparkle:shortVersionString>1.0.47</sparkle:shortVersionString>
+      <description><![CDATA[
+        <ul><li>Sign in with Google: Clean macOS now asks you to sign in once with your Google account. Sign-in happens in your browser and you stay signed in across updates</li><li>Settings shows your account with a Sign Out button</li></ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/Truong62/clean-macos/releases/download/v1.0.47/CleanMacOS-1.0.47.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="vFscuRjXPV/yL/ZWa+jdqHyLauVepeRlsFMWW9NbpHJEOt3SZedbYKo+L86VD5Vp78k19ZUTHio9uRW64gHFCA==" length="5251505" />
+    </item>
+    <item>
       <title>Version 1.0.46</title>
       <pubDate>Thu, 29 Oct 2026 17:16:43 +0700</pubDate>
       <sparkle:version>47</sparkle:version>
