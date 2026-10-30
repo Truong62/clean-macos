@@ -3,9 +3,13 @@ import CryptoKit
 import Network
 
 enum GoogleAccountConfig {
-    static let firebaseAPIKey = ""
-    static let clientID = ""
-    static let clientSecret = ""
+    static let firebaseAPIKey = value("CMFirebaseAPIKey")
+    static let clientID = value("CMGoogleClientID")
+    static let clientSecret = value("CMGoogleClientSecret")
+
+    private static func value(_ key: String) -> String {
+        Bundle.main.object(forInfoDictionaryKey: key) as? String ?? ""
+    }
 
     static var isConfigured: Bool { !firebaseAPIKey.isEmpty && !clientID.isEmpty && !clientSecret.isEmpty }
 }

@@ -44,6 +44,7 @@ else
   APP=$(./scripts/build-app-spm.sh | tail -1)
 fi
 [ -n "$APP" ] || { echo "ERROR: build produced no .app"; exit 1; }
+./scripts/inject-auth.sh "$APP"
 
 echo "==> Verifying embedded version matches ${VERSION}..."
 PLIST_V=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APP/Contents/Info.plist")

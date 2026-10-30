@@ -52,5 +52,6 @@ plutil -insert CFBundleIconFile -string AppIcon "$APP/Contents/Info.plist"
 printf "APPL????" > "$APP/Contents/PkgInfo"
 
 codesign --force --deep --sign - "$APP"
+./scripts/inject-auth.sh "$APP" >&2
 codesign --verify --deep --strict "$APP"
 echo "$APP"
