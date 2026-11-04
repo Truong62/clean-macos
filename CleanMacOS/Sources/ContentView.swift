@@ -2,7 +2,6 @@ import SwiftUI
 
 struct ContentView: View {
     @EnvironmentObject var vm: AppViewModel
-    @EnvironmentObject var jira: JiraViewModel
     @EnvironmentObject var updater: UpdaterViewModel
     @EnvironmentObject var account: AccountViewModel
     @State private var currentPage: SidebarPage = .home
@@ -40,9 +39,6 @@ struct ContentView: View {
             case .clipboard:
                 ClipboardHistoryView()
 
-            case .jira:
-                JiraView(openSettings: { currentPage = .settings })
-
             case .displays:
                 DisplaysView()
 
@@ -66,7 +62,6 @@ struct ContentView: View {
             }
         }
         .navigationSplitViewStyle(.balanced)
-        .onChange(of: jira.openRequestCount) { _, _ in currentPage = .jira }
         .alert("Confirm Clean", isPresented: $vm.showCleanConfirmation) {
             Button("Cancel", role: .cancel) { }
             Button("Clean", role: .destructive) {

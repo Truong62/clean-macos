@@ -5,8 +5,8 @@
 <h1 align="center">Clean macOS</h1>
 
 <p align="center">
-  A free, native macOS app to reclaim disk space, uninstall apps cleanly, keep a clipboard history,<br>
-  see every port and scheduled job — and run your Jira sprint, all from one window.
+  A free, native macOS app to reclaim disk space, uninstall apps cleanly, keep a clipboard history<br>
+  and see every port and scheduled job, all from one window.
 </p>
 
 <p align="center">
@@ -29,20 +29,16 @@
 <table>
   <tr>
     <td width="50%" valign="top">
-      <img src="docs/images/card-jira.jpg" alt="Jira task table with nested subtasks"><br>
-      <b>Jira</b> — your sprint as a tree of tasks, subtasks and bugs, with Table and Board views, menu-bar access and notifications when you're assigned or mentioned.
-    </td>
-    <td width="50%" valign="top">
       <img src="docs/images/card-ports.jpg" alt="Listening ports with process details"><br>
       <b>Ports</b> — every port your processes listen on, with the command behind it, uptime, and Open in Browser / Quit / Force Quit.
     </td>
-  </tr>
-  <tr>
     <td width="50%" valign="top">
       <img src="docs/images/card-jobs.jpg" alt="Scheduled jobs with log output"><br>
       <b>Scheduled jobs</b> — LaunchAgents and crontab entries with a readable schedule, last exit status and the tail of the log. Run now, turn off or delete.
     </td>
-    <td width="50%" valign="top">
+  </tr>
+  <tr>
+    <td colspan="2" valign="top">
       <b>And everything else</b>
       <ul>
         <li>Clean Disk — 60+ kinds of junk and build caches</li>
@@ -69,7 +65,6 @@
 - **Time Machine snapshots** — detect and delete local APFS snapshots
 - **Clipboard history** — keeps the text you copy so you can reuse earlier copies; browse them in the **Clipboard** tab or press **⌘⇧V** anywhere to pick one (auto-pastes when Accessibility is granted). History is captured **only while the app is running**; images and files are coming soon.
 - **Ports & Jobs** — listening ports of your own processes, plus LaunchAgents/LaunchDaemons and crontab entries with status and logs; system jobs are read-only
-- **Jira** — a Notion-style task tree for your Jira sprint, menu-bar summary and notifications
 - **Displays** — arrange monitors, choose the main display and set a wallpaper per display
 - **RAM** — memory pressure and the processes using the most memory, with Quit / Force Quit
 - **Menu bar + monitoring** — quick access and live system stats from the menu bar

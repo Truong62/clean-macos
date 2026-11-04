@@ -4,7 +4,6 @@ import AppKit
 struct HomeView: View {
     @EnvironmentObject var vm: AppViewModel
     @EnvironmentObject var clipboard: ClipboardViewModel
-    @EnvironmentObject var jira: JiraViewModel
     let navigate: (SidebarPage) -> Void
 
     @StateObject private var monitor = SystemMonitor()
@@ -31,12 +30,9 @@ struct HomeView: View {
             VStack(spacing: 18) {
                 hero.homeAppear(0)
                 vitals.homeAppear(1)
-                HStack(alignment: .top, spacing: 18) {
-                    if jira.isConfigured { jiraCard.homeAppear(2) }
-                    cleanableCard.homeAppear(3)
-                }
-                toolsGrid.homeAppear(4)
-                footer.homeAppear(5)
+                cleanableCard.homeAppear(2)
+                toolsGrid.homeAppear(3)
+                footer.homeAppear(4)
             }
             .padding(24)
             .frame(maxWidth: 1100)
@@ -64,7 +60,6 @@ struct HomeView: View {
         portCount = await ports.count
         startupMissing = await startup
         jobCount = await jobs.filter { $0.source == .userAgent || $0.source == .cron }.count
-        if jira.isConfigured && jira.menuUpdatedAt == nil { await jira.refreshMenu() }
     }
 
     // MARK: - Hero
@@ -166,58 +161,6 @@ struct HomeView: View {
                       caption: "free of \(monitor.diskTotalStr) · up \(monitor.uptime)",
                       fraction: monitor.diskPercent.rounded() / 100, colors: [.orange, .yellow])
         }
-    }
-
-    // MARK: - Jira
-
-    private var jiraCard: some View {
-        let sprint = jira.menu.sprint
-        let doing = jira.menu.rows.filter { $0.group == .doing }.prefix(3)
-        return VStack(alignment: .leading, spacing: 14) {
-            cardHeader(icon: "checklist", title: "Jira", colors: [.blue, .indigo]) { navigate(.jira) }
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Text(sprint.name.isEmpty ? "No active sprint" : sprint.name)
-                    .font(.headline)
-                    .lineLimit(1)
-                if let days = sprint.daysLeft {
-                    Text("· \(days)d left").font(.subheadline).foregroundStyle(.secondary)
-                }
-            }
-            VStack(alignment: .leading, spacing: 6) {
-                HStack {
-                    Text("This month").font(.caption).foregroundStyle(.secondary)
-                    Spacer()
-                    Text("\(sprint.monthDone)/\(sprint.monthTasks) done · \(sprint.monthPoints) \(sprint.pointLabel)")
-                        .font(.caption.weight(.semibold))
-                }
-                ProgressView(value: Double(sprint.monthDone), total: Double(max(sprint.monthTasks, 1)))
-                    .tint(.indigo)
-            }
-            if doing.isEmpty {
-                Text("Nothing in progress").font(.callout).foregroundStyle(.secondary)
-            } else {
-                VStack(spacing: 6) {
-                    ForEach(Array(doing)) { row in
-                        Button { jira.open(issueKey: row.id) } label: {
-                            HStack(spacing: 8) {
-                                Circle().fill(.blue).frame(width: 6, height: 6)
-                                Text(row.id).font(.caption.monospaced().weight(.semibold)).foregroundStyle(.blue)
-                                Text(row.summary).font(.callout).lineLimit(1)
-                                Spacer(minLength: 0)
-                            }
-                            .padding(.vertical, 6)
-                            .padding(.horizontal, 10)
-                            .background(Color.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 10))
-                        }
-                        .buttonStyle(.plain)
-                        .pointerCursor()
-                    }
-                }
-            }
-        }
-        .padding(18)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .homeCard()
     }
 
     // MARK: - Cleanable

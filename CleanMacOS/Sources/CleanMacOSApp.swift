@@ -7,6 +7,7 @@ import KeyboardShortcuts
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
+        LegacyDataCleanup.removeJiraData()
         StartupRoutine.start()
     }
 
@@ -39,7 +40,6 @@ struct CleanMacOSApp: App {
     @StateObject private var updater = UpdaterViewModel()
     @StateObject private var clipboard = ClipboardViewModel()
     @StateObject private var monitor = SystemMonitor()
-    @StateObject private var jira = JiraViewModel()
     @StateObject private var recorder = ScreenRecorder()
     @StateObject private var agentRecording = AgentRecordingIndicator()
     @StateObject private var account = AccountViewModel()
@@ -52,7 +52,6 @@ struct CleanMacOSApp: App {
                 .environmentObject(vm)
                 .environmentObject(updater)
                 .environmentObject(clipboard)
-                .environmentObject(jira)
                 .environmentObject(recorder)
                 .environmentObject(account)
                 .frame(minWidth: 900, minHeight: 600)
@@ -61,7 +60,6 @@ struct CleanMacOSApp: App {
                     setAppIcon()
                     monitor.startSampling(interval: 3)
                     clipboard.startMonitoring()
-                    jira.restartBackgroundWork()
                     if panelController == nil {
                         let controller = ClipboardPanelController(clipboard: clipboard)
                         panelController = controller
@@ -95,7 +93,7 @@ struct CleanMacOSApp: App {
         }
 
         MenuBarExtra(isInserted: $showMenuBar) {
-            MenuBarView(monitor: monitor, jira: jira, recorder: recorder, agentRecording: agentRecording)
+            MenuBarView(monitor: monitor, recorder: recorder, agentRecording: agentRecording)
         } label: {
             Label(String(format: " %.0f%%", monitor.latestCPU), systemImage: recorder.isRecording || agentRecording.isRecording ? "record.circle.fill" : "sparkles")
         }

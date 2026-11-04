@@ -17,10 +17,6 @@ targets:
     platform: macOS
     sources:
       - path: Sources
-        excludes:
-          - Resources/JiraWeb
-      - path: Sources/Resources/JiraWeb
-        type: folder
     dependencies:
       - package: Sparkle
       - package: KeyboardShortcuts

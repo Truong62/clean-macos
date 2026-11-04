@@ -11,7 +11,7 @@ struct AboutView: View {
         (.largeFiles, "doc.text.magnifyingglass", "Large Files", "Biggest files anywhere", [.orange, .pink]),
         (.uninstall, "trash.fill", "Uninstall Apps", "Apps and their leftovers", [.red, .orange]),
         (.clipboard, "doc.on.clipboard.fill", "Clipboard", "Copy history on ⌘⇧V", [.indigo, .purple]),
-        (.jira, "checklist", "Jira", "Your sprint, Notion-style", [.blue, .cyan]),
+        (.screenRecord, "record.circle", "Screen Record", "Screen, sound and mic", [.red, .pink]),
         (.displays, "display.2", "Displays", "Monitors and wallpapers", [.purple, .pink]),
         (.ram, "memorychip", "RAM", "Memory and heavy apps", [.mint, .teal]),
         (.portsJobs, "network", "Ports & Jobs", "Ports, cron jobs, login items", [.cyan, .blue]),

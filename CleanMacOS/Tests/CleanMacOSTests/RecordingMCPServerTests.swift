@@ -112,7 +112,7 @@ struct RecordingMCPServerTests {
         #expect(ElementMatch.score("Screen Record", labels: ["screen record"]) == 3)
         #expect(ElementMatch.score("Start", labels: ["Start Recording"]) == 2)
         #expect(ElementMatch.score("record", labels: ["Start Recording", "Stop"]) == 1)
-        #expect(ElementMatch.score("Jira", labels: ["Displays"]) == 0)
+        #expect(ElementMatch.score("Clipboard", labels: ["Displays"]) == 0)
         #expect(ElementMatch.roleMatches("AXButton", filter: "button"))
         #expect(!ElementMatch.roleMatches("AXStaticText", filter: "button"))
         #expect(ElementMatch.rolePriority("AXImage") < ElementMatch.rolePriority("AXStaticText"))

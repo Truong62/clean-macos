@@ -2,13 +2,9 @@ import SwiftUI
 
 struct MenuBarView: View {
     @ObservedObject var monitor: SystemMonitor
-    @ObservedObject var jira: JiraViewModel
     @ObservedObject var recorder: ScreenRecorder
     @ObservedObject var agentRecording: AgentRecordingIndicator
     @Environment(\.openWindow) private var openWindow
-    @AppStorage(JiraSettings.menuBarEnabledKey) private var jiraMenuBarEnabled = true
-
-    private var showsJira: Bool { jira.isConfigured && jiraMenuBarEnabled }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -22,13 +18,9 @@ struct MenuBarView: View {
                 agentRecordingRow
                 Divider()
             }
-            if showsJira {
-                JiraMenuBarSection(jira: jira) { key in openMain { jira.openFromOutside(issueKey: key) } }
-                Divider()
-            }
             systemStats
         }
-        .frame(width: showsJira ? 380 : 300)
+        .frame(width: 300)
         .onAppear { monitor.popoverDidOpen() }
         .onDisappear { monitor.popoverDidClose() }
     }

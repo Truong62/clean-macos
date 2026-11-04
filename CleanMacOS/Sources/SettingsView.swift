@@ -24,7 +24,6 @@ struct SettingsView: View {
                 case .startup: section(icon: "bolt.fill", iconColor: .orange, title: "Startup") { StartupSettingsView() }
                 case .cleaning: cleaningTab
                 case .clipboard: clipboardTab
-                case .jira: section(icon: "checklist", iconColor: .blue, title: "Jira") { JiraSettingsForm() }
                 case .updates: updatesTab
                 }
             }
@@ -125,7 +124,7 @@ struct SettingsView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Open at login")
                         .fontWeight(.medium)
-                    Text("Keep the menu bar and Jira notifications running after restart")
+                    Text("Keep the menu bar and clipboard history running after restart")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -317,7 +316,7 @@ struct SettingsView: View {
 }
 
 enum SettingsTab: String, CaseIterable, Identifiable {
-    case general, startup, cleaning, clipboard, jira, updates
+    case general, startup, cleaning, clipboard, updates
 
     static let storageKey = "settings.tab"
 
@@ -330,7 +329,6 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         case .startup: "bolt.fill"
         case .cleaning: "sparkles"
         case .clipboard: "doc.on.clipboard"
-        case .jira: "checklist"
         case .updates: "arrow.triangle.2.circlepath"
         }
     }
@@ -341,7 +339,6 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         case .startup: .orange
         case .cleaning: .green
         case .clipboard: .indigo
-        case .jira: .blue
         case .updates: .purple
         }
     }
@@ -352,7 +349,6 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         case .startup: "Start up on its own after a power cut"
         case .cleaning: "Scan scope and safety checks"
         case .clipboard: "History, shortcut and privacy"
-        case .jira: "Connection, KPI and notifications"
         case .updates: "Automatic checks and installs"
         }
     }

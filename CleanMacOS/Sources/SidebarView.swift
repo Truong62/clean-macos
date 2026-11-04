@@ -7,7 +7,6 @@ enum SidebarPage: Hashable {
     case largeFiles
     case uninstall
     case clipboard
-    case jira
     case displays
     case screenRecord
     case ram
@@ -39,13 +38,6 @@ struct SidebarView: View {
                 }
                 SidebarItem(icon: "doc.on.clipboard.fill", label: "Clipboard", color: .indigo, isSelected: currentPage == .clipboard) {
                     currentPage = .clipboard
-                }
-                SidebarItem(icon: "checklist", label: "Jira", color: .blue, isSelected: currentPage == .jira) {
-                    currentPage = .jira
-                }
-                if currentPage == .jira {
-                    JiraSidebarSection()
-                        .transition(.sidebarDisclosure)
                 }
                 SidebarItem(icon: "display.2", label: "Displays", color: .purple, isSelected: currentPage == .displays) {
                     currentPage = .displays
@@ -244,4 +236,40 @@ private struct DisclosureEffect: ViewModifier {
 
 extension AnyTransition {
     static let sidebarDisclosure = AnyTransition.modifier(active: DisclosureEffect(progress: 0), identity: DisclosureEffect(progress: 1))
+}
+
+struct SidebarSubRow: View {
+    let label: String
+    let icon: String
+    let color: Color
+    let isSelected: Bool
+    let action: () -> Void
+
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                Image(systemName: icon)
+                    .font(.system(size: 12))
+                    .foregroundStyle(color)
+                    .frame(width: 18)
+                Text(label)
+                    .font(.callout)
+                    .fontWeight(isSelected ? .semibold : .regular)
+                    .lineLimit(1)
+                Spacer()
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color.primary.opacity(isSelected ? 0.1 : (isHovered ? 0.05 : 0)))
+            )
+            .contentShape(RoundedRectangle(cornerRadius: 8))
+        }
+        .buttonStyle(.plain)
+        .pointerCursor()
+        .onHover { isHovered = $0 }
+    }
 }

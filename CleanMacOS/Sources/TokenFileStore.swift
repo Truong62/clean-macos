@@ -3,13 +3,6 @@ import Foundation
 struct TokenFileStore {
     let fileURL: URL
 
-    init(fileURL: URL? = nil) {
-        self.fileURL = fileURL ?? FileManager.default
-            .urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("CleanMacOS", isDirectory: true)
-            .appendingPathComponent("jira-token")
-    }
-
     func save(_ value: String) throws {
         let manager = FileManager.default
         try manager.createDirectory(at: fileURL.deletingLastPathComponent(), withIntermediateDirectories: true)
