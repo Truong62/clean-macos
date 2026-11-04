@@ -8,6 +8,19 @@
 
     <!-- Paste new <item> blocks here when releasing (newest first) -->
     <item>
+      <title>Version 1.0.48</title>
+      <pubDate>Wed, 04 Nov 2026 11:34:35 +0700</pubDate>
+      <sparkle:version>49</sparkle:version>
+      <sparkle:shortVersionString>1.0.48</sparkle:shortVersionString>
+      <description><![CDATA[
+        <ul><li>Jira has been removed from Clean macOS. Your saved Jira token, KPI data and Jira settings are deleted from this Mac the first time you open this version</li><li>About now lists Screen Record</li></ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/Truong62/clean-macos/releases/download/v1.0.48/CleanMacOS-1.0.48.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="3lRmQxdCIuAME9nxtF1G8wmHEzILlSkxYfe+NSItatRq2zXpuLe+RSAALzYdgvrFKi+7lOonbs2UVg2efwJ7Cg==" length="4589467" />
+    </item>
+    <item>
       <title>Version 1.0.47</title>
       <pubDate>Fri, 30 Oct 2026 09:58:23 +0700</pubDate>
       <sparkle:version>48</sparkle:version>
