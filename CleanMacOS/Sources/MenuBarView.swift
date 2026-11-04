@@ -25,11 +25,11 @@ struct MenuBarView: View {
         .onDisappear { monitor.popoverDidClose() }
     }
 
-    private func openMain(_ show: @escaping @MainActor () -> Void) {
+    private func openMain() {
         let popover = NSApp.keyWindow
         openWindow(id: "main")
         DispatchQueue.main.async {
-            show()
+            MainWindowController.show()
             if popover?.title != MainWindowController.title { popover?.close() }
         }
     }
@@ -39,7 +39,7 @@ struct MenuBarView: View {
             Image(systemName: "sparkles").foregroundStyle(.orange.gradient)
             Text("Clean macOS").font(.system(size: 13, weight: .semibold))
             Spacer()
-            MenuIconButton(systemImage: "macwindow", help: "Open Clean macOS") { openMain(MainWindowController.show) }
+            MenuIconButton(systemImage: "macwindow", help: "Open Clean macOS") { openMain() }
             MenuIconButton(systemImage: "power", help: "Quit") { NSApp.terminate(nil) }
         }
         .padding(.horizontal, 14)
