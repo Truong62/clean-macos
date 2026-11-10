@@ -59,8 +59,9 @@ struct CleanMacOSApp: App {
     @StateObject private var input = InputController()
     @StateObject private var finder = FinderTools()
     @StateObject private var diskImages = DiskImageWatcher()
-    @StateObject private var shelf = ShelfController()
-    @StateObject private var brightness = BrightnessController()
+    @StateObject private var shelf: ShelfController
+    @StateObject private var brightness: BrightnessController
+    @StateObject private var commandBar: CommandBarController
     @StateObject private var sound: SoundController
     @StateObject private var mixer: MixerController
     @AppStorage("showMenuBar") private var showMenuBar = true
@@ -69,7 +70,8 @@ struct CleanMacOSApp: App {
     init() {
         let clipboard = ClipboardViewModel()
         _clipboard = StateObject(wrappedValue: clipboard)
-        _snippets = StateObject(wrappedValue: SnippetExpander(clipboard: clipboard))
+        let snippets = SnippetExpander(clipboard: clipboard)
+        _snippets = StateObject(wrappedValue: snippets)
         let sound = SoundController()
         _sound = StateObject(wrappedValue: sound)
         _mixer = StateObject(wrappedValue: MixerController(sound: sound))
@@ -80,6 +82,15 @@ struct CleanMacOSApp: App {
         _keyboard = StateObject(wrappedValue: keyboard)
         let keepAwake = KeepAwake()
         _keepAwake = StateObject(wrappedValue: keepAwake)
+        let shelf = ShelfController()
+        _shelf = StateObject(wrappedValue: shelf)
+        let brightness = BrightnessController()
+        _brightness = StateObject(wrappedValue: brightness)
+        let context = CommandContext(keepAwake: keepAwake, sound: sound, brightness: brightness, clipboard: clipboard, snippets: snippets, shelf: shelf) { page in
+            MainWindowController.show()
+            NotificationCenter.default.post(name: .openSidebarPage, object: page)
+        }
+        _commandBar = StateObject(wrappedValue: CommandBarController(context: context))
         KeyboardShortcuts.onKeyUp(for: .toggleKeepAwake) {
             MainActor.assumeIsolated { keepAwake.toggle() }
         }
@@ -110,6 +121,7 @@ struct CleanMacOSApp: App {
                 .environmentObject(brightness)
                 .environmentObject(sound)
                 .environmentObject(mixer)
+                .environmentObject(commandBar)
                 .frame(minWidth: 900, minHeight: 600)
                 .onAppear {
                     Task { await account.refreshSession() }

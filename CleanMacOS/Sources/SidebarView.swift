@@ -11,6 +11,7 @@ enum SidebarPage: Hashable {
     case screenRecord
     case typing
     case snippets
+    case commandBar
     case files
     case sound
     case music

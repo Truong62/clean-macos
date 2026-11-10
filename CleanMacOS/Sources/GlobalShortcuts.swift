@@ -14,6 +14,7 @@ extension KeyboardShortcuts.Name {
     static let displayBrightnessDown = Self("displayBrightnessDown", default: .init(.minus, modifiers: [.command, .shift]))
     static let keyboardLightUp = Self("keyboardLightUp", default: .init(.equal, modifiers: [.command, .option]))
     static let keyboardLightDown = Self("keyboardLightDown", default: .init(.minus, modifiers: [.command, .option]))
+    static let commandBar = Self("commandBar", default: .init(.space, modifiers: [.option]))
     static let cycleOutput = Self("cycleOutput", default: .init(.s, modifiers: [.control, .option, .command]))
     static let toggleMicMute = Self("toggleMicMute", default: .init(.m, modifiers: [.control, .option, .command]))
 }

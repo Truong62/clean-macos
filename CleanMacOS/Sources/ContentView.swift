@@ -51,6 +51,9 @@ struct ContentView: View {
             case .snippets:
                 SnippetsView()
 
+            case .commandBar:
+                CommandBarSettingsView()
+
             case .files:
                 FilesView()
 
