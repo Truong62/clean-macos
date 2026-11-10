@@ -758,3 +758,145 @@ struct Bitmap {
         return (Int(bytes[index]), Int(bytes[index + 1]), Int(bytes[index + 2]))
     }
 }
+
+struct MediaReviewRegressionTests {
+    @Test func failedWritersNeverFinishEvenWhenCancelled() {
+        for readerFailed in [false, true] {
+            for cancelled in [false, true] {
+                #expect(MediaEncodingCompletion.resolve(writerFailed: true, readerFailed: readerFailed, cancelled: cancelled) == .writerFailed)
+            }
+        }
+        #expect(MediaEncodingCompletion.resolve(writerFailed: false, readerFailed: true, cancelled: false) == .readerFailed)
+        #expect(MediaEncodingCompletion.resolve(writerFailed: false, readerFailed: false, cancelled: true) == .cancelled)
+        #expect(MediaEncodingCompletion.resolve(writerFailed: false, readerFailed: false, cancelled: false) == .finish)
+    }
+
+    @Test func cancellationPreventsStartingAndDoesNotRunCleanup() {
+        let cancellation = MediaCancellation()
+        var starts = 0
+        #expect(cancellation.start { starts += 1; return true } == true)
+        cancellation.cancel()
+        #expect(cancellation.isCancelled)
+        #expect(cancellation.start { starts += 1; return true } == nil)
+        #expect(starts == 1)
+    }
+
+    @Test func pumpStopsBeforeReadingWhenCancelledOrWriterFailed() async throws {
+        let composition = AVMutableComposition()
+        let track = try #require(composition.addMutableTrack(withMediaType: .video, preferredTrackID: kCMPersistentTrackID_Invalid))
+        let output = AVAssetReaderTrackOutput(track: track, outputSettings: nil)
+        let input = AVAssetWriterInput(mediaType: .video, outputSettings: nil)
+        let pump = SamplePump(output: output, input: input)
+        await pump.run { true }
+    }
+
+    @Test func pumpObservesCancellationWhileWaitingForWriter() async throws {
+        let cancellation = MediaCancellation()
+        let composition = AVMutableComposition()
+        let track = try #require(composition.addMutableTrack(withMediaType: .video, preferredTrackID: kCMPersistentTrackID_Invalid))
+        let output = AVAssetReaderTrackOutput(track: track, outputSettings: nil)
+        let input = AVAssetWriterInput(mediaType: .video, outputSettings: nil)
+        let pump = SamplePump(output: output, input: input)
+        let task = Task { await pump.run { cancellation.isCancelled } }
+        await Task.yield()
+        cancellation.cancel()
+        await task.value
+        #expect(cancellation.isCancelled)
+    }
+
+    @Test func streamsSmallProgressChunksBeforeEOF() async throws {
+        let pipe = Pipe()
+        let received = DispatchSemaphore(value: 0)
+        let read = Task.detached {
+            CommandRunner.readOutput(pipe.fileHandleForReading) { chunk in
+                if AVConvertOutput.progress(in: chunk) == 0.25 { received.signal() }
+            }
+        }
+        try pipe.fileHandleForWriting.write(contentsOf: Data("avconvert progress: 25% complete".utf8))
+        let status = await withCheckedContinuation { continuation in
+            DispatchQueue.global().async { continuation.resume(returning: received.wait(timeout: .now() + 3)) }
+        }
+        try pipe.fileHandleForWriting.close()
+        let output = await read.value
+        #expect(status == .success)
+        #expect(String(decoding: output, as: UTF8.self) == "avconvert progress: 25% complete")
+    }
+
+    @Test func boundsGIFFramesByVideoTrackEnd() throws {
+        let duration = try MediaDuration.video(asset: 5, trackEnd: 1.25)
+        let frames = try GIFPlanner.frameTimes(length: duration, fps: 10)
+        #expect(duration == 1.25)
+        #expect(frames.allSatisfy { $0 < 1.25 })
+        #expect(try MediaDuration.video(asset: 1, trackEnd: 2) == 1)
+    }
+
+    @Test func rejectsNonfiniteDurations() {
+        #expect(MediaDuration.finite(nil) == nil)
+        for value in [Double.nan, .infinity, -.infinity] {
+            #expect(MediaDuration.finite(value) == nil)
+            #expect(throws: MediaToolError.self) { try MediaDuration.video(asset: value, trackEnd: 2) }
+            #expect(throws: MediaToolError.self) { try MediaDuration.video(asset: 2, trackEnd: value) }
+        }
+        #expect(MediaDuration.finite(1.5) == 1.5)
+    }
+
+    @Test func publishesOnlyChangedRoundedPercentages() {
+        let filter = MediaProgress()
+        #expect(filter.accepts(nil, status: "Reading"))
+        #expect(!filter.accepts(nil, status: "Reading"))
+        #expect(filter.accepts(nil, status: "Encoding"))
+        var count = 0
+        for value in 0...10_000 {
+            if filter.accepts(Double(value) / 10_000, status: "Encoding") { count += 1 }
+        }
+        #expect(count == 101)
+        #expect(!filter.accepts(1, status: "Encoding again"))
+        #expect(filter.accepts(0, status: "Encoding again"))
+        #expect(filter.accepts(.nan, status: "Reading"))
+    }
+
+    @Test func cancelledBatchKeepsSavedFilesAndFailures() async throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let urls = (1...4).map { folder.appendingPathComponent("\($0).png") }
+        let saved = folder.appendingPathComponent("saved.png")
+        try Data([1, 2, 3]).write(to: urls[0])
+        var attempts = 0
+        let result = try await MediaJobs.convertImages(urls, settings: ImageConvertSettings(), date: Date(), report: { _, _ in },
+                                                       isCancelled: { attempts == 2 }) { _, _, _, _ in
+            attempts += 1
+            if attempts == 2 { throw MediaToolError.message("Broken image") }
+            try Data([1, 2]).write(to: saved)
+            return saved
+        }
+        #expect(attempts == 2)
+        #expect(result.outputs == [saved])
+        #expect(result.bytesBefore == 3 && result.bytesAfter == 2)
+        #expect(result.failures.count == 1)
+        #expect(result.notes == ["Cancelled. Kept 1 saved images."])
+        #expect(FileManager.default.fileExists(atPath: saved.path))
+    }
+
+    @Test func alreadyCancelledBatchDoesNotConvertAnything() async throws {
+        let result = try await MediaJobs.convertImages([URL(fileURLWithPath: "/unused.png")], settings: ImageConvertSettings(),
+                                                       date: Date(), report: { _, _ in }, isCancelled: { true }) { url, _, _, _ in
+            Issue.record("Cancelled batch started conversion")
+            return url
+        }
+        #expect(result.outputs.isEmpty)
+        #expect(result.notes == ["Cancelled. Kept 0 saved images."])
+    }
+
+    @MainActor @Test func commitsEditingBeforeCapturingJobSettings() async {
+        let controller = MediaToolsController {
+            _, _, _, trim, _ in
+            #expect(trim.start == "2" && trim.end == "3")
+            return MediaResult(notes: ["Committed"])
+        }
+        controller.choose([URL(fileURLWithPath: "/nowhere/image.png")], for: .images)
+        controller.run(.images) { controller.trims[.images] = ClipTrim(isOn: true, start: "2", end: "3") }
+        for _ in 0..<500 where controller.isRunning(.images) { await Task.yield() }
+        #expect(controller.runs[.images] == .finished(MediaResult(notes: ["Committed"])))
+    }
+}

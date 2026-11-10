@@ -502,3 +502,67 @@ struct MediaToolSettings: Codable, Equatable {
     var gif = GIFSettings()
     var images = ImageConvertSettings()
 }
+
+final class MediaCancellation: @unchecked Sendable {
+    private let lock = NSLock()
+    private var cancelled = false
+
+    var isCancelled: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return cancelled
+    }
+
+    func cancel() {
+        lock.lock()
+        defer { lock.unlock() }
+        cancelled = true
+    }
+
+    func start<T>(_ operation: () throws -> T) rethrows -> T? {
+        lock.lock()
+        defer { lock.unlock() }
+        guard !cancelled else { return nil }
+        return try operation()
+    }
+}
+
+enum MediaDuration {
+    static func finite(_ seconds: Double?) -> Double? {
+        seconds.flatMap { $0.isFinite ? $0 : nil }
+    }
+
+    static func video(asset: Double, trackEnd: Double) throws -> Double {
+        guard asset.isFinite, trackEnd.isFinite, asset > 0, trackEnd > 0 else {
+            throw MediaToolError.message("This video has no usable duration.")
+        }
+        return min(asset, trackEnd)
+    }
+}
+
+final class MediaProgress: @unchecked Sendable {
+    private let lock = NSLock()
+    private var lastPercent: Int?
+    private var lastStatus: String?
+
+    func accepts(_ progress: Double?, status: String) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        let percent = MediaDuration.finite(progress).map { Int((min(max($0, 0), 1) * 100).rounded()) }
+        guard percent != lastPercent || (percent == nil && status != lastStatus) else { return false }
+        lastPercent = percent
+        lastStatus = status
+        return true
+    }
+}
+
+enum MediaEncodingCompletion {
+    case writerFailed, readerFailed, cancelled, finish
+
+    static func resolve(writerFailed: Bool, readerFailed: Bool, cancelled: Bool) -> Self {
+        if writerFailed { return .writerFailed }
+        if cancelled { return .cancelled }
+        if readerFailed { return .readerFailed }
+        return .finish
+    }
+}

@@ -53,12 +53,15 @@ final class MediaToolsController: ObservableObject {
         return true
     }
 
-    func run(_ tab: MediaTab) {
+    func run(_ tab: MediaTab, endEditing: @MainActor () -> Void = { NSApp?.keyWindow?.makeFirstResponder(nil) }) {
+        endEditing()
         guard let inputs = files[tab], !inputs.isEmpty, !isRunning(tab) else { return }
         let token = (tokens[tab] ?? 0) + 1
         tokens[tab] = token
         runs[tab] = .running(progress: nil, status: "Starting…")
+        let progressFilter = MediaProgress()
         let report: MediaJobs.Report = { [weak self] progress, status in
+            guard progressFilter.accepts(progress, status: status) else { return }
             Task { @MainActor in self?.update(tab, token: token, progress: progress, status: status) }
         }
         let runner = runner
@@ -94,7 +97,7 @@ final class MediaToolsController: ObservableObject {
         Task { [weak self] in
             let seconds = try? await AVURLAsset(url: url).load(.duration).seconds
             guard let self, self.files[tab]?.first == url else { return }
-            self.lengths[tab] = seconds
+            self.lengths[tab] = MediaDuration.finite(seconds)
         }
     }
 }
