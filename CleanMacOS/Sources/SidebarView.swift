@@ -16,6 +16,7 @@ enum SidebarPage: Hashable {
     case tools
     case sound
     case music
+    case mediaTools
     case ram
     case portsJobs
     case powerRecovery
