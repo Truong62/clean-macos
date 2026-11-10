@@ -8,6 +8,19 @@
 
     <!-- Paste new <item> blocks here when releasing (newest first) -->
     <item>
+      <title>Version 1.0.50</title>
+      <pubDate>Tue, 10 Nov 2026 11:48:51 +0700</pubDate>
+      <sparkle:version>51</sparkle:version>
+      <sparkle:shortVersionString>1.0.50</sparkle:shortVersionString>
+      <description><![CDATA[
+        <ul><li>Clean macOS is now MacKit, with a new icon. Your settings, sign-in, permissions and data carry over</li><li>The sidebar and Home group every tool into Clean, System, Productivity, Media and Developer</li><li>Power Recovery has its own page in the sidebar instead of a Settings tab</li><li>Your music library moves from ~/Music/Clean macOS to ~/Music/MacKit on its own</li></ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/Truong62/clean-macos/releases/download/v1.0.50/MacKit-1.0.50.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="o3pjKby66ZbtZDBsL/TkYm5e2P4L186p/T6zZ4vqHQwqB05sXdf6FG2wevp+pGNR7EPIbXiMli3Cui8URu8uAw==" length="5862974" />
+    </item>
+    <item>
       <title>Version 1.0.49</title>
       <pubDate>Tue, 10 Nov 2026 10:06:41 +0700</pubDate>
       <sparkle:version>50</sparkle:version>
