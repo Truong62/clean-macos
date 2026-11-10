@@ -23,6 +23,12 @@ enum RustCore {
         return (try? JSONDecoder().decode([FoundFile].self, from: Data(bytes: raw, count: strlen(raw)))) ?? []
     }
 
+    static func aiUsage(_ request: Data) -> Data {
+        guard let text = String(data: request, encoding: .utf8), let raw = mk_ai_usage(text) else { return Data() }
+        defer { mk_string_free(raw) }
+        return Data(bytes: raw, count: strlen(raw))
+    }
+
     private static func milliseconds(_ seconds: TimeInterval) -> UInt64 {
         UInt64(max(0, seconds) * 1000)
     }
