@@ -53,6 +53,16 @@ final class ProcessCancellation: @unchecked Sendable {
 }
 
 extension CommandRunner {
+    static func readOutput(_ handle: FileHandle, onOutput: (String) -> Void) -> Data {
+        var output = Data()
+        while true {
+            let chunk = handle.availableData
+            guard !chunk.isEmpty else { return output }
+            output.append(chunk)
+            onOutput(String(decoding: chunk, as: UTF8.self))
+        }
+    }
+
     static func stream(_ tool: String, _ args: [String], onOutput: @escaping @Sendable (String) -> Void) async throws -> CommandResult {
         let cancellation = ProcessCancellation()
         let result = try await withTaskCancellationHandler {
@@ -69,11 +79,7 @@ extension CommandRunner {
                     } catch {
                         return continuation.resume(throwing: error)
                     }
-                    var output = Data()
-                    while let chunk = try? pipe.fileHandleForReading.read(upToCount: 65_536), !chunk.isEmpty {
-                        output.append(chunk)
-                        onOutput(String(decoding: chunk, as: UTF8.self))
-                    }
+                    let output = Self.readOutput(pipe.fileHandleForReading, onOutput: onOutput)
                     process.waitUntilExit()
                     continuation.resume(returning: CommandResult(status: process.terminationStatus, output: String(decoding: output, as: UTF8.self), error: ""))
                 }
@@ -105,7 +111,9 @@ struct VideoSource {
         let asset = AVURLAsset(url: url)
         guard let video = try await asset.loadTracks(withMediaType: .video).first else { throw MediaToolError.message("This file has no video in it.") }
         let audio = try await asset.loadTracks(withMediaType: .audio)
-        let duration = try await asset.load(.duration).seconds
+        let assetDuration = try await asset.load(.duration).seconds
+        let videoEnd = try await video.load(.timeRange).end.seconds
+        let duration = try MediaDuration.video(asset: assetDuration, trackEnd: videoEnd)
         let (size, transform, frameRate, bitRate) = try await video.load(.naturalSize, .preferredTransform, .nominalFrameRate, .estimatedDataRate)
         guard duration > 0, size.width > 0, size.height > 0 else { throw MediaToolError.message("This video is empty.") }
         return VideoSource(asset: asset, video: video, audio: audio, duration: duration, naturalSize: size, transform: transform,
@@ -124,9 +132,7 @@ final class VideoReencoder: @unchecked Sendable {
     static let sampleRate = 48_000
     static let channels = 2
 
-    private let lock = NSLock()
-    private var reader: AVAssetReader?
-    private var isCancelled = false
+    private let cancellation = MediaCancellation()
 
     static func encode(_ source: VideoSource, plan: TargetSizePlan, range: ClipRange, to url: URL,
                        progress: @escaping @Sendable (Double) -> Void) async throws {
@@ -164,23 +170,7 @@ final class VideoReencoder: @unchecked Sendable {
     }
 
     private func cancel() {
-        lock.lock()
-        defer { lock.unlock() }
-        isCancelled = true
-        reader?.cancelReading()
-    }
-
-    private func register(_ reader: AVAssetReader) -> Bool {
-        lock.lock()
-        defer { lock.unlock() }
-        self.reader = reader
-        return !isCancelled
-    }
-
-    private var wasCancelled: Bool {
-        lock.lock()
-        defer { lock.unlock() }
-        return isCancelled
+        cancellation.cancel()
     }
 
     private func run(_ source: VideoSource, plan: TargetSizePlan, range: ClipRange, to url: URL,
@@ -207,20 +197,35 @@ final class VideoReencoder: @unchecked Sendable {
             reader.add(pump.output)
             writer.add(pump.input)
         }
-        guard register(reader) else { throw CancellationError() }
-        guard reader.startReading() else { throw reader.error ?? MediaToolError.message("The video could not be read.") }
+        guard let started = cancellation.start({ reader.startReading() }) else { throw CancellationError() }
+        guard started else { throw reader.error ?? MediaToolError.message("The video could not be read.") }
         guard writer.startWriting() else {
             reader.cancelReading()
             throw writer.error ?? MediaToolError.message("The compressed video could not be written.")
         }
         writer.startSession(atSourceTime: timeRange.start)
         await withTaskGroup(of: Void.self) { group in
-            for pump in pumps { group.addTask { await pump.run() } }
+            for pump in pumps {
+                group.addTask {
+                    await pump.run { self.cancellation.isCancelled || writer.status == .failed || reader.status == .failed }
+                }
+            }
         }
-        if wasCancelled || reader.status == .failed {
+        switch MediaEncodingCompletion.resolve(writerFailed: writer.status == .failed,
+                                               readerFailed: reader.status == .failed, cancelled: cancellation.isCancelled) {
+        case .writerFailed:
+            reader.cancelReading()
+            throw writer.error ?? MediaToolError.message("The compressed video could not be written.")
+        case .cancelled:
+            reader.cancelReading()
             writer.cancelWriting()
-            if wasCancelled { throw CancellationError() }
+            throw CancellationError()
+        case .readerFailed:
+            reader.cancelReading()
+            writer.cancelWriting()
             throw reader.error ?? MediaToolError.message("The video could not be read.")
+        case .finish:
+            break
         }
         writer.endSession(atSourceTime: timeRange.end)
         await writer.finishWriting()
@@ -477,13 +482,15 @@ enum MediaJobs {
         return MediaResult(outputs: [output], bytesBefore: MediaFiles.size(url), bytesAfter: MediaFiles.size(output), notes: notes)
     }
 
-    static func convertImages(_ urls: [URL], settings: ImageConvertSettings, date: Date, report: @escaping Report) async throws -> MediaResult {
+    static func convertImages(_ urls: [URL], settings: ImageConvertSettings, date: Date, report: @escaping Report,
+                              isCancelled: () -> Bool = { Task.isCancelled },
+                              convert: (URL, ImageConvertSettings, Int, Date) throws -> URL = ImageConverter.convert) async throws -> MediaResult {
         var result = MediaResult()
         for (offset, url) in urls.enumerated() {
-            try Task.checkCancellation()
+            if isCancelled() { break }
             report(Double(offset) / Double(urls.count), "Image \(offset + 1) of \(urls.count)…")
             do {
-                let output = try ImageConverter.convert(url, settings: settings, index: offset + 1, date: date)
+                let output = try convert(url, settings, offset + 1, date)
                 result.outputs.append(output)
                 result.bytesBefore += MediaFiles.size(url)
                 result.bytesAfter += MediaFiles.size(output)
@@ -491,6 +498,7 @@ enum MediaJobs {
                 result.failures.append("\(url.lastPathComponent): \(error.localizedDescription)")
             }
         }
+        if isCancelled() { result.notes.append("Cancelled. Kept \(result.outputs.count) saved images.") }
         return result
     }
 

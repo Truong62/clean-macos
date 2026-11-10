@@ -142,27 +142,27 @@ final class SamplePump: @unchecked Sendable {
     let output: AVAssetReaderOutput
     let input: AVAssetWriterInput
     var onAppend: ((CMTime) -> Void)?
-    private let queue = DispatchQueue(label: "click.ngoctruong.CleanMacOS.mixdown")
-    private var isDone = false
-
     init(output: AVAssetReaderOutput, input: AVAssetWriterInput) {
         self.output = output
         self.input = input
     }
 
-    func run() async {
-        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-            input.requestMediaDataWhenReady(on: queue) { [self] in
-                while !isDone && input.isReadyForMoreMediaData {
-                    guard let buffer = output.copyNextSampleBuffer(), input.append(buffer) else {
-                        isDone = true
-                        input.markAsFinished()
-                        continuation.resume()
-                        return
-                    }
-                    onAppend?(CMSampleBufferGetPresentationTimeStamp(buffer))
+    func run(shouldStop: () -> Bool = { false }) async {
+        while !Task.isCancelled && !shouldStop() {
+            guard input.isReadyForMoreMediaData else {
+                do {
+                    try await Task.sleep(nanoseconds: 2_000_000)
+                } catch {
+                    return
                 }
+                continue
             }
+            guard let buffer = output.copyNextSampleBuffer() else {
+                if !Task.isCancelled && !shouldStop() { input.markAsFinished() }
+                return
+            }
+            guard !Task.isCancelled, !shouldStop(), input.append(buffer) else { return }
+            onAppend?(CMSampleBufferGetPresentationTimeStamp(buffer))
         }
     }
 }
