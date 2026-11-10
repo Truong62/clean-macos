@@ -165,7 +165,7 @@ struct ReadoutCell: Equatable {
     var level = Level.normal
     var pressure: MemoryPressure?
 
-    var needsColor: Bool { pressure != nil || (bar != nil && level != .normal) }
+    var needsColor: Bool { pressure != nil || level != .normal }
 }
 
 enum MonitorReadouts {

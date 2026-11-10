@@ -14,18 +14,31 @@ final class IslandSpace {
 
     init() { library = dlopen("/System/Library/PrivateFrameworks/SkyLight.framework/SkyLight", RTLD_LAZY | RTLD_LOCAL) }
 
-    func attach(_ panel: NSPanel) {
+    static var supportsAbsoluteLevel: Bool {
+        guard let library = dlopen("/System/Library/PrivateFrameworks/SkyLight.framework/SkyLight", RTLD_LAZY | RTLD_LOCAL) else { return false }
+        defer { dlclose(library) }
+        let names: [String] = ["CGSMainConnectionID", "CGSSpaceCreate", "CGSSpaceSetAbsoluteLevel", "CGSShowSpaces", "CGSAddWindowsToSpaces", "CGSSpaceDestroy", "CGSRemoveWindowsFromSpaces"]
+        return names.allSatisfy { dlsym(library, $0) != nil }
+    }
+
+    @discardableResult func attach(_ panel: NSPanel, absoluteLevel: Int32? = nil) -> Bool {
         guard space == 0, let connectionFunction: Connection = symbol("CGSMainConnectionID"),
               let create: Create = symbol("CGSSpaceCreate"), let show: Show = symbol("CGSShowSpaces"),
               let add: Windows = symbol("CGSAddWindowsToSpaces"),
-              symbol("CGSSpaceDestroy", as: Destroy.self) != nil, symbol("CGSRemoveWindowsFromSpaces", as: Windows.self) != nil else { return }
+              symbol("CGSSpaceDestroy", as: Destroy.self) != nil, symbol("CGSRemoveWindowsFromSpaces", as: Windows.self) != nil else { return space != 0 }
         connection = connectionFunction()
         space = create(connection, 4, nil)
-        guard space != 0 else { return }
+        guard space != 0 else { return false }
+        if let absoluteLevel {
+            typealias Level = @convention(c) (Int32, UInt64, Int32) -> Void
+            guard let level: Level = symbol("CGSSpaceSetAbsoluteLevel") else { detach(); return false }
+            level(connection, space, absoluteLevel)
+        }
         window = panel.windowNumber
         let spaces = [NSNumber(value: space)] as CFArray
         show(connection, spaces)
         add(connection, [NSNumber(value: panel.windowNumber)] as CFArray, spaces)
+        return true
     }
 
     func detach() {

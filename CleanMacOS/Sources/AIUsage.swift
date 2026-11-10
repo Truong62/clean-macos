@@ -445,6 +445,8 @@ final class AIUsageMonitor: ObservableObject {
         }
     }
     @Published private(set) var rows: [AIUsageRow] = []
+    @Published private(set) var islandTurns: [IslandAgentTurn] = []
+    var tracksIslandTurns = false
     @Published private(set) var prices: [String: ModelPrice] = [:]
     @Published private(set) var limits: CodexLimits?
     @Published private(set) var files = 0
@@ -470,11 +472,18 @@ final class AIUsageMonitor: ObservableObject {
         isReading = true
         let request = paths.request(now: Date(), known: generation)
         let current = run
+        let readsTurns = tracksIslandTurns
+        let paths = paths
         queue.async {
             let reply = RustCore.aiUsage(request)
             let snapshot = try? AIUsageSnapshot(json: reply)
+            let turns = readsTurns ? IslandAgentLogs.read(paths: paths, now: Date()) : []
             DispatchQueue.main.async {
-                MainActor.assumeIsolated { self.receive(snapshot, run: current) }
+                MainActor.assumeIsolated {
+                    guard current == self.run else { return }
+                    self.islandTurns = turns
+                    self.receive(snapshot, run: current)
+                }
             }
         }
     }
@@ -516,6 +525,7 @@ final class AIUsageMonitor: ObservableObject {
         run += 1
         generation = 0
         rows = []
+        islandTurns = []
         prices = [:]
         limits = nil
         files = 0

@@ -61,7 +61,13 @@ struct IslandPanelView: View {
         VStack(spacing: 0) {
             if controller.isOpen {
                 header
-                if controller.exploring { gallery } else { IslandSectionView(controller: controller) }
+                if controller.exploring { gallery } else {
+                    HStack(spacing: 4) {
+                        shortcutButtons(controller.settings.leftButtons)
+                        IslandSectionView(controller: controller)
+                        shortcutButtons(controller.settings.rightButtons)
+                    }.padding(.horizontal, 8)
+                }
             } else if controller.state.phase == .peek {
                 Color.clear.frame(height: capsule ? 8 : top)
                 HStack {
@@ -79,23 +85,27 @@ struct IslandPanelView: View {
                 }.padding(.horizontal, 28).frame(maxHeight: .infinity)
             } else if controller.state.phase == .drop {
                 Color.clear.frame(height: capsule ? 8 : top)
-                Label("Drop onto Files shelf", systemImage: "tray.and.arrow.down")
+                Label("Shelf ← Drop files → Optimize", systemImage: "tray.and.arrow.down")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(.white.opacity(0.5), style: StrokeStyle(lineWidth: 1, dash: [5])))
                     .padding(12)
             } else {
                 Button { controller.toggle() } label: {
                     HStack(spacing: 8) {
+                        if controller.settings.liveBars && controller.state.currentActivity == .music && controller.state.phase != .notice { IslandBarsView(bars: controller.bars) }
                         if controller.state.phase == .notice {
                             Image(systemName: controller.state.notice?.section?.icon ?? "info.circle")
                             Text(controller.state.notice?.title ?? "").lineLimit(1)
                         } else if !capsule && controller.state.phase == .compact && controller.menuRoom.known && min(controller.menuRoom.left, controller.menuRoom.right) >= 44 {
                             Image(systemName: controller.state.currentActivity?.icon ?? "circle").frame(width: 32)
                             Color.clear.frame(width: controller.display?.camera?.width ?? 0)
-                            Text(controller.state.currentActivity == .timer ? controller.timerText : "•••").monospacedDigit().frame(width: 44)
+                            Text(controller.compactReading.isEmpty ? "•••" : controller.compactReading).monospacedDigit().lineLimit(1).frame(width: controller.compactWing)
+                        } else if controller.state.phase == .closed, controller.settings.batteryColors.enabled, let charge = controller.batteryPercent {
+                            let level = controller.settings.batteryColors.level(percent: Double(charge), plugged: controller.batteryPlugged)
+                            Label("\(charge)%", systemImage: "battery.100percent").foregroundStyle(level == .critical ? .red : level == .elevated ? .orange : .white)
                         } else if capsule && controller.state.phase == .compact {
                             Image(systemName: controller.state.currentActivity?.icon ?? "circle")
-                            Text(controller.state.currentActivity == .timer ? controller.timerText : "").monospacedDigit().lineLimit(1)
+                            Text(controller.compactReading).monospacedDigit().lineLimit(1)
                         }
                     }
                     .padding(.top, controller.state.phase == .notice && !capsule ? top : 0)
@@ -117,9 +127,11 @@ struct IslandPanelView: View {
         }
         .contentShape(silhouette)
         .onHover { controller.hover($0) }
-        .onDrop(of: ShelfController.dropTypes, isTargeted: $dropTarget) { providers in
+        .onDrop(of: ShelfController.dropTypes, isTargeted: $dropTarget) { providers, location in
             guard controller.settings.sections.contains(.files), controller.context.shelf.settings.isEnabled else { return false }
-            let accepted = controller.context.shelf.accept(providers)
+            guard controller.isOpen || controller.settings.fileDropTarget else { return false }
+            let width = controller.display.map { IslandGeometry.frame($0, settings: controller.settings, state: controller.state.phase).width } ?? 340
+            let accepted = controller.state.phase == .drop && location.x > width / 2 ? controller.files.accept(providers) : controller.context.shelf.accept(providers)
             if accepted { controller.select(.files); controller.open(hover: true) }
             return accepted
         }
@@ -139,6 +151,7 @@ struct IslandPanelView: View {
     private var header: some View {
         HStack(spacing: 10) {
             Button { controller.exploring.toggle() } label: { Image(systemName: "square.grid.2x2") }.help("Explore (⌘K)")
+            if controller.settings.liveBars && controller.section == .music { IslandBarsView(bars: controller.bars, count: 4) }
             Text(controller.exploring ? "Explore" : controller.section?.title ?? "Island").font(.headline).lineLimit(1)
             Spacer(minLength: 8)
             if let notice = controller.state.notice, notice.kind == .level { Text(notice.title).font(.caption).lineLimit(1) }
@@ -151,6 +164,16 @@ struct IslandPanelView: View {
         .frame(height: 36)
         .padding(.top, capsule ? 10 : top + 10)
         .padding(.bottom, 12)
+    }
+
+    private func shortcutButtons(_ sections: [IslandSection]) -> some View {
+        VStack(spacing: 4) {
+            ForEach(Array(sections.prefix(3).enumerated()), id: \.offset) { _, section in
+                Button { controller.select(section) } label: {
+                    Image(systemName: section.icon).frame(width: 44, height: 44).background(.white.opacity(0.08), in: Circle())
+                }.buttonStyle(.plain).help(section.title).disabled(!controller.visibleSections.contains(section))
+            }
+        }
     }
 
     private var gallery: some View {
@@ -191,10 +214,9 @@ struct IslandSectionView: View {
                 case .mixer:
                     ScrollView { MixerSection().environmentObject(controller.mixer).environmentObject(controller.context.sound) }
                 case .captures:
-                    VStack(spacing: 12) {
-                        Button("Grab Text from Screen") { controller.close(); controller.context.screenTools.grabText() }
-                        Button("Open Screen Recording") { controller.close(); controller.context.openPage(.screenRecord) }
-                    }.frame(maxWidth: .infinity, maxHeight: .infinity)
+                    if let capture = controller.context.screenTools.screenshot {
+                        IslandCaptureView(capture: capture, recorder: capture.recorder, island: controller)
+                    }
                 case .tools:
                     ScrollView {
                         LazyVGrid(columns: [GridItem(.adaptive(minimum: 120))], spacing: 12) {
@@ -204,9 +226,9 @@ struct IslandSectionView: View {
                         }
                     }
                 case .system: IslandSystemView(monitor: controller.monitor)
-                case .music: IslandMusicView(player: controller.music, remote: controller.media)
+                case .music: IslandMusicView(controller: controller, player: controller.music, remote: controller.media)
                 case .clipboard: IslandClipboardView(clipboard: controller.context.clipboard, paste: controller.paste)
-                case .files: IslandFilesView(shelf: controller.context.shelf)
+                case .files: IslandFilesView(shelf: controller.context.shelf, tools: controller.files)
                 case .scratchpad: ScratchEditor(controller: controller.context.scratchpad).clipShape(RoundedRectangle(cornerRadius: 12))
                 case .timer: IslandTimerView(controller: controller)
                 case .calendar: IslandCalendarView(service: controller.calendar)
@@ -219,6 +241,7 @@ struct IslandSectionView: View {
                             Button("Start Camera") { controller.startCamera() }
                         }.frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
+                case .watch: IslandWatchView(watch: controller.watch, pick: controller.pickWatchArea)
                 case .agents: IslandAgentsView(monitor: controller.agents)
                 case nil: EmptyView()
                 }
@@ -259,27 +282,6 @@ struct IslandVolume: View {
     }
 }
 
-struct IslandMusicView: View {
-    @ObservedObject var player: MusicPlayer
-    @ObservedObject var remote: IslandMediaRemote
-    var body: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "music.note").font(.system(size: 36)).foregroundStyle(.secondary)
-            Text(player.current?.title ?? remote.sample?.title ?? "Nothing playing").font(.headline).lineLimit(2)
-            Text(player.current?.artist ?? remote.sample?.artist ?? "Play music in MacKit or another player").foregroundStyle(.secondary).lineLimit(1)
-            if player.current != nil {
-                HStack(spacing: 32) {
-                    Button { player.previous() } label: { Image(systemName: "backward.end.fill") }
-                    Button { player.togglePlayPause() } label: { Image(systemName: player.isPlaying ? "pause.fill" : "play.fill") }
-                    Button { player.next() } label: { Image(systemName: "forward.end.fill") }
-                }.buttonStyle(.borderless).font(.title2)
-            } else if remote.sample == nil {
-                Text("System Now Playing may be unavailable on this version of macOS.").font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.center)
-            }
-        }.frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-}
-
 struct IslandClipboardView: View {
     @ObservedObject var clipboard: ClipboardViewModel
     var paste: (ClipboardItem) -> Void
@@ -293,21 +295,6 @@ struct IslandClipboardView: View {
                         Button { paste(item) } label: { Text(item.text).lineLimit(2).frame(maxWidth: .infinity, alignment: .leading).padding(8) }
                             .buttonStyle(.plain)
                     }
-                }
-            }
-        }
-    }
-}
-
-struct IslandFilesView: View {
-    @ObservedObject var shelf: ShelfController
-    var body: some View {
-        if !shelf.settings.isEnabled { Button("Enable Files Shelf") { shelf.settings.isEnabled = true } }
-        else if shelf.items.isEmpty { Label("Drop files, images, links or text here", systemImage: "tray.and.arrow.down").foregroundStyle(.secondary) }
-        else {
-            ScrollView {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 84))]) {
-                    ForEach(shelf.items) { ShelfTile(item: $0, controller: shelf) }
                 }
             }
         }
@@ -430,22 +417,6 @@ struct IslandDownloadsView: View {
     }
 }
 
-struct IslandAgentsView: View {
-    @ObservedObject var monitor: AIUsageMonitor
-    var body: some View {
-        VStack(spacing: 12) {
-            if !monitor.settings.isEnabled {
-                Text("AI usage monitoring is off").foregroundStyle(.secondary)
-                Button("Enable AI Usage") { monitor.settings.isEnabled = true }
-            } else {
-                Text(monitor.isReading ? "Reading local agent usage…" : "\(monitor.files) local usage files")
-                if let updated = monitor.updatedAt { Text(updated, style: .relative).foregroundStyle(.secondary) }
-                Button("Refresh") { monitor.refresh() }
-            }
-        }.frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-}
-
 struct IslandSettingsView: View {
     @EnvironmentObject var island: IslandController
     @State private var tab = "Layout"
@@ -506,12 +477,47 @@ struct IslandSettingsView: View {
                 Text("The camera starts only when you press Start Camera. Calendar access is requested from the Calendar section. Downloads watches only the folder you choose.")
                     .font(.caption).foregroundStyle(.secondary)
             }
+            CardSection(title: "AI agents", icon: "sparkles") {
+                Toggle("Claude Code activity", isOn: $island.settings.claudeActivity)
+                Toggle("Codex activity", isOn: $island.settings.codexActivity)
+                Toggle("Finished-turn notices", isOn: $island.settings.agentFinishedNotices)
+                Picker("Minimum duration", selection: $island.settings.agentMinimumSeconds) {
+                    Text("Any").tag(0)
+                    Text("30 seconds").tag(30)
+                    Text("1 minute").tag(60)
+                    Text("2 minutes").tag(120)
+                    Text("5 minutes").tag(300)
+                }
+                Picker("Activity reading", selection: $island.settings.agentReading) { ForEach(IslandAgentReading.allCases, id: \.self) { Text($0.rawValue.capitalized).tag($0) } }
+                Toggle("Limit and renewal notices", isOn: $island.settings.agentLimitNotices)
+                Stepper("Warn at \(island.settings.agentLimitThreshold)%", value: $island.settings.agentLimitThreshold, in: 50...95)
+            }
+            CardSection(title: "Music", icon: "music.note") {
+                Toggle("Live equalizer bars", isOn: $island.settings.liveBars)
+                Text("Captures only the playing app’s audio. Enable this toggle in the current session to allow the system-audio prompt. Reduce Motion disables bars.").font(.caption).foregroundStyle(.secondary)
+                Toggle("Lyrics panel", isOn: $island.settings.lyrics)
+                Toggle("Online lyrics lookup", isOn: $island.settings.onlineLyrics)
+                Text("While Lyrics is open, online lookup sends the song title, artist, album and duration to lrclib.net. If searches return nothing, the artist name is sent to musicbrainz.org for aliases. Imported lyrics stay in memory for this session.").font(.caption).foregroundStyle(.secondary)
+                Toggle("Up-next panel", isOn: $island.settings.queue)
+                Toggle("Volume row", isOn: $island.settings.musicVolume)
+            }
             CardSection(title: "Activities and alerts", icon: "bell") {
                 Toggle("Volume and brightness notices", isOn: $island.settings.levelNotices)
                 Toggle("Battery notices", isOn: $island.settings.batteryNotices)
+                Toggle("Battery warning colors", isOn: $island.settings.batteryColors.enabled)
+                if island.settings.batteryColors.enabled {
+                    Stepper("Red at \(island.settings.batteryColors.redThreshold)%", value: $island.settings.batteryColors.redThreshold, in: 1...99)
+                        .onChange(of: island.settings.batteryColors.redThreshold) { _, value in island.settings.batteryColors.amberThreshold = max(value + 1, island.settings.batteryColors.amberThreshold) }
+                    Toggle("Amber warning step", isOn: $island.settings.batteryColors.amber)
+                    if island.settings.batteryColors.amber { Stepper("Amber at \(island.settings.batteryColors.amberThreshold)%", value: $island.settings.batteryColors.amberThreshold, in: (island.settings.batteryColors.redThreshold + 1)...100) }
+                }
                 Toggle("Bluetooth connection notices", isOn: $island.settings.bluetoothNotices)
                 Toggle("Calendar countdowns in the final hour", isOn: $island.settings.calendarCountdown)
                 Toggle("Timer completion sound", isOn: $island.settings.timerSound)
+                Toggle("Screen Watch completion sound", isOn: $island.settings.watchSound)
+                Toggle("New-track notices", isOn: $island.settings.trackNotices)
+                Toggle("Keep Awake activity", isOn: $island.settings.keepAwakeActivity)
+                Toggle("File drag target", isOn: $island.settings.fileDropTarget)
                 Text("Notification mirroring is not included. Island does not read Notification Center databases or request Full Disk Access.").font(.caption).foregroundStyle(.secondary)
             }
         }
@@ -524,6 +530,25 @@ struct IslandSettingsView: View {
             Slider(value: $island.settings.closingDelay, in: 0.1...2, step: 0.05) { Text("Closing delay") }
             Toggle("Toggle with a global shortcut", isOn: $island.settings.shortcut)
             if island.settings.shortcut { KeyboardShortcuts.Recorder(for: .island) }
+            if IslandSpace.supportsAbsoluteLevel {
+                Toggle("Show on lock screen", isOn: $island.settings.lockScreen)
+                Toggle("Lock and unlock sounds", isOn: $island.settings.lockSounds)
+            }
+            Toggle("Screen Watch shortcut", isOn: $island.settings.watchShortcut)
+            if island.settings.watchShortcut { KeyboardShortcuts.Recorder(for: .islandWatch) }
+            ForEach([true, false], id: \.self) { left in
+                Menu(left ? "Left shortcut buttons" : "Right shortcut buttons") {
+                    ForEach(island.visibleSections) { section in
+                        Button(section.title) {
+                            var buttons = left ? island.settings.leftButtons : island.settings.rightButtons
+                            if buttons.contains(section) { buttons.removeAll { $0 == section } }
+                            else if buttons.count < 3 { buttons.append(section) }
+                            if left { island.settings.leftButtons = buttons } else { island.settings.rightButtons = buttons }
+                        }
+                    }
+                    Button("Clear") { if left { island.settings.leftButtons = [] } else { island.settings.rightButtons = [] } }
+                }
+            }
             Toggle("Scroll gestures", isOn: $island.settings.gestures)
             Toggle("Haptic feedback", isOn: $island.settings.haptics)
             Toggle("Hide in full screen", isOn: $island.settings.hideInFullScreen)

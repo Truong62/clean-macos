@@ -244,6 +244,7 @@ final class IslandDownloads: ObservableObject {
 
 @MainActor
 final class IslandMediaRemote: ObservableObject {
+    @Published private(set) var playerPID: pid_t?
     @Published private(set) var sample: IslandMediaSample?
     private var library: UnsafeMutableRawPointer?
     private var generation = 0
@@ -254,7 +255,23 @@ final class IslandMediaRemote: ObservableObject {
         library = dlopen("/System/Library/PrivateFrameworks/MediaRemote.framework/MediaRemote", RTLD_LAZY | RTLD_LOCAL)
     }
 
-    func stop() { generation += 1; sample = nil; pending = false }
+    func stop() { generation += 1; sample = nil; playerPID = nil; pending = false }
+
+    func seek(_ position: Double) {
+        guard position.isFinite, position >= 0, let library, let symbol = dlsym(library, "MRMediaRemoteSetElapsedTime") else { return }
+        typealias Seek = @convention(c) (Double) -> Void
+        unsafeBitCast(symbol, to: Seek.self)(position)
+        lastRequest = .distantPast
+        refresh()
+    }
+
+    func command(_ command: Int32) {
+        guard let library, let symbol = dlsym(library, "MRMediaRemoteSendCommand") else { return }
+        typealias Send = @convention(c) (Int32, CFDictionary?) -> Bool
+        _ = unsafeBitCast(symbol, to: Send.self)(command, nil)
+        lastRequest = .distantPast
+        refresh()
+    }
 
     func refresh() {
         guard !pending || Date().timeIntervalSince(lastRequest) > 2 else { return }
@@ -265,20 +282,36 @@ final class IslandMediaRemote: ObservableObject {
         pending = true
         lastRequest = Date()
         let token = generation
+        let requested = lastRequest
         read(.main) { [weak self] dictionary in
             Task { @MainActor in
-                guard let self, token == self.generation else { return }
+                guard let self, token == self.generation, requested == self.lastRequest else { return }
                 self.pending = false
                 guard let values = dictionary as? [String: Any], let title = values["kMRMediaRemoteNowPlayingInfoTitle"] as? String else {
                     self.sample = nil
+                    self.playerPID = nil
                     return
                 }
                 let rate = (values["kMRMediaRemoteNowPlayingInfoPlaybackRate"] as? NSNumber)?.doubleValue ?? 0
-                self.sample = IslandMediaSample(title: String(title.trimmingCharacters(in: .whitespacesAndNewlines).prefix(300)),
-                                                artist: String((values["kMRMediaRemoteNowPlayingInfoArtist"] as? String ?? "").prefix(300)),
-                                                duration: (values["kMRMediaRemoteNowPlayingInfoDuration"] as? NSNumber)?.doubleValue ?? 0,
-                                                elapsed: (values["kMRMediaRemoteNowPlayingInfoElapsedTime"] as? NSNumber)?.doubleValue ?? 0,
-                                                sampled: values["kMRMediaRemoteNowPlayingInfoTimestamp"] as? Date ?? Date(), rate: rate, playing: rate > 0)
+                let sample = IslandMediaSample(title: String(title.trimmingCharacters(in: .whitespacesAndNewlines).prefix(300)),
+                                               artist: String((values["kMRMediaRemoteNowPlayingInfoArtist"] as? String ?? "").prefix(300)),
+                                               duration: (values["kMRMediaRemoteNowPlayingInfoDuration"] as? NSNumber)?.doubleValue ?? 0,
+                                               elapsed: (values["kMRMediaRemoteNowPlayingInfoElapsedTime"] as? NSNumber)?.doubleValue ?? 0,
+                                               sampled: values["kMRMediaRemoteNowPlayingInfoTimestamp"] as? Date ?? Date(), rate: rate, playing: rate > 0,
+                                               album: String((values["kMRMediaRemoteNowPlayingInfoAlbum"] as? String ?? "").prefix(300)))
+                if let library = self.library, let symbol = dlsym(library, "MRMediaRemoteGetNowPlayingApplicationPID") {
+                    typealias ReadPID = @convention(c) (DispatchQueue, @escaping @convention(block) (pid_t) -> Void) -> Void
+                    unsafeBitCast(symbol, to: ReadPID.self)(.main) { [weak self] pid in
+                        Task { @MainActor in
+                            guard let self, self.generation == token, self.lastRequest == requested else { return }
+                            self.playerPID = pid > 0 ? pid : nil
+                            self.sample = sample
+                        }
+                    }
+                } else {
+                    self.playerPID = nil
+                    self.sample = sample
+                }
             }
         }
     }
@@ -286,6 +319,7 @@ final class IslandMediaRemote: ObservableObject {
 
 @MainActor
 final class IslandPowerMonitor {
+    var onReading: ((Int, Bool) -> Void)?
     private var source: CFRunLoopSource?
     private var edges = IslandBatteryEdges()
     var onNotice: ((String) -> Void)?
@@ -313,6 +347,7 @@ final class IslandPowerMonitor {
             guard let value = IOPSGetPowerSourceDescription(info, source)?.takeUnretainedValue() as? [String: Any],
                   value[kIOPSTypeKey] as? String == kIOPSInternalBatteryType,
                   let current = value[kIOPSCurrentCapacityKey] as? Int, let maximum = value[kIOPSMaxCapacityKey] as? Int, maximum > 0 else { continue }
+            onReading?(current * 100 / maximum, value[kIOPSPowerSourceStateKey] as? String == kIOPSACPowerValue)
             if let message = edges.update(percent: current * 100 / maximum, connected: value[kIOPSPowerSourceStateKey] as? String == kIOPSACPowerValue) { onNotice?(message) }
         }
     }
@@ -322,19 +357,40 @@ final class IslandPowerMonitor {
 final class IslandBluetoothMonitor: NSObject {
     private var notification: IOBluetoothUserNotification?
     private var known = Set<String>()
+    private var disconnects: [String: IOBluetoothUserNotification] = [:]
     var onNotice: ((String) -> Void)?
 
     func start() {
         guard notification == nil else { return }
         known = Set((IOBluetoothDevice.pairedDevices() as? [IOBluetoothDevice] ?? []).filter { $0.isConnected() }.compactMap(\.addressString))
+        for device in IOBluetoothDevice.pairedDevices() as? [IOBluetoothDevice] ?? [] where device.isConnected() { watchDisconnect(device) }
         notification = IOBluetoothDevice.register(forConnectNotifications: self, selector: #selector(connected(_:device:)))
     }
 
-    func stop() { notification?.unregister(); notification = nil; known = [] }
+    func stop() {
+        notification?.unregister()
+        notification = nil
+        disconnects.values.forEach { $0.unregister() }
+        disconnects = [:]
+        known = []
+    }
+
+    private func watchDisconnect(_ device: IOBluetoothDevice) {
+        guard let address = device.addressString else { return }
+        disconnects[address]?.unregister()
+        disconnects[address] = device.register(forDisconnectNotification: self, selector: #selector(disconnected(_:device:)))
+    }
+
+    @objc private func disconnected(_ notification: IOBluetoothUserNotification, device: IOBluetoothDevice) {
+        guard let address = device.addressString else { return }
+        known.remove(address)
+        disconnects.removeValue(forKey: address)?.unregister()
+    }
 
     @objc private func connected(_ notification: IOBluetoothUserNotification, device: IOBluetoothDevice) {
         guard let address = device.addressString, let name = device.name, !name.isEmpty,
-              device.deviceClassMajor != 1, device.deviceClassMajor != 2, known.insert(address).inserted else { return }
-        onNotice?("\(name) connected")
+              IslandAccessoryPolicy.accepts(major: UInt32(device.deviceClassMajor), paired: device.isPaired()), known.insert(address).inserted else { return }
+        watchDisconnect(device)
+        onNotice?("Connected · \(name)")
     }
 }

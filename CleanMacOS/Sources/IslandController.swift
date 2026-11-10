@@ -1,7 +1,9 @@
 import AppKit
 import Combine
+import Carbon
 import KeyboardShortcuts
 import SwiftUI
+import UserNotifications
 
 final class IslandPanel: NSPanel {
     var acceptsKeyboard = false
@@ -25,9 +27,14 @@ final class IslandController: NSObject, ObservableObject {
     @Published var timer = IslandTimer()
     @Published var now = 0.0
     @Published var cameraStarted = false
+    @Published private(set) var batteryPercent: Int?
+    @Published private(set) var batteryPlugged = true
+    @Published private(set) var capturePreview: NSImage?
+    private var previewTask: Task<Void, Never>?
     @Published private(set) var display: IslandDisplay?
     @Published private(set) var fullScreen = false
     @Published private(set) var overview = false
+    let files: IslandFileTools
     let context: CommandContext
     let music: MusicPlayer
     let mixer: MixerController
@@ -36,11 +43,22 @@ final class IslandController: NSObject, ObservableObject {
     let calendar = IslandCalendarService()
     let downloads = IslandDownloads()
     let media = IslandMediaRemote()
+    let bars = IslandBarsController()
+    let watch = IslandWatchController()
+    let lyrics = IslandLyricsController()
+    @Published var musicPanel: IslandMusicPanel? { didSet { updateLyrics(); layout() } }
+    @Published var musicNudge = 0.0
+    private var lastTrack: IslandSong?
+    private var agentNotices = IslandAgentNotices()
+    private var accessoryQueue = IslandAccessoryQueue()
+    private var accessoryBattery = IslandAccessoryBattery()
     @Published private(set) var menuRoom = IslandMenuRoom.unknown
     private let menuReader = IslandMenuReader()
     private let power = IslandPowerMonitor()
     private let bluetooth = IslandBluetoothMonitor()
     private let privateSpace = IslandSpace()
+    private let lockScene = IslandLockScreen()
+    private var unlockUntil = 0.0
     private var gesture = IslandGesture()
     private var panel: IslandPanel?
     private var copies: [IslandPanel] = []
@@ -58,6 +76,7 @@ final class IslandController: NSObject, ObservableObject {
     private var topPressed = false
     private var lastDragCount = -1
     private var hadBuiltIn = false
+    private var lastKeyboardLight: Float?
     private var lastVolume: Double?
     private var lastBrightness: [CGDirectDisplayID: Double] = [:]
     private var alarmStarted: Double?
@@ -67,6 +86,7 @@ final class IslandController: NSObject, ObservableObject {
 
     init(context: CommandContext, music: MusicPlayer, agents: AIUsageMonitor, mixer: MixerController, monitor: SystemMonitor) {
         self.context = context
+        files = IslandFileTools(shelf: context.shelf)
         self.music = music
         self.agents = agents
         self.mixer = mixer
@@ -74,9 +94,49 @@ final class IslandController: NSObject, ObservableObject {
         settings = UserDefaults.standard.data(forKey: Self.settingsKey).flatMap { try? JSONDecoder().decode(IslandSettings.self, from: $0) } ?? IslandSettings()
         super.init()
         KeyboardShortcuts.onKeyUp(for: .island) { [weak self] in MainActor.assumeIsolated { self?.toggle() } }
+        watch.onFinish = { [weak self] outcome in
+            guard let self else { return }
+            if self.settings.watchSound { NSSound(named: "Glass")?.play() }
+            self.notice(.watch, outcome, section: .watch)
+            if self.state.suspended || self.overview || self.fullScreen && self.settings.hideInFullScreen || self.panel?.isVisible != true || self.state.notice?.kind != .watch {
+                let content = UNMutableNotificationContent()
+                content.title = "Screen Watch"
+                content.body = outcome
+                UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil))
+            }
+        }
+        context.camera.openInIsland = { [weak self] in
+            guard let self, self.settings.isEnabled, self.settings.sections.contains(.camera), !self.state.suspended else { return false }
+            self.open()
+            self.select(.camera)
+            self.startCamera()
+            return true
+        }
+        KeyboardShortcuts.onKeyUp(for: .islandWatch) { [weak self] in MainActor.assumeIsolated { self?.pickWatchArea() } }
+        context.screenTools.screenshot?.onIslandCapture = { [weak self] image in
+            guard let self, self.settings.isEnabled, self.settings.sections.contains(.captures), !self.state.suspended else { return }
+            self.capturePreview = NSImage(cgImage: image, size: CGSize(width: image.width, height: image.height))
+            self.notice(.capture, "Screenshot captured", section: .captures)
+            self.previewTask?.cancel()
+            self.previewTask = Task { [weak self] in
+                do { try await Task.sleep(for: .seconds(12)) } catch { return }
+                self?.capturePreview = nil
+            }
+        }
         downloads.onFinish = { [weak self] name in self?.notice(.download, name, section: .downloads) }
-        power.onNotice = { [weak self] message in self?.notice(.battery, message) }
-        bluetooth.onNotice = { [weak self] message in self?.notice(.accessory, message) }
+        power.onNotice = { [weak self] message in
+            guard let self, self.settings.batteryNotices else { return }
+            self.notice(.battery, message)
+        }
+        power.onReading = { [weak self] percent, plugged in self?.batteryPercent = percent; self?.batteryPlugged = plugged }
+        bluetooth.onNotice = { [weak self] message in
+            guard let self else { return }
+            self.accessoryQueue.enqueue(id: message, title: message, now: self.clock)
+        }
+        context.sound.$mic.dropFirst().sink { [weak self] value in
+            guard let self, self.settings.levelNotices else { return }
+            self.notice(.level, value.isMuted ? "Microphone muted" : "Microphone unmuted", section: .home)
+        }.store(in: &subscriptions)
         context.sound.$outputVolume.dropFirst().sink { [weak self] value in
             guard let self, let value else { return }
             defer { self.lastVolume = value }
@@ -96,6 +156,45 @@ final class IslandController: NSObject, ObservableObject {
         apply(previous: nil)
     }
 
+    var enabledTurns: [IslandAgentTurn] {
+        agents.islandTurns.filter { $0.agent == .claude ? settings.claudeActivity : settings.codexActivity }
+    }
+    func agentUsage(_ turn: IslandAgentTurn) -> UsageSlice {
+        var value = UsageSlice(name: turn.agent.title)
+        for row in agents.rows where row.agent == turn.agent && row.session == turn.session && row.date >= turn.start && row.date <= (turn.end ?? Date()) {
+            value.add(row, cost: AIPricing.price(for: row, in: agents.prices).map { AIPricing.cost(row, at: $0) })
+        }
+        return value
+    }
+    func agentCost(_ usage: UsageSlice) -> String {
+        guard usage.requests > 0, usage.isPriced else { return "Cost unavailable" }
+        return String(format: "$%.2f est.", usage.cost)
+    }
+    var song: IslandSong? {
+        if let track = music.current { return IslandSong(title: track.title, artist: track.artist, album: track.album, duration: track.duration) }
+        return media.sample.map { IslandSong(title: $0.title, artist: $0.artist, album: $0.album, duration: $0.duration) }
+    }
+    var musicSample: IslandMediaSample? {
+        if let track = music.current {
+            return IslandMediaSample(title: track.title, artist: track.artist, duration: track.duration, elapsed: music.currentTime, sampled: Date(), rate: 1, playing: music.isPlaying, album: track.album)
+        }
+        return media.sample
+    }
+    private func updateLyrics() {
+        lyrics.update(song: song, sample: musicSample, visible: settings.isEnabled && settings.lyrics && isOpen && section == .music && musicPanel == .lyrics && !state.suspended, online: settings.onlineLyrics)
+    }
+    func skipMusic(next: Bool) {
+        if music.current != nil { if next { music.next() } else { music.previous() } }
+        else { media.command(next ? 4 : 5) }
+        musicNudge = next ? -8 : 8
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in self?.musicNudge = 0 }
+    }
+    func seekMusic(_ position: Double) {
+        if music.current != nil { music.seek(to: position) } else { media.seek(position) }
+    }
+    func toggleMusic() {
+        if music.current != nil { music.togglePlayPause() } else { media.command(2) }
+    }
     var isOpen: Bool { state.phase == .open }
     var clock: Double {
         var info = mach_timebase_info_data_t()
@@ -104,32 +203,65 @@ final class IslandController: NSObject, ObservableObject {
     }
     var visibleSections: [IslandSection] { settings.sections }
     var timerText: String { IslandTimer.clock(timer.value(at: now), countdown: timer.mode != .stopwatch) }
+    var compactReading: String {
+        switch state.currentActivity {
+        case .timer: return timerText
+        case .watch: return watch.headline
+        case .agents: return activityTitle.components(separatedBy: " · ").last ?? ""
+        case .home: return activityTitle.components(separatedBy: " · ").last ?? ""
+        case .downloads: return "Downloading"
+        default: return ""
+        }
+    }
+    var compactWing: Double {
+        let width = Double(compactReading.count) * 6 + 12
+        return state.currentActivity == .watch ? min(150, max(56, width)) : min(80, max(44, width))
+    }
     var activityTitle: String {
         switch state.currentActivity {
+        case .watch: return watch.headline
         case .timer: return timer.finished ? "Timer done" : timerText
         case .music: return music.current?.title ?? media.sample?.title ?? "Now Playing"
         case .downloads: return downloads.items.first(where: { !$0.finished })?.name ?? "Downloads"
         case .calendar: return IslandCalendarLogic.countdown(calendar.events, now: Date())?.title ?? "Calendar"
-        case .agents: return "AI agents working"
-        case .home: return "Keep Awake"
+        case .agents:
+            guard let turn = enabledTurns.first(where: { $0.working(at: Date()) }) else { return "AI agents" }
+            let usage = agentUsage(turn)
+            let reading: String
+            switch settings.agentReading {
+            case .elapsed: reading = IslandTimer.clock(turn.duration(at: Date()), countdown: false)
+            case .tokens: reading = "\(usage.tokens.total) tokens"
+            case .cost: reading = agentCost(usage)
+            case .limit: reading = agents.limits?.windows.map { $0.percent(at: Date()) }.max().map { "\(Int($0))%" } ?? "—"
+            }
+            return "\(turn.agent.title) · \(reading)"
+        case .home: return "Keep Awake · " + (context.keepAwake.session?.remaining(now: Date()).map { "\(Int(ceil($0 / 60))) min" } ?? "∞")
         default: return "Island"
         }
     }
 
     private func apply(previous: IslandSettings?) {
+        monitor.islandBatteryColors = settings.batteryColors
+        if previous?.liveBars == false && settings.liveBars { bars.mayRequestAccess = true }
+        if !settings.liveBars { bars.stop(); bars.mayRequestAccess = false }
         if settings.isEnabled && settings.shortcut { KeyboardShortcuts.enable([.island]) } else { KeyboardShortcuts.disable([.island]) }
+        if settings.isEnabled && settings.watchShortcut && settings.sections.contains(.watch) { KeyboardShortcuts.enable([.islandWatch]) } else { KeyboardShortcuts.disable([.islandWatch]) }
+        agents.tracksIslandTurns = settings.isEnabled && settings.sections.contains(.agents) && (settings.claudeActivity || settings.codexActivity)
         guard settings.isEnabled else { stop(); return }
         if heartbeat == nil { start() }
         if previous?.sections != settings.sections || previous?.isEnabled != settings.isEnabled {
             let active = suspension.isEmpty
             calendar.setEnabled(active && settings.sections.contains(.calendar))
             downloads.setEnabled(active && settings.sections.contains(.downloads))
+            if !settings.sections.contains(.watch) { watch.stop() }
             if !settings.sections.contains(.music) { media.stop() }
             if !settings.sections.contains(.timer) { timer = IslandTimer(); alarmStarted = nil }
             if let section, !settings.sections.contains(section) { select(nil) }
         }
-        if settings.batteryNotices && suspension.isEmpty { power.start() } else { power.stop() }
-        if settings.bluetoothNotices && suspension.isEmpty { bluetooth.start() } else { bluetooth.stop() }
+        if (settings.batteryNotices || settings.batteryColors.enabled) && suspension.isEmpty { power.start() } else { power.stop() }
+        if settings.bluetoothNotices && suspension.isEmpty { bluetooth.start() } else { bluetooth.stop(); accessoryQueue = IslandAccessoryQueue(); accessoryBattery = IslandAccessoryBattery() }
+        if musicPanel == .lyrics && !settings.lyrics || musicPanel == .queue && !settings.queue { musicPanel = nil }
+        updateLyrics()
         rebuild()
     }
 
@@ -155,11 +287,18 @@ final class IslandController: NSObject, ObservableObject {
             self.calendar.refresh()
         }
         let distributed = DistributedNotificationCenter.default()
+        observe(Notification.Name(kTISNotifySelectedKeyboardInputSourceChanged as String), center: distributed) { [weak self] in
+            guard let self, self.settings.levelNotices,
+                  let source = TISCopyCurrentKeyboardInputSource()?.takeRetainedValue(),
+                  let name = TISGetInputSourceProperty(source, kTISPropertyLocalizedName) else { return }
+            self.notice(.level, Unmanaged<CFString>.fromOpaque(name).takeUnretainedValue() as String)
+        }
         for name in ["com.apple.screenIsLocked", "com.apple.screensaver.didstart"] {
             observe(Notification.Name(name), center: distributed) { [weak self] in self?.suspend(name, true) }
         }
         observe(Notification.Name("com.apple.screenIsUnlocked"), center: distributed) { [weak self] in self?.suspend("com.apple.screenIsLocked", false) }
         observe(Notification.Name("com.apple.screensaver.didstop"), center: distributed) { [weak self] in self?.suspend("com.apple.screensaver.didstart", false) }
+        observe(Notification.Name("MacKit.Island.Watch"), center: .default) { [weak self] in self?.pickWatchArea() }
         observe(Notification.Name("MacKit.Island.Toggle"), center: .default) { [weak self] in self?.toggle() }
         observe(NSMenu.didBeginTrackingNotification, center: .default) { [weak self] in self?.menuOpen = true }
         observe(NSMenu.didEndTrackingNotification, center: .default) { [weak self] in self?.menuOpen = false }
@@ -175,6 +314,9 @@ final class IslandController: NSObject, ObservableObject {
     }
 
     private func stop() {
+        lockScene.hide(immediate: true)
+        previewTask?.cancel()
+        capturePreview = nil
         menuReader.cancel()
         heartbeat?.invalidate()
         heartbeat = nil
@@ -193,19 +335,28 @@ final class IslandController: NSObject, ObservableObject {
         calendar.setEnabled(false)
         downloads.setEnabled(false)
         media.stop()
+        lyrics.close()
+        watch.stop()
+        bars.stop()
+        musicPanel = nil
         power.stop()
         bluetooth.stop()
         alarmStarted = nil
         timer = IslandTimer()
         state = IslandState()
+        accessoryQueue = IslandAccessoryQueue()
         suspension = []
     }
 
     private func suspend(_ reason: String, _ value: Bool) {
+        if reason == "com.apple.screenIsLocked" && !value { unlockUntil = clock + 0.55 }
+        if reason == "com.apple.screenIsLocked" && settings.lockSounds && settings.lockScreen { NSSound(named: "Tink")?.play() }
         if value { suspension.insert(reason) } else { suspension.remove(reason) }
         state.suspended = !suspension.isEmpty
         if state.suspended {
             state.notice = nil
+            accessoryQueue = IslandAccessoryQueue()
+            accessoryBattery = IslandAccessoryBattery()
             state.phase = .closed
             panel?.orderOut(nil)
             privateSpace.detach()
@@ -214,9 +365,14 @@ final class IslandController: NSObject, ObservableObject {
             calendar.setEnabled(false)
             downloads.setEnabled(false)
             media.stop()
+            lyrics.close()
+            watch.pause()
+            bars.stop()
+            musicPanel = nil
             power.stop()
             bluetooth.stop()
-        } else { apply(previous: nil); tick() }
+        } else { lockScene.hide(); apply(previous: nil); tick() }
+        updateLockScene()
     }
 
     private static func screens() -> [IslandDisplay] {
@@ -304,6 +460,7 @@ final class IslandController: NSObject, ObservableObject {
 
     func layout() {
         guard let panel, let display, settings.isEnabled, !state.suspended else { return }
+        guard clock >= unlockUntil else { panel.orderOut(nil); return }
         panel.acceptsKeyboard = isOpen && !state.hoverOpened
         panel.sharingType = settings.includeInCaptures ? .readOnly : .none
         let resting = state.phase == .closed || state.phase == .compact
@@ -318,7 +475,17 @@ final class IslandController: NSObject, ObservableObject {
         panel.alphaValue = overview || hides ? 0 : 1
         panel.level = fullScreen && display.camera == nil ? .floating : NSWindow.Level(rawValue: NSWindow.Level.statusBar.rawValue + 1)
         var frame = IslandGeometry.frame(display, settings: settings, state: state.phase, hasRoom: menuRoom.known && min(menuRoom.left, menuRoom.right) >= 44)
+        if isOpen && section == .music && musicPanel != nil {
+            let extra = min(216, max(0, display.frame.height - 48 - frame.height))
+            frame.origin.y -= extra
+            frame.size.height += extra
+        }
         let closedWidth = IslandGeometry.closed(display, settings: settings).width
+        if state.phase == .compact, menuRoom.known, min(menuRoom.left, menuRoom.right) >= compactWing {
+            let width = min(display.frame.width - 24, closedWidth + compactWing * 2)
+            frame.origin.x = display.frame.midX - width / 2
+            frame.size.width = width
+        }
         let growsIntoMenu = (frame.width - closedWidth) / 2 > min(menuRoom.left, menuRoom.right)
         if display.camera == nil && !resting && (menuRoom.overlaps || growsIntoMenu || !menuRoom.known) {
             frame.origin.y = display.frame.maxY - display.menuHeight - frame.height - 6
@@ -354,15 +521,19 @@ final class IslandController: NSObject, ObservableObject {
         state.close(explicit: explicit, now: clock)
         guard !isOpen else { return }
         stopCamera()
+        musicPanel = nil
+        lyrics.close()
         exploring = false
         layout()
     }
 
     func select(_ section: IslandSection?) {
-        if self.section != section { stopCamera() }
+        if self.section != section { stopCamera(); musicPanel = nil; lyrics.close() }
         if section == .system { monitor.popoverDidOpen() }
         if self.section == .system && section != .system { monitor.popoverDidClose() }
         self.section = section
+        updateLyrics()
+        layout()
         exploring = section == nil
         haptic()
     }
@@ -409,7 +580,7 @@ final class IslandController: NSObject, ObservableObject {
 
     func notice(_ kind: IslandNoticeKind, _ title: String, section: IslandSection? = nil) {
         guard settings.isEnabled, !state.suspended, !overview, !(fullScreen && settings.hideInFullScreen),
-              section == nil || visibleSections.contains(section!) else { return }
+              kind == .level || section == nil || visibleSections.contains(section!) else { return }
         state.show(kind, title: title, section: section, now: clock)
         layout()
     }
@@ -421,6 +592,21 @@ final class IslandController: NSObject, ObservableObject {
     }
 
     func acknowledgeTimer() { alarmStarted = nil; state.notice = nil; timer = IslandTimer(); tick() }
+
+    func pickWatchArea() {
+        guard settings.isEnabled, !state.suspended, settings.sections.contains(.watch), let capture = context.screenTools.screenshot else { return }
+        close()
+        capture.pickRegion { [weak self] rect, shot, window in
+            guard let self, self.settings.isEnabled, !self.state.suspended else { return }
+            let mainTop = NSScreen.screens.first?.frame.maxY ?? 0
+            let global = CGRect(x: shot.frame.minX + rect.minX, y: mainTop - shot.frame.maxY + rect.minY, width: rect.width, height: rect.height)
+            let local = window.map { global.offsetBy(dx: -$0.frame.minX, dy: -$0.frame.minY).intersection(CGRect(origin: .zero, size: $0.frame.size)) }
+            let app = window.flatMap { NSRunningApplication(processIdentifier: $0.owner)?.localizedName } ?? "Display"
+            self.watch.start(IslandWatchTarget(display: shot.id, rect: rect, window: window?.id, windowRect: local, app: app))
+            self.open()
+            self.select(.watch)
+        }
+    }
 
     func startCamera() {
         cameraStarted = true
@@ -447,10 +633,33 @@ final class IslandController: NSObject, ObservableObject {
         if settings.haptics && panel?.isVisible == true { NSHapticFeedbackManager.defaultPerformer.perform(.alignment, performanceTime: .now) }
     }
 
+    private func updateLockScene() {
+        let visible = IslandLockPolicy.visible(enabled: settings.isEnabled && settings.lockScreen, reasons: suspension, supported: IslandSpace.supportsAbsoluteLevel)
+        if visible {
+            now = clock
+            media.refresh()
+        }
+        lockScene.update(self, visible: visible)
+    }
+
     private func tick() {
-        guard settings.isEnabled, !state.suspended else { return }
+        guard settings.isEnabled else { return }
+        if state.suspended { updateLockScene(); return }
         now = clock
         tickCount += 1
+        if settings.levelNotices && tickCount % 4 == 0, let value = context.brightness.keyboard.brightness {
+            if let previous = lastKeyboardLight, abs(previous - value) > 0.001 { notice(.level, "Keyboard light · \(Int(value * 100))%") }
+            lastKeyboardLight = value
+        }
+        if settings.bluetoothNotices && tickCount % 20 == 0 {
+            monitor.refreshAccessoryBatteries()
+            for reading in monitor.accessoryBatteries {
+                if reading.percent >= 25 { accessoryQueue.recover(reading.id) }
+                if accessoryBattery.update(id: reading.id, percent: reading.percent, sampled: reading.sampled, now: Date(), hid: true) {
+                    accessoryQueue.enqueue(id: reading.id, title: "Low battery · \(reading.name) · \(reading.percent)%", now: now, warning: true)
+                }
+            }
+        }
         if timer.tick(now: now, suspended: display == nil) {
             notice(.timer, "Timer finished", section: .timer)
             alarmStarted = now
@@ -460,16 +669,39 @@ final class IslandController: NSObject, ObservableObject {
             lastAlarm = now
         }
         if settings.sections.contains(.music), !(fullScreen && settings.hideInFullScreen) { media.refresh() }
+        updateLyrics()
+        watch.tick(pageOpen: isOpen && section == .watch)
+        bars.update(enabled: settings.liveBars && settings.sections.contains(.music) && !(fullScreen && settings.hideInFullScreen), playing: musicSample?.playing == true, song: song, pid: music.current != nil ? getpid() : media.playerPID)
+        if settings.sections.contains(.agents), agents.settings.isEnabled {
+            if settings.agentFinishedNotices {
+                for turn in agentNotices.finished(enabledTurns, now: Date(), minimum: Double(settings.agentMinimumSeconds)) {
+                    let usage = agentUsage(turn)
+                    notice(.agents, "\(turn.agent.title) finished · \(IslandTimer.clock(turn.duration(at: Date()), countdown: false)) · \(agentCost(usage))", section: .agents)
+                }
+            }
+            if settings.agentLimitNotices {
+                for message in agentNotices.limits(agents.limits, now: Date(), threshold: Double(settings.agentLimitThreshold)) { notice(.agents, message, section: .agents) }
+            }
+        }
+        let currentTrack = song
+        if settings.trackNotices, let currentTrack, let previous = lastTrack, previous != currentTrack {
+            notice(.track, currentTrack.title, section: .music)
+        }
+        lastTrack = currentTrack
         var activities: [IslandSection] = []
         if timer.active && settings.sections.contains(.timer) { activities.append(.timer) }
+        if watch.active && settings.sections.contains(.watch) { activities.append(.watch) }
+        if settings.sections.contains(.agents), agents.settings.isEnabled, enabledTurns.contains(where: { $0.working(at: Date()) }) { activities.append(.agents) }
         if settings.sections.contains(.downloads), downloads.items.contains(where: { !$0.finished && IslandDownloadLogic.live(modified: $0.modified, now: Date(), published: false) }) { activities.append(.downloads) }
         if settings.sections.contains(.music), music.isPlaying || media.sample?.playing == true { activities.append(.music) }
-        if settings.sections.contains(.home), context.keepAwake.isActive { activities.append(.home) }
-        if settings.sections.contains(.agents), agents.settings.isEnabled && agents.isReading { activities.append(.agents) }
+        if settings.keepAwakeActivity && settings.sections.contains(.home), context.keepAwake.isActive { activities.append(.home) }
         if settings.calendarCountdown && settings.sections.contains(.calendar), IslandCalendarLogic.countdown(calendar.events, now: Date()) != nil { activities.append(.calendar) }
         if fullScreen && settings.hideInFullScreen { activities = [] }
         state.activities = activities
         state.refresh(now: now)
+        if let entry = accessoryQueue.next(now: now, closed: !isOpen && state.notice == nil && (state.phase == .closed || state.phase == .compact)) {
+            notice(.accessory, entry.title)
+        }
         inspectWindows()
         if tickCount % 4 == 0, let display {
             let frame = IslandGeometry.frame(display, settings: settings, state: .closed)
@@ -527,16 +759,17 @@ final class IslandController: NSObject, ObservableObject {
                 if event.type == .keyDown { return self.key(event) }
                 if event.type == .scrollWheel, self.settings.gestures, let panel = self.panel, panel.frame.contains(NSEvent.mouseLocation) {
                     let inHeader = NSEvent.mouseLocation.y > panel.frame.maxY - 80
-                    if !self.isOpen || inHeader {
+                    if !self.isOpen || inHeader || (self.section == .music && self.musicPanel == nil) {
                         let action = self.gesture.consume(x: event.scrollingDeltaX, y: event.scrollingDeltaY, now: self.clock,
                                                           precise: event.hasPreciseScrollingDeltas, inverted: event.isDirectionInvertedFromDevice,
                                                           modified: !event.modifierFlags.intersection([.command, .option, .control, .shift]).isEmpty,
-                                                          open: self.isOpen, music: self.section == .music)
+                                                          open: self.isOpen, music: self.section == .music, momentum: !event.momentumPhase.isEmpty, began: event.phase == .began,
+                                                          blocked: self.menuOpen || self.section == .captures || self.state.phase == .drop || self.context.shelf.isDraggingContent)
                         switch action {
                         case .open: self.open()
                         case .close: self.close()
-                        case .next: self.music.next()
-                        case .previous: self.music.previous()
+                        case .next: self.skipMusic(next: true)
+                        case .previous: self.skipMusic(next: false)
                         case nil: break
                         }
                         if action != nil { return true }
@@ -566,7 +799,7 @@ final class IslandController: NSObject, ObservableObject {
         if event.type == .leftMouseDragged {
             if !top { topPressed = false }
             let board = NSPasteboard(name: .drag)
-            if settings.sections.contains(.files), context.shelf.settings.isEnabled, board.changeCount != lastDragCount,
+            if settings.fileDropTarget && settings.sections.contains(.files), context.shelf.settings.isEnabled, board.changeCount != lastDragCount,
                board.availableType(from: Array(ShelfController.accepted)) != nil {
                 lastDragCount = board.changeCount
                 state.phase = .drop
@@ -586,7 +819,7 @@ final class IslandController: NSObject, ObservableObject {
         if let input = panel?.firstResponder as? NSTextView, input.hasMarkedText() { return false }
         let modifiers = event.modifierFlags.intersection([.command, .option, .control, .shift])
         if event.keyCode == 53 {
-            if exploring { exploring = false } else { close() }
+            if musicPanel != nil { musicPanel = nil } else if exploring { exploring = false } else { close() }
             return true
         }
         if modifiers == .command && event.charactersIgnoringModifiers == "k" { exploring.toggle(); return true }

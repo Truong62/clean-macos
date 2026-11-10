@@ -55,11 +55,14 @@ final class CameraPreviewController: NSObject, ObservableObject, NSWindowDelegat
         if !settings.isEnabled { KeyboardShortcuts.disable([.cameraPreview]) }
     }
 
-    var isRequestingAccess: Bool { ignoresResignUntil == .distantFuture }
+    var openInIsland: (() -> Bool)?
+
+    var isRequestingAccess: Bool { Date() < ignoresResignUntil }
 
     var isOpen: Bool { panel?.isVisible == true }
 
     func toggle() {
+        if openInIsland?() == true { return }
         if isOpen { hide() } else { show() }
     }
 
