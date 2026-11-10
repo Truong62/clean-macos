@@ -4,10 +4,11 @@ enum IslandDisplayChoice: String, Codable, CaseIterable { case automatic, builtI
 enum IslandOpening: String, Codable, CaseIterable { case click, preview, hover, hidden }
 enum IslandSize: String, Codable, CaseIterable { case compact, spacious, custom }
 enum IslandSection: String, Codable, CaseIterable, Identifiable {
-    case home, mixer, music, clipboard, captures, files, system, tools, calendar, timer, camera, downloads, scratchpad, agents
+    case home, mixer, music, clipboard, captures, files, system, tools, calendar, timer, camera, downloads, scratchpad, agents, watch
     var id: String { rawValue }
     var title: String {
         switch self {
+        case .watch: return "Screen Watch"
         case .mixer: return "Per-app Mixer"
         case .captures: return "Captures"
         case .system: return "System monitor"
@@ -22,6 +23,7 @@ enum IslandSection: String, Codable, CaseIterable, Identifiable {
     }
     var icon: String {
         switch self {
+        case .watch: return "viewfinder.circle"
         case .mixer: return "slider.horizontal.3"
         case .captures: return "viewfinder"
         case .system: return "chart.xyaxis.line"
@@ -40,6 +42,7 @@ enum IslandSection: String, Codable, CaseIterable, Identifiable {
     }
     var letter: String {
         switch self {
+        case .watch: return "o"
         case .mixer: return "v"
         case .captures: return "s"
         case .system: return "i"
@@ -87,6 +90,28 @@ struct IslandSettings: Codable, Equatable {
     var bluetoothNotices = false
     var calendarCountdown = false
     var timerSound = false
+    var batteryColors = IslandBatteryColors()
+    var lockScreen = false
+    var lockSounds = false
+    var watchShortcut = false
+    var leftButtons: [IslandSection] = []
+    var rightButtons: [IslandSection] = []
+    var claudeActivity = false
+    var codexActivity = false
+    var agentFinishedNotices = false
+    var agentLimitNotices = false
+    var agentReading = IslandAgentReading.elapsed
+    var agentMinimumSeconds = 60
+    var agentLimitThreshold = 80
+    var liveBars = false
+    var watchSound = false
+    var lyrics = false
+    var onlineLyrics = false
+    var queue = false
+    var musicVolume = false
+    var trackNotices = false
+    var keepAwakeActivity = false
+    var fileDropTarget = false
     var timerMinutes = 15
     init() {}
 }
@@ -123,6 +148,28 @@ extension IslandSettings {
         bluetoothNotices = try c.decodeIfPresent(Bool.self, forKey: .bluetoothNotices) ?? false
         calendarCountdown = try c.decodeIfPresent(Bool.self, forKey: .calendarCountdown) ?? false
         timerSound = try c.decodeIfPresent(Bool.self, forKey: .timerSound) ?? false
+        batteryColors = try c.decodeIfPresent(IslandBatteryColors.self, forKey: .batteryColors) ?? IslandBatteryColors()
+        lockScreen = try c.decodeIfPresent(Bool.self, forKey: .lockScreen) ?? false
+        lockSounds = try c.decodeIfPresent(Bool.self, forKey: .lockSounds) ?? false
+        watchShortcut = try c.decodeIfPresent(Bool.self, forKey: .watchShortcut) ?? false
+        leftButtons = Array((try c.decodeIfPresent([IslandSection].self, forKey: .leftButtons) ?? []).prefix(3))
+        rightButtons = Array((try c.decodeIfPresent([IslandSection].self, forKey: .rightButtons) ?? []).prefix(3))
+        claudeActivity = try c.decodeIfPresent(Bool.self, forKey: .claudeActivity) ?? false
+        codexActivity = try c.decodeIfPresent(Bool.self, forKey: .codexActivity) ?? false
+        agentFinishedNotices = try c.decodeIfPresent(Bool.self, forKey: .agentFinishedNotices) ?? false
+        agentLimitNotices = try c.decodeIfPresent(Bool.self, forKey: .agentLimitNotices) ?? false
+        agentReading = try c.decodeIfPresent(IslandAgentReading.self, forKey: .agentReading) ?? .elapsed
+        agentMinimumSeconds = min(300, max(0, try c.decodeIfPresent(Int.self, forKey: .agentMinimumSeconds) ?? 60))
+        agentLimitThreshold = min(95, max(50, try c.decodeIfPresent(Int.self, forKey: .agentLimitThreshold) ?? 80))
+        liveBars = try c.decodeIfPresent(Bool.self, forKey: .liveBars) ?? false
+        watchSound = try c.decodeIfPresent(Bool.self, forKey: .watchSound) ?? false
+        lyrics = try c.decodeIfPresent(Bool.self, forKey: .lyrics) ?? false
+        onlineLyrics = try c.decodeIfPresent(Bool.self, forKey: .onlineLyrics) ?? false
+        queue = try c.decodeIfPresent(Bool.self, forKey: .queue) ?? false
+        musicVolume = try c.decodeIfPresent(Bool.self, forKey: .musicVolume) ?? false
+        trackNotices = try c.decodeIfPresent(Bool.self, forKey: .trackNotices) ?? false
+        keepAwakeActivity = try c.decodeIfPresent(Bool.self, forKey: .keepAwakeActivity) ?? false
+        fileDropTarget = try c.decodeIfPresent(Bool.self, forKey: .fileDropTarget) ?? false
         timerMinutes = min(180, max(1, try c.decodeIfPresent(Int.self, forKey: .timerMinutes) ?? 15))
     }
 }
@@ -192,23 +239,24 @@ enum IslandGeometry {
 
 enum IslandPhase: Equatable { case closed, compact, notice, peek, open, drop }
 enum IslandNoticeKind: String {
-    case level, timer, battery, accessory, agents, clipboard, download, track
+    case level, timer, watch, capture, battery, accessory, agents, clipboard, download, track
     var priority: Int {
         switch self {
         case .level: return 5
-        case .timer: return 4
+        case .timer, .watch: return 4
         case .battery, .accessory, .agents: return 3
-        case .clipboard, .download, .track: return 1
+        case .clipboard, .download, .track, .capture: return 1
         }
     }
     var duration: Double {
         switch self {
         case .level: return 1.6
-        case .timer, .download: return 6
+        case .timer, .watch, .download: return 6
         case .battery, .accessory: return 4
         case .agents: return 5
         case .clipboard: return 2.5
         case .track: return 3
+        case .capture: return 12
         }
     }
 }
@@ -231,7 +279,7 @@ struct IslandState: Equatable {
     var protected = false
     var currentActivity: IslandSection? {
         if let selectedActivity, activities.contains(selectedActivity) { return selectedActivity }
-        return [.timer, .downloads, .agents, .calendar, .music, .home].first { activities.contains($0) }
+        return [.timer, .watch, .downloads, .agents, .calendar, .music, .home].first { activities.contains($0) }
     }
     mutating func refresh(now: Double) {
         if let notice, !notice.held, notice.expires <= now { self.notice = nil }
@@ -407,6 +455,7 @@ struct IslandMediaSample: Equatable {
     var sampled: Date
     var rate: Double
     var playing: Bool
+    var album = ""
     func position(at date: Date) -> Double {
         guard duration.isFinite, duration > 0, duration <= 604800, elapsed.isFinite else { return 0 }
         let speed = rate.isFinite ? min(16, max(0, rate)) : 0
@@ -416,26 +465,33 @@ struct IslandMediaSample: Equatable {
 
 struct IslandGesture {
     enum Action: Equatable { case open, close, next, previous }
+    private enum Axis { case horizontal, vertical, rejected }
+    private var axis: Axis?
     private var x = 0.0
     private var y = 0.0
     private var last = -Double.infinity
     private var fired = false
-    mutating func consume(x dx: Double, y dy: Double, now: Double, precise: Bool, inverted: Bool, modified: Bool, open: Bool, music: Bool) -> Action? {
-        guard !modified else { self = IslandGesture(); return nil }
-        if now - last > 0.35 { self = IslandGesture() }
+    mutating func consume(x dx: Double, y dy: Double, now: Double, precise: Bool, inverted: Bool, modified: Bool, open: Bool, music: Bool, momentum: Bool = false, began: Bool = false, blocked: Bool = false) -> Action? {
+        guard !modified, !blocked, dx.isFinite, dy.isFinite, now.isFinite else { self = IslandGesture(); return nil }
+        if began || now - last > 0.35 { self = IslandGesture() }
         last = now
         guard !fired else { return nil }
-        let factor = precise ? 1.0 : 24.0
-        x += dx * factor * (inverted ? -1 : 1)
-        y += dy * factor * (inverted ? -1 : 1)
-        guard max(abs(x), abs(y)) >= 4 else { return nil }
+        let factor = (precise ? 1.0 : 24.0) * (inverted ? -1 : 1)
+        x += dx * factor
+        y += dy * factor
+        if axis == nil, max(abs(x), abs(y)) >= 4 {
+            if abs(y) >= abs(x) * 1.5 { axis = .vertical }
+            else if abs(x) >= abs(y) * 1.5 { axis = .horizontal }
+            else { axis = .rejected }
+        }
         var action: Action?
-        if abs(y) >= abs(x) * 1.5, abs(y) >= 16 {
+        if axis == .vertical, abs(y) >= 16 {
             if y < 0 && !open { action = .open }
             if y > 0 && open { action = .close }
-        } else if music && abs(x) >= abs(y) * 1.5 && abs(x) >= 40 {
+        } else if axis == .horizontal, music, open, precise, !momentum, abs(x) >= 40 {
             action = x < 0 ? .next : .previous
         }
+        if momentum && axis == .horizontal { fired = true }
         if action != nil { fired = true }
         return action
     }

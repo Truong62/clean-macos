@@ -34,6 +34,9 @@ final class ProcessCancellation: @unchecked Sendable {
     private let lock = NSLock()
     private var process: Process?
     private var isCancelled = false
+    private let forceAfter: Double?
+
+    init(forceAfter: Double? = nil) { self.forceAfter = forceAfter }
 
     func launch(_ process: Process) throws -> Bool {
         lock.lock()
@@ -48,13 +51,22 @@ final class ProcessCancellation: @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
         isCancelled = true
-        if let process, process.isRunning { process.terminate() }
+        if let process, process.isRunning {
+            process.terminate()
+            if let forceAfter {
+                DispatchQueue.global().asyncAfter(deadline: .now() + forceAfter) { [self] in
+                    lock.lock()
+                    defer { lock.unlock() }
+                    if process.isRunning { kill(process.processIdentifier, SIGKILL) }
+                }
+            }
+        }
     }
 }
 
 extension CommandRunner {
-    static func stream(_ tool: String, _ args: [String], onOutput: @escaping @Sendable (String) -> Void) async throws -> CommandResult {
-        let cancellation = ProcessCancellation()
+    static func stream(_ tool: String, _ args: [String], terminationGrace: Double? = nil, onOutput: @escaping @Sendable (String) -> Void) async throws -> CommandResult {
+        let cancellation = ProcessCancellation(forceAfter: terminationGrace)
         let result = try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<CommandResult, Error>) in
                 DispatchQueue.global(qos: .userInitiated).async {

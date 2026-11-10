@@ -63,6 +63,8 @@ final class ShelfController: NSObject, ObservableObject, NSWindowDelegate {
         apply(previous: nil)
     }
 
+    var isDraggingContent: Bool { isContentDrag }
+
     var items: [ShelfItem] { shelf.items }
 
     func toggle() {

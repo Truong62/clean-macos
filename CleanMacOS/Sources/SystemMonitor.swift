@@ -27,6 +27,10 @@ final class SystemMonitor: ObservableObject {
     }
     @Published private(set) var snapshot = MonitorSnapshot()
     @Published private(set) var history = MonitorHistory()
+    @Published var islandBatteryColors = IslandBatteryColors()
+    @Published private(set) var accessoryBatteries: [IslandAccessoryReading] = []
+
+    func refreshAccessoryBatteries() { accessoryBatteries = IslandAccessoryProbe.read(now: Date()) }
 
     let cpuName: String
     let osVersion: String
@@ -55,7 +59,13 @@ final class SystemMonitor: ObservableObject {
 
     var showsReadouts: Bool { !settings.readouts.isEmpty }
     var showsCPUReadout: Bool { settings.readouts.contains(.cpu) }
-    var readoutImage: NSImage { ReadoutImage.make(MonitorReadouts.cells(snapshot, settings: settings)) }
+    var readoutImage: NSImage {
+        var cells = MonitorReadouts.cells(snapshot, settings: settings)
+        if let index = settings.shownReadouts.firstIndex(of: .battery), cells.indices.contains(index) {
+            cells[index].level = islandBatteryColors.level(percent: snapshot.battery?.charge, plugged: snapshot.battery?.isPluggedIn ?? true)
+        }
+        return ReadoutImage.make(cells)
+    }
 
     func startSampling(interval: TimeInterval = 3) {
         guard labelInterval == nil else { return }

@@ -232,6 +232,8 @@ final class ScreenshotController: ObservableObject {
     private var lifecycleTimer: Timer?
     private var wakeObserver: NSObjectProtocol?
     private var latest: URL?
+    var onIslandCapture: ((CGImage) -> Void)?
+    private var regionSelection: ((CGRect, CaptureDisplay, CaptureWindow?) -> Void)?
     private var regions = CaptureRegions()
     private var scrollDone = false
     private var scrollCancelled = false
@@ -277,6 +279,13 @@ final class ScreenshotController: ObservableObject {
         pruneExports(cache.appendingPathComponent("Drag"), age: 3600)
         pruneExports(cache.appendingPathComponent("Clipboard"), age: 86400)
         applyShortcuts()
+    }
+
+    func pickRegion(_ completion: @escaping (CGRect, CaptureDisplay, CaptureWindow?) -> Void) {
+        guard !busy, !screenTools.isSelecting, scrollTask == nil else { return }
+        regionSelection = completion
+        start(.text)
+        if !busy { regionSelection = nil }
     }
 
     func start(_ mode: CaptureMode = .screenshot, displayOnly: Bool = false) {
@@ -354,7 +363,7 @@ final class ScreenshotController: ObservableObject {
     }
 
     func switchMode(_ mode: CaptureMode) {
-        guard mode != .recording || ScreenRecorder.isSupported else { return }
+        guard regionSelection == nil, mode != .recording || ScreenRecorder.isSupported else { return }
         self.mode = mode
         for panel in overlays { (panel.contentView as? CaptureOverlayView)?.modeChanged() }
     }
@@ -365,6 +374,14 @@ final class ScreenshotController: ObservableObject {
 
     func select(_ rect: CGRect, shot: CaptureDisplay, window: CaptureWindow? = nil, remembers: Bool = true) {
         guard busy else { return }
+        if let selection = regionSelection {
+            let center = CGPoint(x: shot.frame.minX + rect.midX, y: (NSScreen.screens.first?.frame.maxY ?? 0) - shot.frame.maxY + rect.midY)
+            let followed = window ?? ScreenshotHardware.windows().first { $0.owner != getpid() && $0.layer == 0 && $0.frame.contains(center) }
+            regionSelection = nil
+            cleanup()
+            selection(rect, shot, followed)
+            return
+        }
         if remembers { regions.remember(rect, display: shot.id) }
         captureArea = CGRect(x: shot.frame.minX + rect.minX, y: shot.frame.maxY - rect.maxY, width: rect.width, height: rect.height)
         let selectedMode = mode
@@ -411,6 +428,7 @@ final class ScreenshotController: ObservableObject {
     func cancel() { session?.cancel(); cleanup() }
 
     private func cleanup() {
+        regionSelection = nil
         overlays.forEach { $0.orderOut(nil) }
         overlays.removeAll()
         busy = false
@@ -439,6 +457,7 @@ final class ScreenshotController: ObservableObject {
     }
 
     private func complete(_ image: CGImage, scale: CGFloat) {
+        onIslandCapture?(image)
         closePreview()
         do {
             try FileManager.default.createDirectory(at: cache, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])

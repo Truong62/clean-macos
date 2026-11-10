@@ -399,7 +399,7 @@ enum ReadoutImage {
         for (index, line) in cell.lines.enumerated() {
             let width = size(line, font).width
             (line as NSString).draw(at: NSPoint(x: x + layout.value - width, y: top - lineHeight * CGFloat(index + 1)),
-                                    withAttributes: [.font: font, .foregroundColor: ink])
+                                    withAttributes: [.font: font, .foregroundColor: barColor(cell.level, ink: ink)])
         }
     }
 
