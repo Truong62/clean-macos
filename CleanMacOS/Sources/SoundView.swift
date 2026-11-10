@@ -11,6 +11,7 @@ struct SoundView: View {
                 PageHeader(icon: "speaker.wave.2.fill", title: "Sound", subtitle: "Switch devices fast, keep a priority order and mute every microphone at once.",
                            colors: [.pink, .orange])
                 devicesCard
+                MixerSection()
                 CardSection(title: "Output switcher", icon: "arrow.triangle.2.circlepath") {
                     Toggle("A shortcut cycles through chosen outputs", isOn: $sound.settings.cycleEnabled)
                     if sound.settings.cycleEnabled {
@@ -191,5 +192,77 @@ struct MicBadgeMenu: View {
         Button("Unmute Microphones") { sound.toggleMicMute() }
         Divider()
         Button("Hide This Badge") { sound.settings.showsMicBadge = false }
+    }
+}
+
+struct MixerSection: View {
+    @EnvironmentObject var mixer: MixerController
+    @EnvironmentObject var sound: SoundController
+
+    var body: some View {
+        CardSection(title: "Volume mixer", icon: "slider.horizontal.3") {
+            if !MixerController.isAvailable {
+                Text("Per-app volume needs macOS 14.4 or later.").foregroundStyle(.secondary)
+            } else {
+                Toggle("Set the volume of each app", isOn: $mixer.settings.isEnabled)
+                if mixer.settings.isEnabled {
+                    Toggle("Hide apps that aren't playing", isOn: $mixer.settings.hidesInactive)
+                    if let problem = mixer.problem {
+                        Text(problem.message).font(.caption).foregroundStyle(.orange)
+                    }
+                    if mixer.visibleApps.isEmpty {
+                        Text("No apps are using sound right now.").foregroundStyle(.secondary)
+                    }
+                    ForEach(mixer.visibleApps) { MixerRow(app: $0) }
+                    Text("The first change asks for Screen & System Audio Recording access. Above 100% a limiter keeps loud apps from clipping.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+            }
+        }
+    }
+}
+
+private struct MixerRow: View {
+    static let iconSize: CGFloat = 28
+
+    @EnvironmentObject var mixer: MixerController
+    @EnvironmentObject var sound: SoundController
+    let app: AudioApp
+
+    var body: some View {
+        let mix = mixer.mix(for: app)
+        let canTap = AudioAppPolicy.canTap(app.id)
+        HStack(spacing: 10) {
+            Image(nsImage: NSRunningApplication(processIdentifier: app.pid)?.icon ?? NSImage()).resizable().frame(width: Self.iconSize, height: Self.iconSize)
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 5) {
+                    Text(app.name).lineLimit(1)
+                    if app.isPlaying { Circle().fill(Color.green).frame(width: 6, height: 6) }
+                }
+                if !canTap { Text("Left alone so its calls keep working").font(.caption2).foregroundStyle(.secondary) }
+            }
+            .frame(width: 160, alignment: .leading)
+            Button { mixer.toggleMute(app) } label: {
+                Image(systemName: mix.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
+            }
+            .buttonStyle(.borderless)
+            .disabled(!canTap)
+            Slider(value: Binding(get: { mix.volume }, set: { mixer.setVolume($0, for: app) }), in: 0...MixerGain.maximum)
+                .tint(mix.volume > AppMix.unity ? .orange : .accentColor)
+                .disabled(!canTap || mix.isMuted)
+            Text("\(Int((mix.volume * 100).rounded()))%").monospacedDigit().frame(width: 46, alignment: .trailing)
+                .foregroundStyle(mix.volume > AppMix.unity ? Color.orange : .primary)
+            Button { mixer.reset(app) } label: { Image(systemName: "arrow.uturn.backward") }
+                .buttonStyle(.borderless)
+                .help("Back to 100%")
+                .disabled(!canTap || (!mix.isMuted && abs(mix.volume - AppMix.unity) < AppMix.tolerance))
+            Picker("", selection: Binding(get: { mix.route }, set: { mixer.setRoute($0, for: app) })) {
+                Text("Default output").tag(String?.none)
+                ForEach(sound.outputs) { Text($0.name).tag(String?.some($0.uid)) }
+            }
+            .labelsHidden()
+            .frame(width: 150)
+            .disabled(!canTap)
+        }
     }
 }

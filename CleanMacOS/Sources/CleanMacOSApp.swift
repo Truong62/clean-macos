@@ -61,7 +61,8 @@ struct CleanMacOSApp: App {
     @StateObject private var diskImages = DiskImageWatcher()
     @StateObject private var shelf = ShelfController()
     @StateObject private var brightness = BrightnessController()
-    @StateObject private var sound = SoundController()
+    @StateObject private var sound: SoundController
+    @StateObject private var mixer: MixerController
     @AppStorage("showMenuBar") private var showMenuBar = true
     @State private var panelController: ClipboardPanelController?
 
@@ -69,6 +70,9 @@ struct CleanMacOSApp: App {
         let clipboard = ClipboardViewModel()
         _clipboard = StateObject(wrappedValue: clipboard)
         _snippets = StateObject(wrappedValue: SnippetExpander(clipboard: clipboard))
+        let sound = SoundController()
+        _sound = StateObject(wrappedValue: sound)
+        _mixer = StateObject(wrappedValue: MixerController(sound: sound))
         let library = MusicLibrary(legacyRoot: MusicLibrary.legacyRoot)
         _library = StateObject(wrappedValue: library)
         _music = StateObject(wrappedValue: MusicPlayer(library: library))
@@ -105,6 +109,7 @@ struct CleanMacOSApp: App {
                 .environmentObject(shelf)
                 .environmentObject(brightness)
                 .environmentObject(sound)
+                .environmentObject(mixer)
                 .frame(minWidth: 900, minHeight: 600)
                 .onAppear {
                     Task { await account.refreshSession() }

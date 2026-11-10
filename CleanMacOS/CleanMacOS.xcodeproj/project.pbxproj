@@ -29,6 +29,7 @@
 		23D50491F3450FCA148381C4 /* TokenFileStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76B7603C695D7E900696BC7D /* TokenFileStore.swift */; };
 		2CD6BD854BCDA0E493C97ABC /* LargeFilesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5DCE02A3AFD020C36EFFF76 /* LargeFilesView.swift */; };
 		31B5D338F0B2D2941C130613 /* ProcessModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3E23E9045ECAC8FF3EB37FF /* ProcessModels.swift */; };
+		329D520E30A2E5A62A7BF53A /* MixerEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = E463D1F2B0718613653B0F9C /* MixerEngine.swift */; };
 		353CBF5E2C37D2031FDC821F /* KeepAwakeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 394AC257CBEAA477FA20E821 /* KeepAwakeView.swift */; };
 		354B77ADE0867E8C7E707238 /* WindowsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30C79480AF1069BF87B637AA /* WindowsView.swift */; };
 		3628555B12BC61BC38474F54 /* QuickControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAB1671A3563CB387E46F2D9 /* QuickControls.swift */; };
@@ -87,6 +88,7 @@
 		9DD6BA1E28BA04A198D47BD5 /* ClipboardItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E43375821CBBE9DA578E345 /* ClipboardItem.swift */; };
 		9E0AD96F4412E279DC603FCA /* ToolCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FD309CF3EA6462034C2FE83 /* ToolCatalog.swift */; };
 		9FB7AC07F1831FD94F649E30 /* CleanMacOSApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7CB583C51545CB2D5649473 /* CleanMacOSApp.swift */; };
+		A49D847EBBE09D7F1A7D756A /* Mixer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FD43015CA24824A6A7ACEA1 /* Mixer.swift */; };
 		A7FD38BC30A09373541D4ED4 /* PortsJobsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A006AC3D753EA22E7DAE17A9 /* PortsJobsView.swift */; };
 		AB180853B09F48F15F6768C6 /* ShelfController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95BBED4D723D663890BC37DC /* ShelfController.swift */; };
 		AD997E71E12F6326F17AE7D0 /* AudioHardware.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63D9647A4B610BC04F302D7F /* AudioHardware.swift */; };
@@ -194,6 +196,7 @@
 		6A3870A8BF23DCEB9D20C11D /* MusicView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicView.swift; sourceTree = "<group>"; };
 		6E5967A4047D750A42B3AC58 /* RAMView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RAMView.swift; sourceTree = "<group>"; };
 		6E6605F78F231FED448C3292 /* SoundHardware.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoundHardware.swift; sourceTree = "<group>"; };
+		6FD43015CA24824A6A7ACEA1 /* Mixer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Mixer.swift; sourceTree = "<group>"; };
 		715A6709B24AB8B65456634F /* SoundView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoundView.swift; sourceTree = "<group>"; };
 		7335EA96D5BFB7CA1CAAAD51 /* DevToolsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevToolsView.swift; sourceTree = "<group>"; };
 		76B7603C695D7E900696BC7D /* TokenFileStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenFileStore.swift; sourceTree = "<group>"; };
@@ -254,6 +257,7 @@
 		E113230622A0F6F81BE3C833 /* RecordingMCPServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingMCPServer.swift; sourceTree = "<group>"; };
 		E1FC8128FEE8FEEE7743FF7B /* GlobalShortcuts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlobalShortcuts.swift; sourceTree = "<group>"; };
 		E252AB1BFAACB4F635ADF310 /* BrightnessView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrightnessView.swift; sourceTree = "<group>"; };
+		E463D1F2B0718613653B0F9C /* MixerEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MixerEngine.swift; sourceTree = "<group>"; };
 		E7CB583C51545CB2D5649473 /* CleanMacOSApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CleanMacOSApp.swift; sourceTree = "<group>"; };
 		E810B56BE583F31CA5034A3D /* KeepAwake.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeepAwake.swift; sourceTree = "<group>"; };
 		EBE48F3D0C5F9069CE856FC8 /* WindowLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowLayout.swift; sourceTree = "<group>"; };
@@ -362,6 +366,8 @@
 				8EB2810848FCC205C4339083 /* LoginItemsService.swift */,
 				5A993B1ADB912A796AE468D9 /* MenuBarController.swift */,
 				FAAA08ABC4C4FD3834BA928F /* MenuBarView.swift */,
+				6FD43015CA24824A6A7ACEA1 /* Mixer.swift */,
+				E463D1F2B0718613653B0F9C /* MixerEngine.swift */,
 				CA9E35C7D8B82601564C5468 /* Models.swift */,
 				55B5555C7B13EE1709B9A5CD /* MusicAlbumsView.swift */,
 				01355B629E15E2DB38E9DFB7 /* MusicLibrary.swift */,
@@ -597,6 +603,8 @@
 				412F63C52B2EDDC8940FEEC1 /* LoginItemsService.swift in Sources */,
 				7BA19101C45ED46BA88C75C2 /* MenuBarController.swift in Sources */,
 				FABD8B68B191996B3BAEB7E5 /* MenuBarView.swift in Sources */,
+				A49D847EBBE09D7F1A7D756A /* Mixer.swift in Sources */,
+				329D520E30A2E5A62A7BF53A /* MixerEngine.swift in Sources */,
 				4DE61E3589D07E845CBC2FF3 /* Models.swift in Sources */,
 				1B3AE11732CEDA64960CB87A /* MusicAlbumsView.swift in Sources */,
 				C49BCD041BCEA68D7CB37545 /* MusicLibrary.swift in Sources */,
