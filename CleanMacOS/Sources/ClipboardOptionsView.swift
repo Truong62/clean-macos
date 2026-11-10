@@ -15,6 +15,16 @@ struct ClipboardOptionsView: View {
                 .frame(maxWidth: 320)
                 Text("Pinned items are never removed.").font(.caption).foregroundStyle(.secondary)
             }
+            CardSection(title: "Display", icon: "eye") {
+                Toggle("Show the app each item was copied from", isOn: $clipboard.options.showsSourceIcons)
+                Toggle("Show recent items in the menu bar panel", isOn: $clipboard.options.showsInMenuPanel)
+                Toggle("Show the latest copy in the menu bar", isOn: $clipboard.options.showsLatestInMenuBar)
+                if clipboard.options.showsLatestInMenuBar {
+                    Stepper(value: $clipboard.options.latestLength, in: 5...50) {
+                        Text("Up to \(clipboard.options.latestLength) characters")
+                    }
+                }
+            }
             CardSection(title: "Privacy", icon: "hand.raised") {
                 Toggle("Skip text that looks like a password, key or token", isOn: $clipboard.options.skipsSensitiveText)
                 AppListEditor(title: "Never save copies from these apps", bundleIDs: $clipboard.options.skippedApps)

@@ -6,6 +6,7 @@ struct MenuBarView: View {
     @ObservedObject var agentRecording: AgentRecordingIndicator
     @ObservedObject var music: MusicPlayer
     @ObservedObject var keepAwake: KeepAwake
+    @ObservedObject var clipboard: ClipboardViewModel
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
@@ -28,6 +29,10 @@ struct MenuBarView: View {
             }
             if let track = music.current {
                 nowPlayingRow(track)
+                Divider()
+            }
+            if clipboard.options.showsInMenuPanel && !clipboard.items.isEmpty {
+                ClipboardMenuCard(clipboard: clipboard)
                 Divider()
             }
             systemStats

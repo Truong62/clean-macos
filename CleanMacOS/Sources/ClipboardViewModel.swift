@@ -12,6 +12,7 @@ final class ClipboardViewModel: ObservableObject {
     static let screenLocked = Notification.Name("com.apple.screenIsLocked")
 
     @Published private(set) var items: [ClipboardItem] = []
+    @Published private(set) var currentItemID: ClipboardItem.ID?
     @Published var options: ClipboardOptions {
         didSet {
             UserDefaults.standard.set(try? JSONEncoder().encode(options), forKey: ClipboardOptions.key)
@@ -43,12 +44,18 @@ final class ClipboardViewModel: ObservableObject {
         }
         monitor.onChange = { [weak self] snapshot in MainActor.assumeIsolated { self?.capture(snapshot) } }
         monitor.onTick = { [weak self] in MainActor.assumeIsolated { self?.clearIfDue() } }
+        monitor.onSkip = { [weak self] in MainActor.assumeIsolated { self?.currentItemID = nil } }
         pruneExpired()
         commit()
+        if let first = history.items.first, first.kind == .text, let string = NSPasteboard.general.string(forType: .string),
+           ClipboardItem(text: string).dedupKey == first.dedupKey {
+            currentItemID = first.id
+        }
     }
 
     var pinnedItems: [ClipboardItem] { items.filter(\.isPinned) }
     var recentItems: [ClipboardItem] { items.filter { !$0.isPinned } }
+    var latestItem: ClipboardItem? { currentItemID.flatMap { id in items.first { $0.id == id } } }
 
     func startMonitoring() {
         guard !isStarted else { return }
@@ -94,6 +101,27 @@ final class ClipboardViewModel: ObservableObject {
         used.createdAt = Date()
         used.sourceApp = nil
         insert(used)
+        return true
+    }
+
+    @discardableResult
+    func copy(_ pile: [ClipboardItem]) -> Bool {
+        guard pile.count > 1 else { return pile.first.map { copy($0) } ?? false }
+        let pasteboard = NSPasteboard.general
+        if ClipboardPile.allFiles(pile) {
+            let urls = pile.flatMap(\.files).map { URL(fileURLWithPath: $0) }.filter { FileManager.default.fileExists(atPath: $0.path) }
+            guard !urls.isEmpty else { return refuse() }
+            pasteboard.clearContents()
+            pasteboard.writeObjects(urls as [NSURL])
+        } else {
+            let text = ClipboardPile.text(pile)
+            pasteboard.clearContents()
+            if pile.contains(where: { $0.kind == .image }), let rtfd = richDocument(pile) { pasteboard.setData(rtfd, forType: .rtfd) }
+            if !text.isEmpty { pasteboard.setString(text, forType: .string) }
+        }
+        pasteboard.setData(Data(), forType: .init(PasteboardFacts.transient))
+        monitor.ignoreCurrentChange()
+        currentItemID = nil
         return true
     }
 
@@ -162,11 +190,13 @@ final class ClipboardViewModel: ObservableObject {
         pasteboard.clearContents()
         pasteboard.setString(text, forType: .string)
         pasteboard.setData(Data(), forType: .init(PasteboardFacts.transient))
+        monitor.ignoreCurrentChange()
         let written = pasteboard.changeCount
         PasteService.pasteWhenModifiersReleased(timeout: Self.modifierWait) {
-            DispatchQueue.main.asyncAfter(deadline: .now() + Self.restoreDelay) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + Self.restoreDelay) { [weak self] in
                 guard pasteboard.changeCount == written else { return }
                 backup.restore(to: pasteboard)
+                self?.monitor.ignoreCurrentChange()
             }
         }
     }
@@ -181,13 +211,17 @@ final class ClipboardViewModel: ObservableObject {
         case .text:
             if let text = snapshot.text { captureText(text, facts: snapshot.facts, source: source) }
         case nil:
-            return
+            currentItemID = nil
         }
     }
 
     private func captureText(_ text: String, facts: PasteboardFacts, source: String?) {
-        guard ClipboardMonitor.isCapturable(text), !(options.skipsSensitiveText && SensitiveText.looksSensitive(text)) else { return }
+        guard ClipboardMonitor.isCapturable(text), !(options.skipsSensitiveText && SensitiveText.looksSensitive(text)) else {
+            currentItemID = nil
+            return
+        }
         if options.cleansURLs, facts.holdsOnlyText, let cleaned = URLCleaner.clean(text, rules: options.urlRules), !cleaned.removed.isEmpty {
+            currentItemID = nil
             rewritePasteboard(with: cleaned.url, facts: facts)
             return
         }
@@ -217,6 +251,7 @@ final class ClipboardViewModel: ObservableObject {
 
     private func insert(_ item: ClipboardItem) {
         history.insert(item, maxItems: ClipboardSettings.maxItems)
+        currentItemID = history.items.first?.id
         pruneExpired()
         commit()
     }
@@ -228,6 +263,7 @@ final class ClipboardViewModel: ObservableObject {
 
     private func commit() {
         items = history.items
+        if let id = currentItemID, !items.contains(where: { $0.id == id }) { currentItemID = nil }
         if ClipboardSettings.persist { store.save(items) }
         store.removeImages(except: Set(items.compactMap { $0.image?.fileName }))
     }
@@ -270,6 +306,19 @@ final class ClipboardViewModel: ObservableObject {
         let pasteboard = NSPasteboard.general
         guard pasteboard.pasteboardItems?.isEmpty == false else { return }
         pasteboard.clearContents()
+    }
+
+    private func richDocument(_ pile: [ClipboardItem]) -> Data? {
+        let document = NSMutableAttributedString()
+        for item in pile {
+            if document.length > 0 { document.append(NSAttributedString(string: "\n")) }
+            if let url = imageURL(for: item), let wrapper = try? FileWrapper(url: url) {
+                document.append(NSAttributedString(attachment: NSTextAttachment(fileWrapper: wrapper)))
+            } else {
+                document.append(NSAttributedString(string: ClipboardPile.text([item])))
+            }
+        }
+        return document.rtfd(from: NSRange(location: 0, length: document.length), documentAttributes: [:])
     }
 
     private func refuse() -> Bool {

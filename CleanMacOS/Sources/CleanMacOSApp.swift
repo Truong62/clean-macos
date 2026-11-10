@@ -128,7 +128,7 @@ struct CleanMacOSApp: App {
         }
 
         MenuBarExtra(isInserted: $showMenuBar) {
-            MenuBarView(monitor: monitor, recorder: recorder, agentRecording: agentRecording, music: music, keepAwake: keepAwake)
+            MenuBarView(monitor: monitor, recorder: recorder, agentRecording: agentRecording, music: music, keepAwake: keepAwake, clipboard: clipboard)
         } label: {
             Label(String(format: " %.0f%%", monitor.latestCPU), systemImage: recorder.isRecording || agentRecording.isRecording ? "record.circle.fill" : keepAwake.isActive ? "cup.and.saucer.fill" : "square.grid.2x2.fill")
         }
@@ -138,6 +138,16 @@ struct CleanMacOSApp: App {
             TypingMenu(keyboard: keyboard)
         } label: {
             Image(nsImage: TypingBadge.image(keyboard.isVietnamese ? "V" : "E"))
+        }
+        .menuBarExtraStyle(.menu)
+
+        MenuBarExtra(isInserted: Binding(get: { clipboard.options.showsLatestInMenuBar && clipboard.latestItem != nil },
+                                         set: { isInserted in
+                                             if !isInserted && clipboard.latestItem != nil { clipboard.options.showsLatestInMenuBar = false }
+                                         })) {
+            ClipboardMenu(clipboard: clipboard)
+        } label: {
+            Text(clipboard.latestItem?.menuTitle(length: clipboard.options.latestLength) ?? "")
         }
         .menuBarExtraStyle(.menu)
     }

@@ -15,6 +15,7 @@ final class ClipboardMonitor {
 
     var onChange: ((ClipboardSnapshot) -> Void)?
     var onTick: (() -> Void)?
+    var onSkip: (() -> Void)?
     var shouldSkip: ((PasteboardFacts) -> Bool)?
     var readsImagesAndFiles = true
     private(set) var lastChangeDate = Date()
@@ -78,7 +79,10 @@ final class ClipboardMonitor {
         lastChangeDate = Date()
         let facts = PasteboardFacts(types: Set((pasteboard.types ?? []).map(\.rawValue)),
                                     declaredSource: pasteboard.string(forType: .init(PasteboardFacts.source)), activeApps: apps)
-        guard shouldSkip?(facts) != true else { return }
+        guard shouldSkip?(facts) != true else {
+            onSkip?()
+            return
+        }
         onChange?(read(facts))
     }
 

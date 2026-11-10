@@ -63,6 +63,11 @@ struct ClipboardItem: Identifiable, Codable, Hashable {
         }
     }
 
+    func menuTitle(length: Int) -> String {
+        let text = preview
+        return text.count > length ? String(text.prefix(length)) + "…" : text
+    }
+
     var searchText: String {
         switch kind {
         case .text: text

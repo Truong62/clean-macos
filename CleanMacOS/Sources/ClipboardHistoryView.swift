@@ -211,6 +211,7 @@ private struct ClipboardRow: View {
     var body: some View {
         HStack(spacing: 12) {
             ClipboardItemIcon(item: item)
+            SourceAppBadge(item: item)
             Text(item.preview)
                 .lineLimit(2)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -277,5 +278,70 @@ struct ClipboardEditSheet: View {
             }
         }
         .padding(20)
+    }
+}
+
+struct SourceAppBadge: View {
+    @EnvironmentObject var clipboard: ClipboardViewModel
+    let item: ClipboardItem
+
+    var body: some View {
+        if clipboard.options.showsSourceIcons, let source = item.sourceApp, let icon = AppIconCache.image(for: source) {
+            Image(nsImage: icon).resizable().frame(width: 16, height: 16).help(AppListEditor.name(for: source))
+        }
+    }
+}
+
+struct ClipboardMenu: View {
+    static let recentCount = 8
+    static let titleLength = 40
+
+    @ObservedObject var clipboard: ClipboardViewModel
+
+    var body: some View {
+        Button("Open Clipboard History") { NotificationCenter.default.post(name: .toggleClipboardPanel, object: nil) }
+        Divider()
+        ForEach(clipboard.items.prefix(Self.recentCount)) { item in
+            Button(item.menuTitle(length: Self.titleLength)) { clipboard.copy(item) }
+        }
+        Divider()
+        Button("Hide Latest Copy From Menu Bar") { clipboard.options.showsLatestInMenuBar = false }
+    }
+}
+
+struct ClipboardMenuCard: View {
+    static let recentCount = 3
+
+    @ObservedObject var clipboard: ClipboardViewModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Label("Clipboard", systemImage: "doc.on.clipboard")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button("Open History") { NotificationCenter.default.post(name: .toggleClipboardPanel, object: nil) }
+                    .buttonStyle(.borderless)
+                    .font(.system(size: 11))
+            }
+            ForEach(clipboard.items.prefix(Self.recentCount)) { item in
+                Button { clipboard.copy(item) } label: {
+                    HStack(spacing: 8) {
+                        ClipboardItemIcon(item: item, size: 18)
+                        Text(item.preview).font(.system(size: 12)).lineLimit(1)
+                        Spacer()
+                        if item.id == clipboard.currentItemID {
+                            Image(systemName: "checkmark").font(.system(size: 10, weight: .semibold)).foregroundStyle(.secondary)
+                        }
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .environmentObject(clipboard)
     }
 }

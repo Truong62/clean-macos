@@ -1,24 +1,41 @@
 import AppKit
 import SwiftUI
 
-/// A borderless-ish floating panel that is allowed to become the key window so
-/// SwiftUI receives keyboard input immediately (no click required).
 final class KeyablePanel: NSPanel {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { true }
 }
 
-/// Owns the floating NSPanel for the global hotkey. On select it copies the
-/// item, restores the previously-frontmost app, then synthesizes ⌘V.
+extension Notification.Name {
+    static let toggleClipboardPanel = Notification.Name("mackit.toggleClipboardPanel")
+}
+
 @MainActor
 final class ClipboardPanelController: NSObject, NSWindowDelegate {
+    static let size = NSSize(width: 560, height: 420)
+    static let minimumHeight: CGFloat = 300
+    static let previewWidth: CGFloat = 280
+    static let pasteDelay: TimeInterval = 0.12
+    static let copyOnlyApps: Set<String> = ["com.microsoft.rdc.macos", "com.microsoft.rdc.osx.beta"]
+
     private var panel: NSPanel?
     private var previousApp: NSRunningApplication?
+    private var keyMonitor: Any?
+    private var toggleObserver: NSObjectProtocol?
     private let clipboard: ClipboardViewModel
+    private let model: ClipboardPanelModel
 
     init(clipboard: ClipboardViewModel) {
         self.clipboard = clipboard
+        model = ClipboardPanelModel(clipboard: clipboard)
         super.init()
+        model.onPaste = { [weak self] in self?.paste($0) }
+        model.onCopy = { [weak self] in self?.copyOnly($0) }
+        model.onClose = { [weak self] in self?.close() }
+        model.onPreviewToggle = { [weak self] in self?.resizeForPreview($0) }
+        toggleObserver = NotificationCenter.default.addObserver(forName: .toggleClipboardPanel, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.toggle() }
+        }
     }
 
     func toggle() {
@@ -27,43 +44,51 @@ final class ClipboardPanelController: NSObject, NSWindowDelegate {
 
     func show() {
         previousApp = NSWorkspace.shared.frontmostApplication
-
-        let content = ClipboardPanelView(
-            clipboard: clipboard,
-            onSelect: { [weak self] item in self?.select(item) },
-            onCancel: { [weak self] in self?.close() }
-        )
-
-        let p = KeyablePanel(
-            contentRect: NSRect(x: 0, y: 0, width: 480, height: 420),
-            styleMask: [.titled, .closable, .fullSizeContentView, .nonactivatingPanel],
-            backing: .buffered, defer: false
-        )
-        p.titleVisibility = .hidden
-        p.titlebarAppearsTransparent = true
-        p.isMovableByWindowBackground = true
-        p.isFloatingPanel = true
-        p.level = .floating
-        p.hidesOnDeactivate = false
-        // Appear over other Spaces and full-screen apps (Spotlight-style overlay).
-        p.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
-        p.contentViewController = NSHostingController(rootView: content)
-        p.delegate = self
-        positionAtCursor(p)
-        panel = p
-
-        // A nonactivating panel can become key (and accept typing/arrows) without
-        // activating the whole app — so it works over a full-screen app and grabs
-        // focus immediately, no click needed.
-        p.makeKeyAndOrderFront(nil)
-        p.orderFrontRegardless()
+        model.reset()
+        let width = Self.size.width + (model.showsPreview ? Self.previewWidth : 0)
+        let panel = KeyablePanel(contentRect: NSRect(x: 0, y: 0, width: width, height: Self.size.height),
+                                 styleMask: [.titled, .closable, .resizable, .fullSizeContentView, .nonactivatingPanel],
+                                 backing: .buffered, defer: false)
+        panel.titleVisibility = .hidden
+        panel.titlebarAppearsTransparent = true
+        [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton].forEach { panel.standardWindowButton($0)?.isHidden = true }
+        panel.isMovableByWindowBackground = true
+        panel.isFloatingPanel = true
+        panel.level = .floating
+        panel.hidesOnDeactivate = false
+        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        panel.minSize = NSSize(width: Self.size.width, height: Self.minimumHeight)
+        let host = NSHostingController(rootView: ClipboardPanelView(model: model, clipboard: clipboard).environmentObject(clipboard))
+        host.sizingOptions = []
+        panel.contentViewController = host
+        panel.setContentSize(NSSize(width: width, height: Self.size.height))
+        panel.delegate = self
+        positionAtCursor(panel)
+        self.panel = panel
+        panel.makeKeyAndOrderFront(nil)
+        panel.orderFrontRegardless()
+        installKeyMonitor()
     }
 
-    /// Place the panel near the mouse cursor, clamped to the screen under it.
+    func close() {
+        removeKeyMonitor()
+        let closing = panel
+        panel = nil
+        closing?.orderOut(nil)
+    }
+
+    func windowWillClose(_ notification: Notification) {
+        removeKeyMonitor()
+        panel = nil
+    }
+
+    func windowDidResignKey(_ notification: Notification) {
+        close()
+    }
+
     private func positionAtCursor(_ panel: NSPanel) {
         let mouse = NSEvent.mouseLocation
         let size = panel.frame.size
-        // Top-left of the panel at the cursor (panel drops down-right, like a menu).
         var origin = NSPoint(x: mouse.x, y: mouse.y - size.height)
         let screen = NSScreen.screens.first { $0.frame.contains(mouse) } ?? NSScreen.main
         if let visible = screen?.visibleFrame {
@@ -73,24 +98,41 @@ final class ClipboardPanelController: NSObject, NSWindowDelegate {
         panel.setFrameOrigin(origin)
     }
 
-    func close() {
-        panel?.orderOut(nil)
-        panel = nil
+    private func resizeForPreview(_ showsPreview: Bool) {
+        guard let panel else { return }
+        var frame = panel.frame
+        frame.size.width += showsPreview ? Self.previewWidth : -Self.previewWidth
+        panel.setFrame(frame, display: true, animate: true)
     }
 
-    private func select(_ item: ClipboardItem) {
-        guard clipboard.copy(item) else { return }
-        close()
-        guard let app = previousApp else { return }
-        app.activate()
-        // Let the target app become frontmost before pasting.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
-            PasteService.pasteToFrontmostApp() // no-op (copy-only) if not trusted
+    private func installKeyMonitor() {
+        removeKeyMonitor()
+        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            MainActor.assumeIsolated {
+                guard let self, let panel = self.panel, event.window === panel else { return event }
+                if let editor = panel.firstResponder as? NSTextView, editor.hasMarkedText() { return event }
+                return self.model.handle(keyCode: event.keyCode, modifiers: event.modifierFlags) ? nil : event
+            }
         }
     }
 
-    // Clear our reference when the user closes the panel via its close button.
-    func windowWillClose(_ notification: Notification) {
-        panel = nil
+    private func removeKeyMonitor() {
+        if let keyMonitor { NSEvent.removeMonitor(keyMonitor) }
+        keyMonitor = nil
+    }
+
+    private func paste(_ items: [ClipboardItem]) {
+        guard clipboard.copy(items) else { return }
+        close()
+        guard let app = previousApp, !Self.copyOnlyApps.contains(app.bundleIdentifier ?? "") else { return }
+        app.activate()
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.pasteDelay) {
+            PasteService.pasteToFrontmostApp()
+        }
+    }
+
+    private func copyOnly(_ items: [ClipboardItem]) {
+        guard clipboard.copy(items) else { return }
+        close()
     }
 }
