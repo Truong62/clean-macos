@@ -83,6 +83,9 @@ struct ContentView: View {
             case .windows:
                 WindowsView()
 
+            case .switcher:
+                SwitcherView()
+
             case .input:
                 InputView()
 

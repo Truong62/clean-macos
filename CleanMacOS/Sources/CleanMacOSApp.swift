@@ -33,6 +33,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 @main
 enum AppEntry {
     static func main() {
+        if CommandLine.arguments.contains(SwitcherCrashRecovery.flag) { SwitcherCrashRecovery.run() }
         if CommandLine.arguments.contains(RecordingMCPServer.flag) {
             RecordingMCPServer.run()
         }
@@ -55,6 +56,7 @@ struct CleanMacOSApp: App {
     @StateObject private var keyboard: VietnameseKeyboard
     @StateObject private var keepAwake: KeepAwake
     @StateObject private var bluetooth = BluetoothSleepGuard()
+    @StateObject private var switcher: SwitcherController
     @StateObject private var windows: WindowManager
     @StateObject private var input = InputController()
     @StateObject private var finder = FinderTools()
@@ -101,10 +103,12 @@ struct CleanMacOSApp: App {
         _camera = StateObject(wrappedValue: camera)
         let quitApps = QuitAppsController()
         _quitApps = StateObject(wrappedValue: quitApps)
+        let switcher = SwitcherController()
+        _switcher = StateObject(wrappedValue: switcher)
         let windows = WindowManager()
         _windows = StateObject(wrappedValue: windows)
         let context = CommandContext(keepAwake: keepAwake, sound: sound, brightness: brightness, clipboard: clipboard, snippets: snippets, shelf: shelf,
-                                     screenTools: screenTools, scratchpad: scratchpad, camera: camera, quitApps: quitApps) { page in
+                                     screenTools: screenTools, scratchpad: scratchpad, camera: camera, quitApps: quitApps, switcher: switcher) { page in
             MainWindowController.show()
             NotificationCenter.default.post(name: .openSidebarPage, object: page)
         }
@@ -133,6 +137,7 @@ struct CleanMacOSApp: App {
                 .environmentObject(keepAwake)
                 .environmentObject(bluetooth)
                 .environmentObject(windows)
+                .environmentObject(switcher)
                 .environmentObject(input)
                 .environmentObject(snippets)
                 .environmentObject(finder)
