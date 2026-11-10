@@ -315,7 +315,7 @@ extension AgentRecordingSession {
         configuration.width = Int(display.frame.width * scale)
         configuration.height = Int(display.frame.height * scale)
         configuration.showsCursor = true
-        let image = try await SCScreenshotManager.captureImage(contentFilter: SCContentFilter(display: display, excludingWindows: []),
+        let image = try await SwitcherCaptureQueue.shared.capture(contentFilter: SCContentFilter(display: display, excludingWindows: []),
                                                                configuration: configuration)
         guard let jpeg = NSBitmapImageRep(cgImage: image).representation(using: .jpeg, properties: [.compressionFactor: 0.7]) else {
             throw MCPToolError.message("The screenshot could not be encoded.")

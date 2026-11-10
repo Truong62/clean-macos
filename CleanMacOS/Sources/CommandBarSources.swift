@@ -36,6 +36,7 @@ struct CommandContext {
     let scratchpad: ScratchpadController
     let camera: CameraPreviewController
     let quitApps: QuitAppsController
+    let switcher: SwitcherController
     let openPage: (SidebarPage) -> Void
 }
 
@@ -143,6 +144,10 @@ enum CommandSources {
         if context.shelf.settings.isEnabled {
             items.append(CommandItem(id: "shelf", kind: .toggle, title: "Shelf", subtitle: "\(context.shelf.items.count) items", keywords: "drop stash files",
                                      icon: .symbol("tray.full.fill"), isActive: context.shelf.isOpen) { _ in context.shelf.toggle() })
+        }
+        if context.switcher.settings.isEnabled {
+            items.append(CommandItem(id: "appSwitcher", kind: .action, title: "Switch Windows", subtitle: "App Switcher", keywords: "window thumbnail app switcher",
+                                     icon: .symbol("rectangle.stack")) { _ in context.switcher.openFromCommandBar() })
         }
         return items
     }

@@ -27,6 +27,7 @@ enum SidebarPage: Hashable {
     case keepAwake
     case controls
     case windows
+    case switcher
     case input
     case devTools
     case aiUsage

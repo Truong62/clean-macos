@@ -4,6 +4,9 @@ import KeyboardShortcuts
 extension KeyboardShortcuts.Name {
     static let editImageFile = Self("editImageFile")
     static let editClipboardImage = Self("editClipboardImage")
+    static let switcherApps = Self("switcherApps", default: .init(.tab, modifiers: [.command]))
+    static let switcherCurrentApp = Self("switcherCurrentApp", default: .init(.backtick, modifiers: [.command]))
+    static let switcherAllWindows = Self("switcherAllWindows", default: .init(.tab, modifiers: [.option]))
     static func radialWheel(_ id: UUID) -> Self {
         id == RadialWheel.originalID ? .radialMenu : Self("radial.wheel.\(id.uuidString)")
     }
