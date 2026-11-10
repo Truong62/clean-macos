@@ -58,6 +58,15 @@ enum CommandSources {
                         keywords: tool.summary, icon: .symbol(tool.icon)) { _ in context.openPage(tool.page) }
         }
         items += [
+            CommandItem(id: "editImage", kind: .action, title: "Edit an Image…", subtitle: "Annotate an image file",
+                        keywords: "screenshot annotation crop blur editor", icon: .symbol("pencil.tip.crop.circle")) { _ in
+                let panel = NSOpenPanel()
+                panel.allowedContentTypes = [.image]
+                panel.allowsMultipleSelection = false
+                panel.begin { response in
+                    if response == .OK, let url = panel.url { ScreenshotEditorBridge.open(url) }
+                }
+            },
             CommandItem(id: "keepAwake", kind: .toggle, title: context.keepAwake.isActive ? "Turn off Keep Awake" : "Turn on Keep Awake",
                         subtitle: "Keep the Mac awake", keywords: "caffeinate sleep awake", icon: .symbol("cup.and.saucer.fill"),
                         isActive: context.keepAwake.isActive) { _ in context.keepAwake.toggle() },

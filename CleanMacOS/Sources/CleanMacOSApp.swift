@@ -62,6 +62,7 @@ struct CleanMacOSApp: App {
     @StateObject private var shelf: ShelfController
     @StateObject private var brightness: BrightnessController
     @StateObject private var commandBar: CommandBarController
+    @StateObject private var screenshotEditor: ScreenshotEditorController
     @StateObject private var screenTools: ScreenTools
     @StateObject private var scratchpad: ScratchpadController
     @StateObject private var camera: CameraPreviewController
@@ -90,6 +91,9 @@ struct CleanMacOSApp: App {
         _keepAwake = StateObject(wrappedValue: keepAwake)
         let shelf = ShelfController()
         _shelf = StateObject(wrappedValue: shelf)
+        let screenshotEditor = ScreenshotEditorController(shelf: shelf)
+        _screenshotEditor = StateObject(wrappedValue: screenshotEditor)
+        ScreenshotEditorBridge.open = { screenshotEditor.open($0) }
         let brightness = BrightnessController()
         _brightness = StateObject(wrappedValue: brightness)
         let screenTools = ScreenTools()
@@ -144,6 +148,7 @@ struct CleanMacOSApp: App {
                 .environmentObject(radial)
                 .environmentObject(quickPanel)
                 .environmentObject(screenTools)
+                .environmentObject(screenshotEditor)
                 .environmentObject(scratchpad)
                 .environmentObject(camera)
                 .environmentObject(quitApps)

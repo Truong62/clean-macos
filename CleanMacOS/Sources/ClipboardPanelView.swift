@@ -208,6 +208,9 @@ struct ClipboardPanelView: View {
         .contextMenu {
             Button("Paste") { model.onPaste?([item]) }
             Button("Copy") { model.onCopy?([item]) }
+            if let url = clipboard.imageURL(for: item) {
+                Button("Edit Image…") { ScreenshotEditorBridge.open(url) }
+            }
             Button(item.isPinned ? "Unpin" : "Pin") { clipboard.togglePin(item) }
             Divider()
             Button("Delete", role: .destructive) { clipboard.delete(item) }
