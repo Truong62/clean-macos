@@ -257,7 +257,7 @@ struct CleanMacOSApp: App {
             }
         }
 
-        MenuBarExtra(isInserted: $showMenuBar) {
+        MenuBarExtra(isInserted: .changing(get: { showMenuBar }, set: { showMenuBar = $0 })) {
             MenuBarView(studio: recordingStudio, monitor: monitor, recorder: recorder, agentRecording: agentRecording, music: music, keepAwake: keepAwake, clipboard: clipboard, shelf: shelf, screenshot: screenshot, brightness: brightness)
                 .environmentObject(island)
                 .environmentObject(sound)
@@ -267,21 +267,21 @@ struct CleanMacOSApp: App {
         }
         .menuBarExtraStyle(.window)
 
-        MenuBarExtra(isInserted: Binding(get: { monitor.showsReadouts }, set: { isInserted in if !isInserted { monitor.settings.readouts = [] } })) {
+        MenuBarExtra(isInserted: .changing(get: { monitor.showsReadouts }, set: { isInserted in if !isInserted { monitor.settings.readouts = [] } })) {
             MonitorMenu(monitor: monitor)
         } label: {
             Image(nsImage: monitor.readoutImage)
         }
         .menuBarExtraStyle(.menu)
 
-        MenuBarExtra(isInserted: Binding(get: { keyboard.preferences.isEnabled }, set: { value in keyboard.update { $0.isEnabled = value } })) {
+        MenuBarExtra(isInserted: .changing(get: { keyboard.preferences.isEnabled }, set: { value in keyboard.update { $0.isEnabled = value } })) {
             TypingMenu(keyboard: keyboard)
         } label: {
             Image(nsImage: TypingBadge.image(keyboard.isVietnamese ? "V" : "E"))
         }
         .menuBarExtraStyle(.menu)
 
-        MenuBarExtra(isInserted: Binding(get: { sound.settings.showsMicBadge && sound.isMicMuted },
+        MenuBarExtra(isInserted: .changing(get: { sound.settings.showsMicBadge && sound.isMicMuted },
                                          set: { isInserted in if !isInserted && sound.isMicMuted { sound.settings.showsMicBadge = false } })) {
             MicBadgeMenu(sound: sound)
         } label: {
@@ -289,7 +289,7 @@ struct CleanMacOSApp: App {
         }
         .menuBarExtraStyle(.menu)
 
-        MenuBarExtra(isInserted: Binding(get: { clipboard.options.showsLatestInMenuBar && clipboard.latestItem != nil },
+        MenuBarExtra(isInserted: .changing(get: { clipboard.options.showsLatestInMenuBar && clipboard.latestItem != nil },
                                          set: { isInserted in
                                              if !isInserted && clipboard.latestItem != nil { clipboard.options.showsLatestInMenuBar = false }
                                          })) {
