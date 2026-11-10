@@ -4,6 +4,7 @@ struct MenuBarView: View {
     @ObservedObject var monitor: SystemMonitor
     @ObservedObject var recorder: ScreenRecorder
     @ObservedObject var agentRecording: AgentRecordingIndicator
+    @ObservedObject var music: MusicPlayer
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
@@ -16,6 +17,10 @@ struct MenuBarView: View {
             }
             if agentRecording.isRecording {
                 agentRecordingRow
+                Divider()
+            }
+            if let track = music.current {
+                nowPlayingRow(track)
                 Divider()
             }
             systemStats
@@ -67,6 +72,24 @@ struct MenuBarView: View {
             Circle().fill(.red).frame(width: 8, height: 8)
             Text("An AI agent is recording the screen").font(.system(size: 12, weight: .semibold))
             Spacer()
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+    }
+
+    private func nowPlayingRow(_ track: Track) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "music.note").foregroundStyle(.pink)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(track.title).font(.system(size: 12, weight: .semibold)).lineLimit(1)
+                Text(track.artist).font(.system(size: 10.5)).foregroundStyle(.secondary).lineLimit(1)
+            }
+            Spacer()
+            MenuIconButton(systemImage: "backward.fill", help: "Previous") { music.previous() }
+            MenuIconButton(systemImage: music.isPlaying ? "pause.fill" : "play.fill", help: music.isPlaying ? "Pause" : "Play") {
+                music.togglePlayPause()
+            }
+            MenuIconButton(systemImage: "forward.fill", help: "Next") { music.next() }
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 8)

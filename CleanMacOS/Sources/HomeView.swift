@@ -4,6 +4,7 @@ import AppKit
 struct HomeView: View {
     @EnvironmentObject var vm: AppViewModel
     @EnvironmentObject var clipboard: ClipboardViewModel
+    @EnvironmentObject var library: MusicLibrary
     let navigate: (SidebarPage) -> Void
 
     @StateObject private var monitor = SystemMonitor()
@@ -238,6 +239,9 @@ struct HomeView: View {
                      colors: [.purple, .blue]) { navigate(.displays) }
             ToolTile(icon: "record.circle", title: "Screen Record", stat: "Screen, sound and mic",
                      colors: [.red, .pink]) { navigate(.screenRecord) }
+            ToolTile(icon: "music.note", title: "Music",
+                     stat: library.isLoaded ? "\(library.tracks.count) songs · Hi-Res and DSD" : "Hi-res and DSD player",
+                     colors: [.pink, .purple]) { navigate(.music) }
             ToolTile(icon: "bolt.fill", title: "Power Recovery",
                      stat: startupMissing.map { $0 == 0 ? "Ready after a power cut" : "\($0) \($0 == 1 ? "step needs" : "steps need") you" } ?? "",
                      colors: [.yellow, .orange]) {

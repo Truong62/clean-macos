@@ -11,6 +11,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         StartupRoutine.start()
     }
 
+    func applicationWillTerminate(_ notification: Notification) {
+        AudioHardware.restoreChangedDevices()
+    }
+
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         false
     }
@@ -43,8 +47,16 @@ struct CleanMacOSApp: App {
     @StateObject private var recorder = ScreenRecorder()
     @StateObject private var agentRecording = AgentRecordingIndicator()
     @StateObject private var account = AccountViewModel()
+    @StateObject private var library: MusicLibrary
+    @StateObject private var music: MusicPlayer
     @AppStorage("showMenuBar") private var showMenuBar = true
     @State private var panelController: ClipboardPanelController?
+
+    init() {
+        let library = MusicLibrary()
+        _library = StateObject(wrappedValue: library)
+        _music = StateObject(wrappedValue: MusicPlayer(library: library))
+    }
 
     var body: some Scene {
         Window(MainWindowController.title, id: "main") {
@@ -54,6 +66,8 @@ struct CleanMacOSApp: App {
                 .environmentObject(clipboard)
                 .environmentObject(recorder)
                 .environmentObject(account)
+                .environmentObject(library)
+                .environmentObject(music)
                 .frame(minWidth: 900, minHeight: 600)
                 .onAppear {
                     Task { await account.refreshSession() }
@@ -93,7 +107,7 @@ struct CleanMacOSApp: App {
         }
 
         MenuBarExtra(isInserted: $showMenuBar) {
-            MenuBarView(monitor: monitor, recorder: recorder, agentRecording: agentRecording)
+            MenuBarView(monitor: monitor, recorder: recorder, agentRecording: agentRecording, music: music)
         } label: {
             Label(String(format: " %.0f%%", monitor.latestCPU), systemImage: recorder.isRecording || agentRecording.isRecording ? "record.circle.fill" : "sparkles")
         }

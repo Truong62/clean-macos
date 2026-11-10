@@ -9,6 +9,7 @@ enum SidebarPage: Hashable {
     case clipboard
     case displays
     case screenRecord
+    case music
     case ram
     case portsJobs
     case devTools
@@ -44,6 +45,13 @@ struct SidebarView: View {
                 }
                 SidebarItem(icon: "record.circle", label: "Screen Record", color: .red, isSelected: currentPage == .screenRecord) {
                     currentPage = .screenRecord
+                }
+                SidebarItem(icon: "music.note", label: "Music", color: .pink, isSelected: currentPage == .music) {
+                    currentPage = .music
+                }
+                if currentPage == .music {
+                    MusicSidebarSection()
+                        .transition(.sidebarDisclosure)
                 }
                 SidebarItem(icon: "memorychip", label: "RAM", color: .mint, isSelected: currentPage == .ram) {
                     currentPage = .ram

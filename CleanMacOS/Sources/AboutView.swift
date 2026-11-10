@@ -12,6 +12,7 @@ struct AboutView: View {
         (.uninstall, "trash.fill", "Uninstall Apps", "Apps and their leftovers", [.red, .orange]),
         (.clipboard, "doc.on.clipboard.fill", "Clipboard", "Copy history on ⌘⇧V", [.indigo, .purple]),
         (.screenRecord, "record.circle", "Screen Record", "Screen, sound and mic", [.red, .pink]),
+        (.music, "music.note", "Music", "Hi-res and DSD player", [.pink, .purple]),
         (.displays, "display.2", "Displays", "Monitors and wallpapers", [.purple, .pink]),
         (.ram, "memorychip", "RAM", "Memory and heavy apps", [.mint, .teal]),
         (.portsJobs, "network", "Ports & Jobs", "Ports, cron jobs, login items", [.cyan, .blue]),

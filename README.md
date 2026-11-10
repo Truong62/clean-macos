@@ -45,6 +45,7 @@
         <li>Large Files finder</li>
         <li>Clean uninstall with leftovers</li>
         <li>Clipboard history on <kbd>⌘⇧V</kbd></li>
+        <li>Hi-res music player — FLAC, ALAC, DSD, bit-perfect</li>
         <li>Displays &amp; RAM</li>
         <li>Menu-bar monitor and auto-updates</li>
       </ul>
@@ -67,6 +68,7 @@
 - **Ports & Jobs** — listening ports of your own processes, plus LaunchAgents/LaunchDaemons and crontab entries with status and logs; system jobs are read-only
 - **Displays** — arrange monitors, choose the main display and set a wallpaper per display
 - **RAM** — memory pressure and the processes using the most memory, with Quit / Force Quit
+- **Music** — a hi-res player for your own lossless files (FLAC, ALAC, WAV, AIFF, DSF, DFF). Imports are copied into `~/Music/Clean macOS`; each track switches the output to its native sample rate and deepest bit depth for bit-perfect playback, with gapless playback, DSD over DoP or DSD→PCM, playlists, a queue, media keys and Now Playing. MP3, AAC and other lossy files are refused
 - **Menu bar + monitoring** — quick access and live system stats from the menu bar
 - **Automatic updates** — Sparkle keeps the app up to date and installs new versions **in place**, no reinstall needed
 
