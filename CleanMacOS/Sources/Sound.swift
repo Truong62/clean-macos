@@ -146,3 +146,35 @@ enum MusicBlocker {
         return elapsed >= 0 && elapsed <= window
     }
 }
+
+enum VolumeWrite {
+    static let tolerance = 0.02
+
+    static func isConfirmed(target: Double, readBack: Double?) -> Bool {
+        guard let readBack else { return false }
+        return abs(readBack - target) <= tolerance
+    }
+}
+
+enum MonitorSpeakers {
+    static let mutedValue: UInt16 = 1
+    static let unmutedValue: UInt16 = 2
+
+    static func isDisplayAudio(transport: UInt32) -> Bool {
+        transport == kAudioDeviceTransportTypeDisplayPort || transport == kAudioDeviceTransportTypeHDMI
+    }
+
+    static func match(deviceName: String, monitorNames: [String]) -> Int? {
+        let wanted = normalized(deviceName)
+        let hits = monitorNames.indices.filter { normalized(monitorNames[$0]) == wanted }
+        return hits.count == 1 ? hits[0] : nil
+    }
+
+    static func muteValue(isMuted: Bool) -> UInt16 {
+        isMuted ? mutedValue : unmutedValue
+    }
+
+    private static func normalized(_ name: String) -> String {
+        name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    }
+}

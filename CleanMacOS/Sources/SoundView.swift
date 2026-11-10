@@ -69,6 +69,10 @@ struct SoundView: View {
                     }
                     .frame(maxWidth: 320)
                     .disabled(!sound.settings.handlesVolumeKeys)
+                    Toggle("Play a click when the volume changes", isOn: $sound.settings.playsFeedback)
+                        .disabled(!sound.settings.handlesVolumeKeys)
+                    Toggle("Change a monitor's own speakers over DDC when macOS can't", isOn: $sound.settings.usesMonitorSpeakers)
+                        .disabled(!sound.settings.handlesVolumeKeys)
                     Text("⌥⇧ with a volume key takes a quarter step. Keys need Accessibility access.").font(.caption).foregroundStyle(.secondary)
                 }
                 CardSection(title: "Headphones", icon: "headphones") {

@@ -41,6 +41,7 @@ final class DDCChannel: @unchecked Sendable {
     static let retryDelay: useconds_t = 20_000
     static let replyDelay: useconds_t = 50_000
     static let minimumGap: TimeInterval = 0.05
+    private static let transaction = NSLock()
 
     let service: CFTypeRef
     private var lastCommand = Date.distantPast
@@ -50,6 +51,8 @@ final class DDCChannel: @unchecked Sendable {
     }
 
     func write(_ code: UInt8, value: UInt16) -> Bool {
+        Self.transaction.lock()
+        defer { Self.transaction.unlock() }
         pace()
         var packet = DDC.setPacket(code: code, value: value)
         for _ in 0..<Self.attempts {
@@ -63,6 +66,8 @@ final class DDCChannel: @unchecked Sendable {
     }
 
     func read(_ code: UInt8) -> (reading: DDCReading?, isAccepted: Bool) {
+        Self.transaction.lock()
+        defer { Self.transaction.unlock() }
         pace()
         var request = DDC.getPacket(code: code)
         var isAccepted = false

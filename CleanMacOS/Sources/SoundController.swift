@@ -19,6 +19,40 @@ struct SoundSettings: Codable, Equatable {
     var headphoneTarget = 0.25
     var blocksMusic = false
     var musicReplacement: String?
+    var playsFeedback = false
+    var usesMonitorSpeakers = true
+}
+
+extension SoundSettings {
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let defaults = SoundSettings()
+        cycleEnabled = try container.decodeIfPresent(Bool.self, forKey: .cycleEnabled) ?? defaults.cycleEnabled
+        cycleOutputs = try container.decodeIfPresent([String].self, forKey: .cycleOutputs) ?? defaults.cycleOutputs
+        outputPriorityEnabled = try container.decodeIfPresent(Bool.self, forKey: .outputPriorityEnabled) ?? defaults.outputPriorityEnabled
+        inputPriorityEnabled = try container.decodeIfPresent(Bool.self, forKey: .inputPriorityEnabled) ?? defaults.inputPriorityEnabled
+        outputPriority = try container.decodeIfPresent([String].self, forKey: .outputPriority) ?? defaults.outputPriority
+        inputPriority = try container.decodeIfPresent([String].self, forKey: .inputPriority) ?? defaults.inputPriority
+        deviceNames = try container.decodeIfPresent([String: String].self, forKey: .deviceNames) ?? defaults.deviceNames
+        micShortcutEnabled = try container.decodeIfPresent(Bool.self, forKey: .micShortcutEnabled) ?? defaults.micShortcutEnabled
+        showsMicBadge = try container.decodeIfPresent(Bool.self, forKey: .showsMicBadge) ?? defaults.showsMicBadge
+        handlesVolumeKeys = try container.decodeIfPresent(Bool.self, forKey: .handlesVolumeKeys) ?? defaults.handlesVolumeKeys
+        volumeStep = try container.decodeIfPresent(LevelStep.self, forKey: .volumeStep) ?? defaults.volumeStep
+        guardsHeadphones = try container.decodeIfPresent(Bool.self, forKey: .guardsHeadphones) ?? defaults.guardsHeadphones
+        headphoneTarget = try container.decodeIfPresent(Double.self, forKey: .headphoneTarget) ?? defaults.headphoneTarget
+        blocksMusic = try container.decodeIfPresent(Bool.self, forKey: .blocksMusic) ?? defaults.blocksMusic
+        musicReplacement = try container.decodeIfPresent(String.self, forKey: .musicReplacement)
+        playsFeedback = try container.decodeIfPresent(Bool.self, forKey: .playsFeedback) ?? defaults.playsFeedback
+        usesMonitorSpeakers = try container.decodeIfPresent(Bool.self, forKey: .usesMonitorSpeakers) ?? defaults.usesMonitorSpeakers
+    }
+}
+
+struct MonitorSpeaker {
+    let deviceID: AudioDeviceID
+    let channel: DDCChannel
+    let maximum: UInt16
+    var level: Double
+    var isMuted = false
 }
 
 struct MicMuteState: Codable, Equatable {
@@ -40,6 +74,7 @@ final class SoundController: ObservableObject {
     static let debounce: TimeInterval = 0.25
     static let newDeviceWait: TimeInterval = 2
     static let systemDefinedEvent: UInt32 = 14
+    static let feedbackSound = "/System/Library/LoginPlugins/BezelServices.loginPlugin/Contents/Resources/volume.aiff"
 
     @Published var settings: SoundSettings {
         didSet {
@@ -70,6 +105,10 @@ final class SoundController: ObservableObject {
     private var launchObserver: NSObjectProtocol?
     private let hud = LevelHUD()
     private let messages = InputHUD()
+    private var speaker: MonitorSpeaker?
+    private var speakerToken = 0
+    private let speakerQueue = DispatchQueue(label: "mackit.monitor-speakers")
+    private lazy var feedback = NSSound(contentsOfFile: Self.feedbackSound, byReference: true)
 
     init() {
         let defaults = UserDefaults.standard
@@ -180,6 +219,54 @@ final class SoundController: ObservableObject {
         }
         applyTap()
         applyMusicBlocker()
+        if previous?.handlesVolumeKeys != settings.handlesVolumeKeys || previous?.usesMonitorSpeakers != settings.usesMonitorSpeakers {
+            prepareMonitorSpeaker()
+        }
+    }
+
+    private func prepareMonitorSpeaker() {
+        speakerToken += 1
+        speaker = nil
+        let token = speakerToken
+        guard settings.handlesVolumeKeys, settings.usesMonitorSpeakers, let output = defaultOutput, let device = outputs.first(where: { $0.id == output }),
+              MonitorSpeakers.isDisplayAudio(transport: device.transport), !SoundHardware.canSetVolume(of: output) else { return }
+        let name = device.name
+        speakerQueue.async { [weak self] in
+            let found = DDCDiscovery.channels()
+            guard let index = MonitorSpeakers.match(deviceName: name, monitorNames: found.map(\.identity.name)),
+                  let reading = found[index].channel.read(DDC.volume).reading else { return }
+            let channel = found[index].channel
+            DispatchQueue.main.async {
+                MainActor.assumeIsolated {
+                    guard let self, token == self.speakerToken else { return }
+                    self.speaker = MonitorSpeaker(deviceID: output, channel: channel, maximum: reading.maximum, level: reading.level)
+                }
+            }
+        }
+    }
+
+    private func adjustMonitorSpeaker(_ key: MediaKey, step: LevelStep) {
+        guard var current = speaker else { return }
+        let channel = current.channel
+        if key.code == SoundKey.mute {
+            current.isMuted.toggle()
+            let value = MonitorSpeakers.muteValue(isMuted: current.isMuted)
+            speakerQueue.async { _ = channel.write(DDC.mute, value: value) }
+        } else {
+            current.level = step.next(from: current.isMuted ? 0 : current.level, up: key.code == SoundKey.volumeUp)
+            current.isMuted = false
+            let value = DDC.value(for: current.level, maximum: current.maximum)
+            speakerQueue.async { _ = channel.write(DDC.volume, value: value) }
+            playFeedback()
+        }
+        speaker = current
+        showVolume(current.isMuted ? 0 : current.level, isMuted: current.isMuted || current.level <= SoundHardware.muteThreshold)
+    }
+
+    private func playFeedback() {
+        guard settings.playsFeedback, let feedback else { return }
+        feedback.stop()
+        feedback.play()
     }
 
     private func scheduleRefresh() {
@@ -204,6 +291,7 @@ final class SoundController: ObservableObject {
         if mic.isMuted { enforceMicMute() } else { restoreReturningMicrophones() }
         if !isFirst && previousOutput != defaultOutput { guardHeadphones() }
         lastOutputWasHeadphones = outputs.first { $0.id == defaultOutput }?.isHeadphones ?? false
+        if isFirst || previousOutput != defaultOutput { prepareMonitorSpeaker() }
         let outputUIDs = Set(outputs.map(\.uid))
         let inputUIDs = Set(inputs.map(\.uid))
         let newOutputs = outputUIDs.subtracting(knownOutputs)
@@ -383,19 +471,27 @@ final class SoundController: ObservableObject {
         }
         guard settings.handlesVolumeKeys, [SoundKey.volumeUp, SoundKey.volumeDown, SoundKey.mute].contains(key.code) else { return pass }
         guard key.isDown else { return consumedKeys.remove(key.code) == nil ? pass : nil }
-        guard let step = BrightnessKeys.step(for: event.flags, default: settings.volumeStep), let output = defaultOutput,
-              SoundHardware.canSetVolume(of: output) else { return pass }
-        consumedKeys.insert(key.code)
+        guard let step = BrightnessKeys.step(for: event.flags, default: settings.volumeStep), let output = defaultOutput else { return pass }
+        guard SoundHardware.canSetVolume(of: output) else {
+            guard speaker?.deviceID == output else { return pass }
+            consumedKeys.insert(key.code)
+            adjustMonitorSpeaker(key, step: step)
+            return nil
+        }
         if key.code == SoundKey.mute {
             let isMuted = !SoundHardware.isMuted(output)
             SoundHardware.setMuted(isMuted, of: output)
             showVolume(isMuted ? 0 : outputVolume ?? 0, isMuted: isMuted)
         } else {
             let next = step.next(from: SoundHardware.isMuted(output) ? 0 : outputVolume ?? 0, up: key.code == SoundKey.volumeUp)
-            SoundHardware.setVolume(next, of: output)
+            guard SoundHardware.setVolume(next, of: output), VolumeWrite.isConfirmed(target: next, readBack: SoundHardware.volume(of: output)) else {
+                return pass
+            }
             outputVolume = next
             showVolume(next, isMuted: next <= SoundHardware.muteThreshold)
+            playFeedback()
         }
+        consumedKeys.insert(key.code)
         return nil
     }
 
