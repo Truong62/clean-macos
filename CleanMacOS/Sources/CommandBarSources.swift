@@ -118,6 +118,11 @@ enum CommandSources {
                         icon: .symbol("web.camera"), isActive: context.camera.isOpen) { _ in context.camera.toggle() },
         ]
         if let capture = context.screenTools.screenshot {
+            if let studio = capture.recordingStudio {
+                items.append(CommandItem(id: "recordScreen", kind: .action, title: studio.title, subtitle: "Screen recording", icon: .symbol("record.circle")) { _ in
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { studio.trigger() }
+                })
+            }
             let permission = ScreenshotHardware.permitted ? "Screenshot" : "Requires Screen Recording access"
             for (id, title, mode) in [("captureArea", "Capture Area or Window", CaptureMode.screenshot), ("captureScroll", "Capture Scrolling Region", CaptureMode.scrolling)] {
                 items.append(CommandItem(id: id, kind: .action, title: title, subtitle: permission, keywords: "screenshot capture", icon: .symbol("viewfinder")) { _ in

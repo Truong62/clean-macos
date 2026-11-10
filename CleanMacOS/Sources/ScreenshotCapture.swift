@@ -208,6 +208,7 @@ final class ScreenshotController: ObservableObject {
     @Published private(set) var uploading = false
     @Published private(set) var shortcutWarnings: [KeyboardShortcuts.Name: String] = [:]
     let screenTools: ScreenTools
+    weak var recordingStudio: RecordingStudio?
     let recorder: ScreenRecorder
     private let shelf: ShelfController
     private let hud = InputHUD()
@@ -354,6 +355,7 @@ final class ScreenshotController: ObservableObject {
     }
 
     func switchMode(_ mode: CaptureMode) {
+        if self.mode == .recording && mode != .recording { recordingStudio?.selectionCancelled() }
         guard mode != .recording || ScreenRecorder.isSupported else { return }
         self.mode = mode
         for panel in overlays { (panel.contentView as? CaptureOverlayView)?.modeChanged() }
@@ -372,14 +374,8 @@ final class ScreenshotController: ObservableObject {
         overlays.removeAll()
         if selectedMode == .scrolling { beginScroll(rect, shot: shot); return }
         if selectedMode == .recording {
-            session = Task {
-                defer { cleanup() }
-                guard recorder.phase == .idle, let screen = NSScreen.screens.first(where: { $0.displayID == shot.id }),
-                      let prepared = try? await ScreenshotHardware.prepare(screen, settings: settings) else { return }
-                await recorder.startPreview(prepared.filter, options: RecordingOptions(systemAudio: false), sourceRect: rect, showsCursor: false)
-                MainWindowController.show()
-                NotificationCenter.default.post(name: .openSidebarPage, object: SidebarPage.screenRecord)
-            }
+            cleanup()
+            recordingStudio?.select(rect, shot: shot, window: window)
             return
         }
         session = Task {
@@ -408,7 +404,7 @@ final class ScreenshotController: ObservableObject {
         if ends { cancel() }
     }
 
-    func cancel() { session?.cancel(); cleanup() }
+    func cancel() { session?.cancel(); cleanup(); if mode == .recording { recordingStudio?.selectionCancelled() } }
 
     private func cleanup() {
         overlays.forEach { $0.orderOut(nil) }
@@ -480,7 +476,7 @@ final class ScreenshotController: ObservableObject {
         try? FileManager.default.removeItem(at: thumbnailURL(for: url))
     }
 
-    private func rememberRecording(_ source: URL) async {
+    func rememberRecording(_ source: URL) async {
         do {
             try FileManager.default.createDirectory(at: cache, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
             let id = UUID()

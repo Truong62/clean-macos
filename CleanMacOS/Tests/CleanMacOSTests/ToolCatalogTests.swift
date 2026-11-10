@@ -6,11 +6,12 @@ struct ToolCatalogTests {
         let pages = ToolGroup.allTools.map(\.page)
         #expect(Set(pages).count == pages.count)
         #expect(Set(pages) == [.cleanDisk, .largeFiles, .uninstall, .appUpdates, .windows, .input, .ram, .monitor, .displays, .portsJobs, .powerRecovery,
-                               .keepAwake, .controls, .clipboard, .screenshot, .screenRecord, .typing, .commandBar, .snippets, .tools, .island, .files, .sound, .music, .mediaTools,
+                               .keepAwake, .controls, .clipboard, .screenshot, .screenRecord, .videoEditor, .typing, .commandBar, .snippets, .tools, .island, .files, .sound, .music, .mediaTools,
                                .devTools, .homebrew, .aiUsage])
         #expect(ToolGroup.media.tools.map(\.page) == [.sound, .music, .mediaTools])
         let productivity = ToolGroup.productivity.tools.map(\.page)
         #expect(productivity.firstIndex(of: .screenshot)! + 1 == productivity.firstIndex(of: .screenRecord)!)
+        #expect(productivity.firstIndex(of: .screenRecord)! + 1 == productivity.firstIndex(of: .videoEditor)!)
         #expect(ToolGroup.allCases.allSatisfy { !$0.tools.isEmpty })
         #expect(ToolGroup.productivity.tools.map(\.page).firstIndex(of: .island) == ToolGroup.productivity.tools.map(\.page).firstIndex(of: .tools).map { $0 + 1 })
         #expect(ToolGroup.developer.tools.map(\.page) == [.devTools, .homebrew, .aiUsage])

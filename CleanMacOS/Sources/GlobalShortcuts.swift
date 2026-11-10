@@ -2,6 +2,7 @@ import Foundation
 import KeyboardShortcuts
 
 extension KeyboardShortcuts.Name {
+    static let recordScreen = Self("recordScreen", default: .init(.five, modifiers: [.control, .option, .command]))
     static let editImageFile = Self("editImageFile")
     static let editClipboardImage = Self("editClipboardImage")
     static func radialWheel(_ id: UUID) -> Self {

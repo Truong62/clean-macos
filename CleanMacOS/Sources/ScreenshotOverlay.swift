@@ -14,6 +14,7 @@ final class CaptureOverlayView: NSView {
     var lastDrag = CGPoint.zero
     var copiedUntil = Date.distantPast
     var hover: CaptureWindow?
+    var selectedWindow: CaptureWindow?
     override var isFlipped: Bool { true }
     override var acceptsFirstResponder: Bool { true }
 
@@ -73,11 +74,16 @@ final class CaptureOverlayView: NSView {
     override func mouseDown(with event: NSEvent) {
         mouseMoved(with: event)
         if showsModePalette, let tile = modeTiles.first(where: { $0.1.contains(pointer) }) { controller.switchMode(tile.0); return }
+        if controller.mode == .recording, let studio = controller.recordingStudio {
+            if CGRect(x: bounds.midX - 150, y: bounds.height - 62, width: 145, height: 26).contains(pointer) { studio.settings.systemAudio.toggle(); needsDisplay = true; return }
+            if CGRect(x: bounds.midX + 5, y: bounds.height - 62, width: 145, height: 26).contains(pointer) { studio.settings.microphone.toggle(); needsDisplay = true; return }
+        }
         if controller.mode == .color { copyColor(ends: true); return }
         if controller.mode == .screenshot, CGRect(x: bounds.midX - 85, y: 42, width: 170, height: 34).contains(pointer) {
             controller.select(bounds, shot: shot, remembers: false)
             return
         }
+        selectedWindow = nil
         anchor = pointer
         lastDrag = pointer
         selection = nil
@@ -101,11 +107,12 @@ final class CaptureOverlayView: NSView {
         guard let start = anchor else { return }
         anchor = nil
         if abs(pointer.x - start.x) < 4 && abs(pointer.y - start.y) < 4,
-           let hover, controller.mode == .screenshot || controller.mode == .scrolling {
+           let hover, controller.mode == .screenshot || controller.mode == .scrolling || controller.mode == .recording {
             let globalTop = (NSScreen.screens.first?.frame.maxY ?? 0) - shot.frame.maxY
             let rect = hover.frame.offsetBy(dx: -shot.frame.minX, dy: -globalTop).intersection(bounds)
+            if controller.mode == .recording { selection = rect; selectedWindow = hover; needsDisplay = true; return }
             controller.select(rect, shot: shot, window: controller.mode == .screenshot ? hover : nil, remembers: false)
-        } else if let selection, selection.width >= 2, selection.height >= 2, controller.mode != .text {
+        } else if let selection, selection.width >= 2, selection.height >= 2, controller.mode != .text && controller.mode != .recording {
             controller.select(selection, shot: shot)
         }
         needsDisplay = true
@@ -115,7 +122,8 @@ final class CaptureOverlayView: NSView {
         let key = event.charactersIgnoringModifiers?.lowercased() ?? ""
         if event.keyCode == 53 { controller.cancel(); return }
         if event.keyCode == 36 || event.keyCode == 76 {
-            controller.select(controller.mode == .text ? selection ?? bounds : bounds, shot: shot, remembers: controller.mode == .text && selection != nil)
+            let rect = controller.mode == .text || controller.mode == .recording ? selection ?? bounds : bounds
+            controller.select(rect, shot: shot, window: controller.mode == .recording ? selectedWindow : nil, remembers: selection != nil)
             return
         }
         if event.keyCode == 49 { moving = true; return }
@@ -158,7 +166,7 @@ final class CaptureOverlayView: NSView {
     }
 
     override func draw(_ dirtyRect: NSRect) {
-        let frozen = controller.mode == .color || controller.mode == .text || (controller.mode == .screenshot && controller.settings.freeze)
+        let frozen = controller.mode == .recording || controller.mode == .color || controller.mode == .text || (controller.mode == .screenshot && controller.settings.freeze)
         if frozen { drawImage(shot.image, in: bounds) }
         let dim = NSBezierPath(rect: bounds)
         var highlight = selection
@@ -197,8 +205,14 @@ final class CaptureOverlayView: NSView {
                     ("\(mode.rawValue)  \(mode.title)" as NSString).draw(at: CGPoint(x: rect.minX + 8, y: rect.midY - 7), withAttributes: attributes)
                 }
             } else { label(controller.mode.title + "    Esc Cancel", at: CGPoint(x: max(8, bounds.midX - 230), y: bounds.height - 84)) }
-            label(controller.mode == .text ? "Drag a region · Return to copy · R repeat" : "Drag area · Click window · R repeat · Z zoom · C copy color",
-                  at: CGPoint(x: max(8, bounds.midX - 230), y: bounds.height - 52))
+            if controller.mode == .recording, let studio = controller.recordingStudio {
+                label("Mac sound: " + (studio.settings.systemAudio ? "On" : "Off"), at: CGPoint(x: bounds.midX - 150, y: bounds.height - 62))
+                label("Microphone: " + (studio.settings.microphone ? "On" : "Off"), at: CGPoint(x: bounds.midX + 5, y: bounds.height - 62))
+                label("Drag area · Click window · Return confirm · R repeat · Esc cancel", at: CGPoint(x: max(8, bounds.midX - 240), y: bounds.height - 30))
+            } else {
+                label(controller.mode == .text ? "Drag a region · Return to copy · R repeat" : "Drag area · Click window · R repeat · Z zoom · C copy color",
+                      at: CGPoint(x: max(8, bounds.midX - 230), y: bounds.height - 52))
+            }
         }
         if magnifier && shot.frame.contains(mouse) { drawMagnifier() }
     }

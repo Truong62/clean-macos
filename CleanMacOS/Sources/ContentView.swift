@@ -47,6 +47,8 @@ struct ContentView: View {
             case .screenshot:
                 ScreenshotView()
 
+            case .videoEditor:
+                VideoToolView()
             case .screenRecord:
                 ScreenRecordView()
 

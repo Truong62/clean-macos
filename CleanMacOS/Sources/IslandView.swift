@@ -193,7 +193,7 @@ struct IslandSectionView: View {
                 case .captures:
                     VStack(spacing: 12) {
                         Button("Grab Text from Screen") { controller.close(); controller.context.screenTools.grabText() }
-                        Button("Open Screen Recording") { controller.close(); controller.context.openPage(.screenRecord) }
+                        Button(controller.context.screenTools.screenshot?.recordingStudio?.title ?? "Record Screen") { controller.close(); controller.context.screenTools.screenshot?.recordingStudio?.trigger() }
                     }.frame(maxWidth: .infinity, maxHeight: .infinity)
                 case .tools:
                     ScrollView {

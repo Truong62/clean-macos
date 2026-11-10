@@ -41,6 +41,7 @@ enum ToolGroup: String, CaseIterable, Identifiable {
             AppTool(page: .clipboard, icon: "doc.on.clipboard.fill", title: "Clipboard", summary: "Copy history on ⌘⇧V", colors: [.indigo, .purple]),
             AppTool(page: .screenshot, icon: "viewfinder", title: "Screenshot", summary: "Areas, windows, scrolling and pinned captures", colors: [.blue, .cyan]),
             AppTool(page: .screenRecord, icon: "record.circle", title: "Screen Record", summary: "Screen, sound and mic", colors: [.red, .pink]),
+            AppTool(page: .videoEditor, icon: "film", title: "Video Editor", summary: "Trim, zoom and export local movies", colors: [.purple, .blue]),
             AppTool(page: .typing, icon: "keyboard", title: "Vietnamese Typing", summary: "Telex, VNI and macros", colors: [.blue, .indigo]),
             AppTool(page: .commandBar, icon: "command", title: "Command Bar", summary: "Launch, calculate, convert", colors: [.indigo, .purple]),
             AppTool(page: .snippets, icon: "text.badge.plus", title: "Snippets", summary: "Short triggers, long text", colors: [.orange, .pink]),
