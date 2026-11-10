@@ -19,7 +19,8 @@ struct ClipboardPanelTests {
         #expect(command(25, .command) == .pasteNumber(9))
         #expect(command(35, .option) == .togglePin)
         #expect(command(51, .option) == .delete)
-        #expect(command(51, .command) == .deletePile)
+        #expect(command(51, .command) == nil)
+        #expect(command(51, .command, pile: true) == .deletePile)
         #expect(command(8, .command, pile: true) == .copyOnly)
         #expect(command(8, .command) == nil)
         #expect(command(49, arrows: true) == .togglePreview)
@@ -84,6 +85,8 @@ struct ClipboardPanelModelTests {
         model.onPaste = { pasted.append($0.map(\.text)) }
         model.onClose = { closed += 1 }
 
+        model.perform(.move(1))
+        #expect(model.selected?.text == "c")
         model.perform(.move(1))
         model.perform(.togglePin)
         #expect(model.visible.map(\.text) == ["b", "c", "a"])

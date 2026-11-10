@@ -12,12 +12,24 @@ packages:
     url: https://github.com/sindresorhus/KeyboardShortcuts
     from: "2.0.0"
 targets:
+  MacKitAudioBridge:
+    type: library.static
+    platform: macOS
+    sources:
+      - path: AudioBridge
+    settings:
+      DEFINES_MODULE: YES
+      PRODUCT_MODULE_NAME: MacKitAudioBridge
+      CLANG_ENABLE_MODULES: YES
+      HEADER_SEARCH_PATHS: $(SRCROOT)/AudioBridge/include
+      MODULEMAP_FILE: $(SRCROOT)/AudioBridge/include/module.modulemap
   CleanMacOS:
     type: application
     platform: macOS
     sources:
       - path: Sources
     dependencies:
+      - target: MacKitAudioBridge
       - package: Sparkle
       - package: KeyboardShortcuts
     preBuildScripts:

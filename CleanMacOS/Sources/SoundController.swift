@@ -92,6 +92,10 @@ final class SoundController: ObservableObject {
         didSet { UserDefaults.standard.set(try? JSONEncoder().encode(mic), forKey: Self.micKey) }
     }
 
+    var fineVolumeKeysEnabled = false {
+        didSet { if oldValue != fineVolumeKeysEnabled { prepareMonitorSpeaker() } }
+    }
+    var onManualOutputChange: (() -> Void)?
     private var knownOutputs: Set<String> = []
     private var knownInputs: Set<String> = []
     private var listenedInputs: Set<AudioDeviceID> = []
@@ -134,6 +138,7 @@ final class SoundController: ObservableObject {
     var isMicMuted: Bool { mic.isMuted }
 
     func setDefaultOutput(_ device: SoundDevice) {
+        onManualOutputChange?()
         SoundHardware.setDefault(kAudioHardwarePropertyDefaultOutputDevice, to: device.id)
         scheduleRefresh()
     }
@@ -228,7 +233,7 @@ final class SoundController: ObservableObject {
         speakerToken += 1
         speaker = nil
         let token = speakerToken
-        guard settings.handlesVolumeKeys, settings.usesMonitorSpeakers, let output = defaultOutput, let device = outputs.first(where: { $0.id == output }),
+        guard settings.handlesVolumeKeys || fineVolumeKeysEnabled, settings.usesMonitorSpeakers, let output = defaultOutput, let device = outputs.first(where: { $0.id == output }),
               MonitorSpeakers.isDisplayAudio(transport: device.transport), !SoundHardware.canSetVolume(of: output) else { return }
         let name = device.name
         speakerQueue.async { [weak self] in
@@ -243,6 +248,18 @@ final class SoundController: ObservableObject {
                 }
             }
         }
+    }
+
+    func fineMonitorStep(code: Int) -> Bool {
+        guard var current = speaker, current.deviceID == defaultOutput else { return false }
+        current.level = min(1, max(0, (current.isMuted ? 0 : current.level) + (code == SoundKey.volumeUp ? 0.01 : -0.01)))
+        current.isMuted = false
+        let channel = current.channel
+        let value = DDC.value(for: current.level, maximum: current.maximum)
+        speakerQueue.async { _ = channel.write(DDC.volume, value: value) }
+        speaker = current
+        showVolume(current.level, isMuted: current.level <= SoundHardware.muteThreshold)
+        return true
     }
 
     private func adjustMonitorSpeaker(_ key: MediaKey, step: LevelStep) {
@@ -463,12 +480,14 @@ final class SoundController: ObservableObject {
             if let tap { CGEvent.tapEnable(tap: tap, enable: true) }
             return pass
         }
+        guard event.getIntegerValueField(.eventSourceUserData) != FineVolumeController.eventTag else { return pass }
         guard type.rawValue == Self.systemDefinedEvent, let system = NSEvent(cgEvent: event), system.subtype.rawValue == MediaKey.subtype,
               let key = MediaKey(data1: system.data1) else { return pass }
         if SoundKey.mediaKeys.contains(key.code) {
             if key.isDown { lastMediaKey = ProcessInfo.processInfo.systemUptime }
             return pass
         }
+        if fineVolumeKeysEnabled && [SoundKey.volumeUp, SoundKey.volumeDown].contains(key.code) { return pass }
         guard settings.handlesVolumeKeys, [SoundKey.volumeUp, SoundKey.volumeDown, SoundKey.mute].contains(key.code) else { return pass }
         guard key.isDown else { return consumedKeys.remove(key.code) == nil ? pass : nil }
         guard let step = BrightnessKeys.step(for: event.flags, default: settings.volumeStep), let output = defaultOutput else { return pass }

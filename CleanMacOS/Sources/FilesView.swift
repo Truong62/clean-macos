@@ -21,6 +21,8 @@ struct FilesView: View {
                 }
                 CardSection(title: "Cut and paste", icon: "scissors") {
                     Toggle("⌘X then ⌘V moves files in Finder", isOn: $finder.settings.cutsAndPastes)
+                    Toggle("Show progress for moves between volumes", isOn: $finder.settings.showsTransferProgress)
+                        .disabled(!finder.settings.cutsAndPastes)
                     Toggle("Show a message when files are cut and moved", isOn: $finder.settings.showsHUD)
                         .disabled(!finder.settings.cutsAndPastes)
                     if !finder.cutItems.isEmpty {
@@ -51,9 +53,11 @@ struct FilesView: View {
                             KeyboardShortcuts.Recorder(for: .toggleShelf)
                         }
                         Toggle("The shortcut also adds what is selected in Finder", isOn: $shelf.settings.addsFinderSelection)
+                        Toggle("Peek at a screen edge while dragging", isOn: $shelf.settings.peeksAtEdges)
+                        Toggle("Group drops into piles", isOn: $shelf.settings.groupsDrops)
                         Toggle("Shake while dragging to open it", isOn: $shelf.settings.opensOnShake)
                         Toggle("Show a drop zone at the top of the screen while dragging", isOn: $shelf.settings.showsDropZone)
-                        Toggle("Close the Shelf after dropping onto it", isOn: $shelf.settings.closesAfterDrop)
+                        Toggle("Close the Shelf after dragging items out", isOn: $shelf.settings.closesAfterDrop)
                         Toggle("Remove items once you drag them out", isOn: $shelf.settings.removesAfterDragOut)
                         Toggle("Empty the Shelf when you close it", isOn: $shelf.settings.clearsOnClose)
                         AppListEditor(title: "Don't open it automatically while using", bundleIDs: $shelf.settings.excludedApps)

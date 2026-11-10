@@ -31,6 +31,7 @@ struct FinderSettings: Codable, Equatable {
     var renames = false
     var renameKey = RenameKey.f2
     var pastesImages = false
+    var showsTransferProgress = false
 }
 
 enum FinderAction: Equatable {
@@ -77,13 +78,16 @@ enum FileMover {
 
     static let deniedCodes: Set<CocoaError.Code> = [.fileWriteNoPermission, .fileReadNoPermission]
 
-    static func move(_ items: [URL], into folder: URL, fileManager: FileManager = .default) -> Result {
+    static func move(_ items: [URL], into folder: URL, fileManager: FileManager = .default,
+                     started: (URL, URL) -> Void = { _, _ in }, finished: (URL) -> Void = { _ in }) -> Result {
         var result = Result()
         for item in items {
             guard let target = FileMove.destination(for: item, in: folder, exists: { fileManager.fileExists(atPath: $0.path) }) else {
                 result.unchanged += 1
                 continue
             }
+            started(item, target)
+            defer { finished(item) }
             do {
                 try fileManager.moveItem(at: item, to: target)
                 result.moved += 1
@@ -177,6 +181,7 @@ final class FinderTools: ObservableObject {
     }
     @Published private(set) var cutItems: [URL] = []
 
+    private let transferProgress = FinderTransferProgress()
     private var cutChangeCount: Int?
     private var isMoving = false
     private var tap: CFMachPort?
@@ -296,9 +301,29 @@ final class FinderTools: ObservableObject {
         let items = cutItems
         isMoving = true
         if settings.showsHUD { hud.show("Moving \(items.count == 1 ? items[0].lastPathComponent : "\(items.count) items")…", for: Self.movingMessageTime) }
+        let showsProgress = settings.showsTransferProgress
         queue.async {
             let folder = FinderScript.currentFolder()
-            var result = folder.map { FileMover.move(items, into: $0) }
+            func volume(_ url: URL) -> String? {
+                (try? url.resourceValues(forKeys: [.volumeIdentifierKey]).volumeIdentifier).map { String(describing: $0) }
+            }
+            let progress = showsProgress && TransferProgressState.crossesVolumes(sources: items.map(volume), destination: folder.flatMap(volume))
+            let metadata = items.map { try? $0.resourceValues(forKeys: [.fileSizeKey, .isDirectoryKey]) }
+            if progress {
+                let bytes = metadata.reduce(Int64(0)) { $0 + Int64($1?.fileSize ?? 0) }
+                let folders = metadata.contains { $0?.isDirectory == true }
+                DispatchQueue.main.async { self.transferProgress.begin(items: items.count, bytes: bytes, folders: folders) }
+            }
+            var result = folder.map { folder in
+                FileMover.move(items, into: folder, started: { source, destination in
+                    if progress { DispatchQueue.main.async { self.transferProgress.started(source, destination: destination) } }
+                }, finished: { source in
+                    if progress {
+                        let bytes = items.firstIndex(of: source).map { Int64(metadata[$0]?.fileSize ?? 0) } ?? 0
+                        DispatchQueue.main.async { self.transferProgress.finished(bytes: bytes) }
+                    }
+                })
+            }
             if let folder, var moved = result, !moved.denied.isEmpty {
                 _ = FinderScript.run(FinderScript.move(moved.denied, to: folder))
                 let stillThere = moved.denied.filter { FileManager.default.fileExists(atPath: $0.path) }
@@ -314,6 +339,7 @@ final class FinderTools: ObservableObject {
 
     private func finishMove(_ result: FileMover.Result?, changeCount: Int) {
         isMoving = false
+        transferProgress.end(message: result.map { "Moved \($0.moved + $0.unchanged) items" } ?? "Move failed")
         guard let result else {
             NSSound.beep()
             if settings.showsHUD { hud.show("Couldn't find the Finder folder", for: Self.resultMessageTime) }
@@ -353,5 +379,18 @@ final class FinderTools: ObservableObject {
                 }
             }
         }
+    }
+}
+
+extension FinderSettings {
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        let defaults = Self()
+        cutsAndPastes = try values.decodeIfPresent(Bool.self, forKey: .cutsAndPastes) ?? defaults.cutsAndPastes
+        showsHUD = try values.decodeIfPresent(Bool.self, forKey: .showsHUD) ?? defaults.showsHUD
+        renames = try values.decodeIfPresent(Bool.self, forKey: .renames) ?? defaults.renames
+        renameKey = try values.decodeIfPresent(RenameKey.self, forKey: .renameKey) ?? defaults.renameKey
+        pastesImages = try values.decodeIfPresent(Bool.self, forKey: .pastesImages) ?? defaults.pastesImages
+        showsTransferProgress = try values.decodeIfPresent(Bool.self, forKey: .showsTransferProgress) ?? false
     }
 }

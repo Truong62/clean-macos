@@ -187,6 +187,7 @@ struct CommandBarSettingsView: View {
             VStack(spacing: 16) {
                 PageHeader(icon: "command", title: "Command Bar", subtitle: "Open apps, run actions, find settings, calculate and convert. Also a radial menu and a quick panel.",
                            colors: [.indigo, .purple])
+                SecureInputStatusCard()
                 CardSection(title: "Opening", icon: "keyboard") {
                     Toggle("Open the Command Bar with a shortcut", isOn: $bar.settings.isEnabled)
                     if bar.settings.isEnabled {

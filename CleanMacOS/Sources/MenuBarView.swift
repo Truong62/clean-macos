@@ -10,6 +10,8 @@ struct MenuBarView: View {
     @ObservedObject var shelf: ShelfController
     @ObservedObject var screenshot: ScreenshotController
     @ObservedObject var brightness: BrightnessController
+    @EnvironmentObject private var mixer: MixerController
+    @EnvironmentObject private var sound: SoundController
     @EnvironmentObject private var island: IslandController
     @Environment(\.openWindow) private var openWindow
 
@@ -54,6 +56,22 @@ struct MenuBarView: View {
                 .padding(.horizontal, 14)
                 .padding(.vertical, 8)
                 .environmentObject(brightness)
+                Divider()
+            }
+            if mixer.settings.isEnabled {
+                DisclosureGroup("Volume mixer") {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Toggle("Fine volume keys", isOn: $mixer.settings.fineVolumeKeys)
+                            ForEach(mixer.visibleApps) { app in
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(app.name).font(.caption.bold())
+                                    MixerOutputPicker(app: app, mixer: mixer, sound: sound, airPlay: mixer.airPlay)
+                                }
+                            }
+                        }
+                    }.frame(maxHeight: 260)
+                }.padding(14)
                 Divider()
             }
             if shelf.settings.isEnabled {

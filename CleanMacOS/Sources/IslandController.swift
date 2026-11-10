@@ -74,6 +74,10 @@ final class IslandController: NSObject, ObservableObject {
         settings = UserDefaults.standard.data(forKey: Self.settingsKey).flatMap { try? JSONDecoder().decode(IslandSettings.self, from: $0) } ?? IslandSettings()
         super.init()
         KeyboardShortcuts.onKeyUp(for: .island) { [weak self] in MainActor.assumeIsolated { self?.toggle() } }
+        context.shelf.openInIsland = { [weak self] in
+            self?.open()
+            self?.select(.files)
+        }
         downloads.onFinish = { [weak self] name in self?.notice(.download, name, section: .downloads) }
         power.onNotice = { [weak self] message in self?.notice(.battery, message) }
         bluetooth.onNotice = { [weak self] message in self?.notice(.accessory, message) }
@@ -117,6 +121,7 @@ final class IslandController: NSObject, ObservableObject {
     }
 
     private func apply(previous: IslandSettings?) {
+        context.shelf.isHostedInIsland = settings.isEnabled && settings.sections.contains(.files)
         if settings.isEnabled && settings.shortcut { KeyboardShortcuts.enable([.island]) } else { KeyboardShortcuts.disable([.island]) }
         guard settings.isEnabled else { stop(); return }
         if heartbeat == nil { start() }
@@ -350,7 +355,7 @@ final class IslandController: NSObject, ObservableObject {
     }
 
     func close(explicit: Bool = true) {
-        state.protected = calendar.isRequestingAccess || context.camera.isRequestingAccess || menuOpen || NSApp.modalWindow != nil || panel?.attachedSheet != nil || context.scratchpad.pendingClose != nil
+        state.protected = AirPlayRoutes.pickerIsOpen || Date() < AirPlayRoutes.dismissalAllowedAfter || calendar.isRequestingAccess || context.camera.isRequestingAccess || menuOpen || NSApp.modalWindow != nil || panel?.attachedSheet != nil || context.scratchpad.pendingClose != nil
         state.close(explicit: explicit, now: clock)
         guard !isOpen else { return }
         stopCamera()

@@ -9,6 +9,7 @@ let package = Package(
         .package(url: "https://github.com/sindresorhus/KeyboardShortcuts", from: "2.0.0"),
     ],
     targets: [
+        .target(name: "MacKitAudioBridge", path: "AudioBridge", publicHeadersPath: "include"),
         .systemLibrary(
             name: "CMacKitCore",
             path: "Rust/include"
@@ -17,6 +18,7 @@ let package = Package(
             name: "CleanMacOS",
             dependencies: [
                 "CMacKitCore",
+                "MacKitAudioBridge",
                 .product(name: "Sparkle", package: "Sparkle"),
                 .product(name: "KeyboardShortcuts", package: "KeyboardShortcuts"),
             ],
