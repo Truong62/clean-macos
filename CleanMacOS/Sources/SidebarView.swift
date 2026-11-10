@@ -6,6 +6,7 @@ enum SidebarPage: Hashable {
     case cleanDisk
     case largeFiles
     case uninstall
+    case appUpdates
     case clipboard
     case displays
     case screenRecord
@@ -26,6 +27,7 @@ enum SidebarPage: Hashable {
     case input
     case devTools
     case aiUsage
+    case homebrew
     case settings
     case about
 }

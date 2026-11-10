@@ -72,6 +72,8 @@ struct CleanMacOSApp: App {
     @StateObject private var sound: SoundController
     @StateObject private var mixer: MixerController
     @StateObject private var aiUsage = AIUsageMonitor()
+    @StateObject private var homebrew: HomebrewController
+    @StateObject private var appUpdates: AppUpdatesController
     @AppStorage("showMenuBar") private var showMenuBar = true
     @State private var panelController: ClipboardPanelController?
 
@@ -107,6 +109,9 @@ struct CleanMacOSApp: App {
         _quitApps = StateObject(wrappedValue: quitApps)
         let windows = WindowManager()
         _windows = StateObject(wrappedValue: windows)
+        let homebrew = HomebrewController()
+        _homebrew = StateObject(wrappedValue: homebrew)
+        _appUpdates = StateObject(wrappedValue: AppUpdatesController(homebrew: homebrew))
         let context = CommandContext(keepAwake: keepAwake, sound: sound, brightness: brightness, clipboard: clipboard, snippets: snippets, shelf: shelf,
                                      screenTools: screenTools, scratchpad: scratchpad, camera: camera, quitApps: quitApps) { page in
             MainWindowController.show()
@@ -155,6 +160,8 @@ struct CleanMacOSApp: App {
                 .environmentObject(quitApps)
                 .environmentObject(aiUsage)
                 .environmentObject(monitor)
+                .environmentObject(homebrew)
+                .environmentObject(appUpdates)
                 .frame(minWidth: 900, minHeight: 600)
                 .onAppear {
                     Task { await account.refreshSession() }

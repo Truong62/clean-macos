@@ -23,6 +23,7 @@ enum ToolGroup: String, CaseIterable, Identifiable {
             AppTool(page: .cleanDisk, icon: "internaldrive.fill", title: "Clean Disk", summary: "Junk, caches and build output", colors: [.teal, .blue]),
             AppTool(page: .largeFiles, icon: "doc.text.magnifyingglass", title: "Large Files", summary: "Biggest files anywhere", colors: [.orange, .pink]),
             AppTool(page: .uninstall, icon: "trash.fill", title: "Uninstall Apps", summary: "Apps and their leftovers", colors: [.red, .orange]),
+            AppTool(page: .appUpdates, icon: "arrow.down.app.fill", title: "App Updates", summary: "Newer versions of your apps", colors: [.blue, .cyan]),
         ]
         case .system: [
             AppTool(page: .windows, icon: "macwindow.on.rectangle", title: "Windows", summary: "Snap and move windows", colors: [.indigo, .blue]),
@@ -51,6 +52,7 @@ enum ToolGroup: String, CaseIterable, Identifiable {
         ]
         case .developer: [
             AppTool(page: .devTools, icon: "terminal.fill", title: "Dev Tools", summary: "Runtimes and packages", colors: [.green, .teal]),
+            AppTool(page: .homebrew, icon: "mug.fill", title: "Homebrew", summary: "Install and upgrade formulae and casks", colors: [.orange, .brown]),
             AppTool(page: .aiUsage, icon: "chart.bar.xaxis", title: "AI Usage", summary: "Claude Code and Codex tokens and cost", colors: [.purple, .indigo]),
         ]
         }
