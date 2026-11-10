@@ -39,7 +39,7 @@ enum ToolGroup: String, CaseIterable, Identifiable {
             AppTool(page: .screenRecord, icon: "record.circle", title: "Screen Record", summary: "Screen, sound and mic", colors: [.red, .pink]),
             AppTool(page: .typing, icon: "keyboard", title: "Vietnamese Typing", summary: "Telex, VNI and macros", colors: [.blue, .indigo]),
             AppTool(page: .snippets, icon: "text.badge.plus", title: "Snippets", summary: "Short triggers, long text", colors: [.orange, .pink]),
-            AppTool(page: .files, icon: "folder.fill.badge.gearshape", title: "Finder Tools", summary: "Cut and paste, F2 rename", colors: [.cyan, .blue]),
+            AppTool(page: .files, icon: "folder.fill.badge.gearshape", title: "Finder Tools", summary: "Cut and paste, F2, installers", colors: [.cyan, .blue]),
         ]
         case .media: [
             AppTool(page: .music, icon: "music.note", title: "Music", summary: "Hi-res and DSD player", colors: [.pink, .purple]),

@@ -57,6 +57,7 @@ struct CleanMacOSApp: App {
     @StateObject private var windows = WindowManager()
     @StateObject private var input = InputController()
     @StateObject private var finder = FinderTools()
+    @StateObject private var diskImages = DiskImageWatcher()
     @AppStorage("showMenuBar") private var showMenuBar = true
     @State private var panelController: ClipboardPanelController?
 
@@ -96,6 +97,7 @@ struct CleanMacOSApp: App {
                 .environmentObject(input)
                 .environmentObject(snippets)
                 .environmentObject(finder)
+                .environmentObject(diskImages)
                 .frame(minWidth: 900, minHeight: 600)
                 .onAppear {
                     Task { await account.refreshSession() }

@@ -2,6 +2,7 @@ import SwiftUI
 
 struct FilesView: View {
     @EnvironmentObject var finder: FinderTools
+    @EnvironmentObject var diskImages: DiskImageWatcher
 
     var body: some View {
         ScrollView {
@@ -37,6 +38,17 @@ struct FilesView: View {
                         KeyCaptureButton(key: $finder.settings.renameKey, defaultKey: .f2)
                     }
                     .disabled(!finder.settings.renames)
+                }
+                CardSection(title: "Install from disk images", icon: "externaldrive.badge.plus") {
+                    Toggle("Offer to install the app when you open a disk image", isOn: $diskImages.settings.offersInstall)
+                    Group {
+                        Toggle("Move the disk image to the Trash afterwards", isOn: $diskImages.settings.trashesImage)
+                        Toggle("Show the app in Finder", isOn: $diskImages.settings.revealsApp)
+                        Toggle("Install in my own Applications folder", isOn: $diskImages.settings.usesHomeApplications)
+                    }
+                    .disabled(!diskImages.settings.offersInstall)
+                    Text("Works for a downloaded .dmg with one app inside. The app is checked with Gatekeeper, copied in, and the disk image is ejected. Apps you already have are never replaced.")
+                        .font(.caption).foregroundStyle(.secondary)
                 }
                 CardSection(title: "Paste images as files", icon: "photo.on.rectangle") {
                     Toggle("⌘V in Finder saves a copied image as a PNG file", isOn: $finder.settings.pastesImages)

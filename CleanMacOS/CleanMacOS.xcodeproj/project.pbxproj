@@ -117,6 +117,7 @@
 		F25497E5A5FCBDEB50858F3C /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 185CCDDE3D43CD6FEF6FDA72 /* SettingsView.swift */; };
 		F27D29FB6807060B945F8EC4 /* ClipboardSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 586232A2D65D100703262AB1 /* ClipboardSettings.swift */; };
 		F6640BAAD9C0D2207D8BF3E1 /* Snippets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EE38D9AFCBEB688FF06776D /* Snippets.swift */; };
+		F6DD1173D830A60F4D1EC301 /* DiskImageInstaller.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69431B5D088D7921680D8C49 /* DiskImageInstaller.swift */; };
 		F6EF2B6C3FF094ECDBED34A6 /* RecordingMCPTools.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85E5F1BC51FD98D575D2728A /* RecordingMCPTools.swift */; };
 		F762C8FF73396196C7608C18 /* InputView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C2E8224860B3B7BCC9F035D /* InputView.swift */; };
 		F9C7FD9F9683F092A83E0ABE /* DisplayService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9832301F93D2207402FD0D3F /* DisplayService.swift */; };
@@ -173,6 +174,7 @@
 		62E2B48F763BB48A71F3D6A1 /* RustCore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RustCore.swift; sourceTree = "<group>"; };
 		63D9647A4B610BC04F302D7F /* AudioHardware.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioHardware.swift; sourceTree = "<group>"; };
 		665C5A2C56ADA5E3BEDB9A9F /* FinderTools.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinderTools.swift; sourceTree = "<group>"; };
+		69431B5D088D7921680D8C49 /* DiskImageInstaller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiskImageInstaller.swift; sourceTree = "<group>"; };
 		6961B68D8844C43ABA231FF8 /* UpdaterViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdaterViewModel.swift; sourceTree = "<group>"; };
 		6A3870A8BF23DCEB9D20C11D /* MusicView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicView.swift; sourceTree = "<group>"; };
 		6E5967A4047D750A42B3AC58 /* RAMView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RAMView.swift; sourceTree = "<group>"; };
@@ -301,6 +303,7 @@
 				CBA9BF13C88EF3811FB1AA05 /* DevToolsService.swift */,
 				7335EA96D5BFB7CA1CAAAD51 /* DevToolsView.swift */,
 				D27CDD72FF571A78353AF20C /* DevToolsViewModel.swift */,
+				69431B5D088D7921680D8C49 /* DiskImageInstaller.swift */,
 				610BB2E5437843457F99F69F /* DisplayArrangement.swift */,
 				86A59D9525758B79812B76C7 /* DisplayModels.swift */,
 				9832301F93D2207402FD0D3F /* DisplayService.swift */,
@@ -523,6 +526,7 @@
 				EC56BC63FAD43F0C90F5FAE1 /* DevToolsService.swift in Sources */,
 				4394A03F9FAB627AC78FF08C /* DevToolsView.swift in Sources */,
 				04A378A64E626DFC7ECF463D /* DevToolsViewModel.swift in Sources */,
+				F6DD1173D830A60F4D1EC301 /* DiskImageInstaller.swift in Sources */,
 				B8B567AEC135583DD0A7F5CC /* DisplayArrangement.swift in Sources */,
 				D88B4E695DB8B335B73DD84C /* DisplayModels.swift in Sources */,
 				F9C7FD9F9683F092A83E0ABE /* DisplayService.swift in Sources */,
