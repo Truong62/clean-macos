@@ -14,6 +14,7 @@ enum SidebarPage: Hashable {
     case commandBar
     case files
     case tools
+    case island
     case sound
     case music
     case ram
