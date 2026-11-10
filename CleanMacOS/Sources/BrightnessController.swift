@@ -18,7 +18,7 @@ struct BrightnessSettings: Codable, Equatable {
     var isEnabled = false
     var handlesKeys = true
     var keysFollowPointer = false
-    var step = BrightnessStep.standard
+    var step = LevelStep.standard
     var showsPercentage = false
     var shortcutsEnabled = false
     var keyboardShortcutsEnabled = false
@@ -315,7 +315,7 @@ final class BrightnessController: ObservableObject {
         return displays.first { $0.id == id && $0.isOn }
     }
 
-    private func adjust(_ display: DisplayBrightness, step: BrightnessStep, up: Bool) {
+    private func adjust(_ display: DisplayBrightness, step: LevelStep, up: Bool) {
         let next = step.next(from: display.level, up: up)
         setLevel(next, for: display.id)
         hud.show(symbol: "sun.max.fill", level: next, showsPercent: settings.showsPercentage, on: NSScreen.screens.first { $0.displayID == display.id })

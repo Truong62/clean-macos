@@ -17,7 +17,7 @@ struct BrightnessSection: View {
                 Toggle("Brightness keys follow the pointer", isOn: $brightness.settings.keysFollowPointer)
                     .disabled(!brightness.settings.handlesKeys)
                 Picker("Key step", selection: $brightness.settings.step) {
-                    ForEach(BrightnessStep.allCases) { Text($0.title).tag($0) }
+                    ForEach(LevelStep.allCases) { Text($0.title).tag($0) }
                 }
                 .frame(maxWidth: 320)
                 Toggle("Show the percentage while adjusting", isOn: $brightness.settings.showsPercentage)

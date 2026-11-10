@@ -61,6 +61,7 @@ struct CleanMacOSApp: App {
     @StateObject private var diskImages = DiskImageWatcher()
     @StateObject private var shelf = ShelfController()
     @StateObject private var brightness = BrightnessController()
+    @StateObject private var sound = SoundController()
     @AppStorage("showMenuBar") private var showMenuBar = true
     @State private var panelController: ClipboardPanelController?
 
@@ -103,6 +104,7 @@ struct CleanMacOSApp: App {
                 .environmentObject(diskImages)
                 .environmentObject(shelf)
                 .environmentObject(brightness)
+                .environmentObject(sound)
                 .frame(minWidth: 900, minHeight: 600)
                 .onAppear {
                     Task { await account.refreshSession() }
@@ -152,6 +154,14 @@ struct CleanMacOSApp: App {
             TypingMenu(keyboard: keyboard)
         } label: {
             Image(nsImage: TypingBadge.image(keyboard.isVietnamese ? "V" : "E"))
+        }
+        .menuBarExtraStyle(.menu)
+
+        MenuBarExtra(isInserted: Binding(get: { sound.settings.showsMicBadge && sound.isMicMuted },
+                                         set: { isInserted in if !isInserted && sound.isMicMuted { sound.settings.showsMicBadge = false } })) {
+            MicBadgeMenu(sound: sound)
+        } label: {
+            Image(nsImage: MicBadge.image)
         }
         .menuBarExtraStyle(.menu)
 

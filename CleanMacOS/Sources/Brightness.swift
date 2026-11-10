@@ -47,7 +47,7 @@ enum DDC {
     }
 }
 
-enum BrightnessStep: String, Codable, CaseIterable, Identifiable {
+enum LevelStep: String, Codable, CaseIterable, Identifiable {
     case standard, half, quarter
 
     static let gridTolerance = 0.001
@@ -202,7 +202,7 @@ enum BrightnessKeys {
         !(route == .system && isBuiltIn)
     }
 
-    static func step(for flags: CGEventFlags, default step: BrightnessStep) -> BrightnessStep? {
+    static func step(for flags: CGEventFlags, default step: LevelStep) -> LevelStep? {
         guard flags.intersection([.maskCommand, .maskControl]).isEmpty else { return nil }
         let hasOption = flags.contains(.maskAlternate)
         if hasOption && flags.contains(.maskShift) { return .quarter }

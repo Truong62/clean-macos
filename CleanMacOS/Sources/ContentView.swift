@@ -54,6 +54,9 @@ struct ContentView: View {
             case .files:
                 FilesView()
 
+            case .sound:
+                SoundView()
+
             case .typing:
                 TypingView()
 

@@ -34,11 +34,11 @@ struct DDCPacketTests {
 
 struct BrightnessMathTests {
     @Test func stepsOnAGridAndClamps() {
-        #expect(BrightnessStep.standard.next(from: 0.5, up: true) == 0.5625)
-        #expect(BrightnessStep.standard.next(from: 0.52, up: false) == 0.5)
-        #expect(BrightnessStep.quarter.next(from: 0.5, up: true) == 0.515625)
-        #expect(BrightnessStep.standard.next(from: 0.99, up: true) == 1)
-        #expect(BrightnessStep.half.next(from: 0.01, up: false) == 0)
+        #expect(LevelStep.standard.next(from: 0.5, up: true) == 0.5625)
+        #expect(LevelStep.standard.next(from: 0.52, up: false) == 0.5)
+        #expect(LevelStep.quarter.next(from: 0.5, up: true) == 0.515625)
+        #expect(LevelStep.standard.next(from: 0.99, up: true) == 1)
+        #expect(LevelStep.half.next(from: 0.01, up: false) == 0)
     }
 
     @Test func splitsExtraDimmingBelowTheHardwareMinimum() {

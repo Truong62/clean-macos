@@ -12,6 +12,7 @@ enum SidebarPage: Hashable {
     case typing
     case snippets
     case files
+    case sound
     case music
     case ram
     case portsJobs

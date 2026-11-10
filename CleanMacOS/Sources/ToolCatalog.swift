@@ -42,6 +42,7 @@ enum ToolGroup: String, CaseIterable, Identifiable {
             AppTool(page: .files, icon: "folder.fill.badge.gearshape", title: "Finder Tools", summary: "Cut and paste, Shelf, installers", colors: [.cyan, .blue]),
         ]
         case .media: [
+            AppTool(page: .sound, icon: "speaker.wave.2.fill", title: "Sound", summary: "Switch outputs, mute every mic", colors: [.pink, .orange]),
             AppTool(page: .music, icon: "music.note", title: "Music", summary: "Hi-res and DSD player", colors: [.pink, .purple]),
         ]
         case .developer: [
