@@ -68,6 +68,9 @@ struct ContentView: View {
             case .ram:
                 RAMView()
 
+            case .monitor:
+                MonitorView()
+
             case .portsJobs:
                 PortsJobsView()
 

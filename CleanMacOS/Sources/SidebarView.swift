@@ -17,6 +17,7 @@ enum SidebarPage: Hashable {
     case sound
     case music
     case ram
+    case monitor
     case portsJobs
     case powerRecovery
     case keepAwake
