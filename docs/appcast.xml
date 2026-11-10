@@ -8,6 +8,19 @@
 
     <!-- Paste new <item> blocks here when releasing (newest first) -->
     <item>
+      <title>Version 1.0.53</title>
+      <pubDate>Tue, 10 Nov 2026 17:48:35 +0700</pubDate>
+      <sparkle:version>54</sparkle:version>
+      <sparkle:shortVersionString>1.0.53</sparkle:shortVersionString>
+      <description><![CDATA[
+        <ul><li>The Island's music player now shows what Spotify, Apple Music and your browser are playing, and works on Macs without a notch</li><li>Turning the Island on no longer makes the first click in MacKit's window miss</li></ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/Truong62/clean-macos/releases/download/v1.0.53/MacKit-1.0.53.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="MlVigAQTRrhxSLJTCA4/sGsBYYv8eArEc/GVDoabglHQNjA6j3ocdONFpJI94+tzy6WtHQ6HCLUZ5MtiyQq/Cw==" length="12081507" />
+    </item>
+    <item>
       <title>Version 1.0.52</title>
       <pubDate>Tue, 10 Nov 2026 17:42:00 +0700</pubDate>
       <sparkle:version>53</sparkle:version>
