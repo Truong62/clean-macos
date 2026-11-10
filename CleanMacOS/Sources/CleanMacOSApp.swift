@@ -53,6 +53,8 @@ struct CleanMacOSApp: App {
     @StateObject private var clipboard: ClipboardViewModel
     @StateObject private var snippets: SnippetExpander
     @StateObject private var monitor: SystemMonitor
+    @StateObject private var recordingStudio: RecordingStudio
+    @StateObject private var videoEditors: VideoEditors
     @StateObject private var recorder: ScreenRecorder
     @StateObject private var agentRecording = AgentRecordingIndicator()
     @StateObject private var account = AccountViewModel()
@@ -133,6 +135,14 @@ struct CleanMacOSApp: App {
         let recorder = ScreenRecorder()
         _recorder = StateObject(wrappedValue: recorder)
         let screenshot = ScreenshotController(screenTools: screenTools, shelf: shelf, recorder: recorder)
+        let recordingStudio = RecordingStudio(recorder: recorder)
+        _recordingStudio = StateObject(wrappedValue: recordingStudio)
+        let videoEditors = VideoEditors(studio: recordingStudio)
+        _videoEditors = StateObject(wrappedValue: videoEditors)
+        recordingStudio.capture = screenshot
+        screenshot.recordingStudio = recordingStudio
+        recordingStudio.openEditor = { [weak videoEditors] url, tracks in Task { await videoEditors?.open(url, tracks: tracks) } }
+        recordingStudio.saved = { [weak screenshot] url in Task { await screenshot?.rememberRecording(url) } }
         screenTools.screenshot = screenshot
         _screenshot = StateObject(wrappedValue: screenshot)
         let scratchpad = ScratchpadController()
@@ -173,6 +183,8 @@ struct CleanMacOSApp: App {
                 .environmentObject(clipboard)
                 .environmentObject(secureInput)
                 .environmentObject(recorder)
+                .environmentObject(recordingStudio)
+                .environmentObject(videoEditors)
                 .environmentObject(account)
                 .environmentObject(library)
                 .environmentObject(music)
@@ -246,7 +258,7 @@ struct CleanMacOSApp: App {
         }
 
         MenuBarExtra(isInserted: $showMenuBar) {
-            MenuBarView(monitor: monitor, recorder: recorder, agentRecording: agentRecording, music: music, keepAwake: keepAwake, clipboard: clipboard, shelf: shelf, screenshot: screenshot, brightness: brightness)
+            MenuBarView(studio: recordingStudio, monitor: monitor, recorder: recorder, agentRecording: agentRecording, music: music, keepAwake: keepAwake, clipboard: clipboard, shelf: shelf, screenshot: screenshot, brightness: brightness)
                 .environmentObject(island)
                 .environmentObject(sound)
                 .environmentObject(mixer)

@@ -10,6 +10,7 @@ enum SidebarPage: Hashable {
     case clipboard
     case displays
     case screenshot
+    case videoEditor
     case screenRecord
     case typing
     case snippets

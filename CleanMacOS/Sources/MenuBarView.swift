@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct MenuBarView: View {
+    @ObservedObject var studio: RecordingStudio
     @ObservedObject var monitor: SystemMonitor
     @ObservedObject var recorder: ScreenRecorder
     @ObservedObject var agentRecording: AgentRecordingIndicator
@@ -27,6 +28,14 @@ struct MenuBarView: View {
                     }
                     Spacer()
                     Button("Recents") { screenshot.showHistory() }
+                }.padding(14)
+                Divider()
+            }
+            if studio.settings.menuTile {
+                HStack {
+                    Button(studio.title) { NSApp.keyWindow?.orderOut(nil); DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { studio.trigger() } }
+                    Spacer()
+                    if recorder.isRecording { Text(ScreenRecording.elapsed(studio.elapsed)).monospacedDigit() }
                 }.padding(14)
                 Divider()
             }

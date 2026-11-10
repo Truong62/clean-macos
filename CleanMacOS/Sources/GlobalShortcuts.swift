@@ -4,6 +4,7 @@ import KeyboardShortcuts
 extension KeyboardShortcuts.Name {
     static func commandScript(_ id: UUID) -> Self { Self("command.script.\(id.uuidString)") }
     static let islandWatch = Self("islandWatch")
+    static let recordScreen = Self("recordScreen", default: .init(.five, modifiers: [.control, .option, .command]))
     static let editImageFile = Self("editImageFile")
     static let editClipboardImage = Self("editClipboardImage")
     static let switcherApps = Self("switcherApps", default: .init(.tab, modifiers: [.command]))

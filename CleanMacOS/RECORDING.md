@@ -1,0 +1,13 @@
+Screen recording and local video editing
+
+The interactive recorder uses RecordingStudio and the shared screenshot selector. RecorderSettings stores opt-in switches together; Mac sound, microphone, pointer and typing tracks, automatic zooms, editor opening, the shortcut and the menu tile all start disabled. Numeric choices retain the specified countdown, frame rate and quality defaults. The existing MCP session continues to use ScreenRecorder with its original MP4 options and agent interfaces.
+
+Interactive takes live in owner-only Application Support folders. Their MOV masters retain separate audio tracks. Pointer coordinates and typing timestamps use the writer's pause-aware host clock; typing data never contains keys or text. Stopping seals that clock before waiting for SCStream. The editor works on private copies and deletes its working folder when closed. Exported files and shared Recents remain independent of that folder.
+
+RecordingAudioTap creates an unmuted private tap, uses the mixer's process-owner lookup and limiter, and falls back to SCStream audio when it has not heard sound or misses stream audio. Default-output, sample-rate and process changes are checked during the recording. Microphone capture on macOS 14 uses AVCaptureSession and converts its synchronization clock to host time.
+
+Cursor images come from AppKit's current-system cursor, with dynamically loaded CGS cursor seed and scale functions. This uses AppKit instead of CGSGetGlobalCursorData's undocumented bitmap layout. If no bitmap is available, rendering falls back to a vector arrow. The private API behavior still needs live validation across macOS versions.
+
+VideoEditDocument and VideoMotion contain the editing, timing and motion calculations. Preview and export share VideoCompositor. Export stages a hidden sibling before an atomic rename; cancellation cannot replace the destination. GIFs are encoded in batches of at most 300 frames and combined with independent local palettes. There is no upload or link-sharing service.
+
+Automated verification covers settings migration, damaged documents, regions, pause edges, cuts, zooms, smoothing, springs, audio selection, presets, waveform bins, GIF assembly, private-folder retention, atomic replacement and synthetic movie exports. No live capture, microphone, audio tap, permission prompt, editor window, display overlay or shortcut was exercised during development. The app was never launched. Runtime checks on the Mac mini's two DELL displays, and on other macOS versions and hardware, remain necessary. The installed Rust standard library produces pre-existing macOS 26-versus-14 deployment-target linker warnings; the new Swift sources compile without warnings.
