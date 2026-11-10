@@ -43,7 +43,8 @@ struct CleanMacOSApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var vm = AppViewModel()
     @StateObject private var updater = UpdaterViewModel()
-    @StateObject private var clipboard = ClipboardViewModel()
+    @StateObject private var clipboard: ClipboardViewModel
+    @StateObject private var snippets: SnippetExpander
     @StateObject private var monitor = SystemMonitor()
     @StateObject private var recorder = ScreenRecorder()
     @StateObject private var agentRecording = AgentRecordingIndicator()
@@ -59,6 +60,9 @@ struct CleanMacOSApp: App {
     @State private var panelController: ClipboardPanelController?
 
     init() {
+        let clipboard = ClipboardViewModel()
+        _clipboard = StateObject(wrappedValue: clipboard)
+        _snippets = StateObject(wrappedValue: SnippetExpander(clipboard: clipboard))
         let library = MusicLibrary(legacyRoot: MusicLibrary.legacyRoot)
         _library = StateObject(wrappedValue: library)
         _music = StateObject(wrappedValue: MusicPlayer(library: library))
@@ -89,6 +93,7 @@ struct CleanMacOSApp: App {
                 .environmentObject(bluetooth)
                 .environmentObject(windows)
                 .environmentObject(input)
+                .environmentObject(snippets)
                 .frame(minWidth: 900, minHeight: 600)
                 .onAppear {
                     Task { await account.refreshSession() }

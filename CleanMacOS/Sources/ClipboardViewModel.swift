@@ -186,14 +186,22 @@ final class ClipboardViewModel: ObservableObject {
             NSSound.beep()
             return
         }
+        pasteTemporarily(text)
+    }
+
+    func pasteTemporarily(_ text: String, beforePaste: @escaping () -> Void = {}, onCancel: @escaping () -> Void = {}) {
+        let pasteboard = NSPasteboard.general
         let backup = PasteboardBackup(pasteboard)
         pasteboard.clearContents()
         pasteboard.setString(text, forType: .string)
         pasteboard.setData(Data(), forType: .init(PasteboardFacts.transient))
         monitor.ignoreCurrentChange()
         let written = pasteboard.changeCount
-        PasteService.pasteWhenModifiersReleased(timeout: Self.modifierWait) {
-            DispatchQueue.main.asyncAfter(deadline: .now() + Self.restoreDelay) { [weak self] in
+        PasteService.whenModifiersReleased(timeout: Self.modifierWait) { [weak self] in
+            guard pasteboard.changeCount == written else { return onCancel() }
+            beforePaste()
+            PasteService.pasteToFrontmostApp()
+            DispatchQueue.main.asyncAfter(deadline: .now() + Self.restoreDelay) {
                 guard pasteboard.changeCount == written else { return }
                 backup.restore(to: pasteboard)
                 self?.monitor.ignoreCurrentChange()

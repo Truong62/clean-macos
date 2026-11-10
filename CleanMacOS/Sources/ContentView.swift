@@ -48,6 +48,9 @@ struct ContentView: View {
             case .music:
                 MusicView()
 
+            case .snippets:
+                SnippetsView()
+
             case .typing:
                 TypingView()
 

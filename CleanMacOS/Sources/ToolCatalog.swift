@@ -38,6 +38,7 @@ enum ToolGroup: String, CaseIterable, Identifiable {
             AppTool(page: .clipboard, icon: "doc.on.clipboard.fill", title: "Clipboard", summary: "Copy history on ⌘⇧V", colors: [.indigo, .purple]),
             AppTool(page: .screenRecord, icon: "record.circle", title: "Screen Record", summary: "Screen, sound and mic", colors: [.red, .pink]),
             AppTool(page: .typing, icon: "keyboard", title: "Vietnamese Typing", summary: "Telex, VNI and macros", colors: [.blue, .indigo]),
+            AppTool(page: .snippets, icon: "text.badge.plus", title: "Snippets", summary: "Short triggers, long text", colors: [.orange, .pink]),
         ]
         case .media: [
             AppTool(page: .music, icon: "music.note", title: "Music", summary: "Hi-res and DSD player", colors: [.pink, .purple]),

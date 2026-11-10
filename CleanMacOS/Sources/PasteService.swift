@@ -40,7 +40,7 @@ enum PasteService {
     static let modifierPoll: TimeInterval = 0.02
 
     @MainActor
-    static func pasteWhenModifiersReleased(timeout: TimeInterval, then completion: @escaping () -> Void) {
+    static func whenModifiersReleased(timeout: TimeInterval, then action: @escaping () -> Void) {
         let deadline = Date().addingTimeInterval(timeout)
         func attempt() {
             let isHeld = !CGEventSource.flagsState(.combinedSessionState).intersection(heldModifiers).isEmpty
@@ -48,8 +48,7 @@ enum PasteService {
                 DispatchQueue.main.asyncAfter(deadline: .now() + modifierPoll) { attempt() }
                 return
             }
-            pasteToFrontmostApp()
-            completion()
+            action()
         }
         attempt()
     }

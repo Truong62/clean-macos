@@ -132,4 +132,15 @@ struct KeyHandlingTests {
         #expect(InjectionStyle.characterByCharacter.plan(TypingEdit(backspaces: 1, text: "ếg")) == [.backspace, .text("ế"), .text("g")])
         #expect(InjectionStyle.browser.plan(TypingEdit(backspaces: 0, text: "ư")) == [.text("ư"), .pause(3000)])
     }
+
+    @Test func neverPutsMoreThanTwentyUTF16UnitsInOneKeyEvent() {
+        let emoji = String(repeating: "😀", count: 15)
+        let chunks = InjectionStyle.fast.plan(TypingEdit(backspaces: 0, text: emoji)).compactMap { key -> String? in
+            if case .text(let text) = key { return text }
+            return nil
+        }
+        #expect(chunks.joined() == emoji)
+        #expect(chunks.allSatisfy { $0.utf16.count <= InjectionStyle.chunkUnits })
+        #expect(chunks.map(\.count) == [10, 5])
+    }
 }

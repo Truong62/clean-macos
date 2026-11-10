@@ -107,6 +107,7 @@ enum InjectionStyle: Equatable {
     case fast, browser, slow, characterByCharacter, passthrough
 
     static let autocompleteBreaker = "\u{202F}"
+    static let chunkUnits = 20
     static let browsers: Set<String> = [
         "com.google.Chrome", "com.google.Chrome.beta", "com.google.Chrome.canary", "org.chromium.Chromium", "company.thebrowser.Browser",
         "company.thebrowser.dia", "org.mozilla.firefox", "org.mozilla.firefoxdeveloperedition", "app.zen-browser.zen",
@@ -147,13 +148,57 @@ enum InjectionStyle: Equatable {
             if pauses.backspace > 0 { keys.append(.pause(pauses.backspace)) }
         }
         if backspaces > 0 && pauses.afterBackspaces > 0 { keys.append(.pause(pauses.afterBackspaces)) }
-        let size = self == .characterByCharacter ? 1 : 20
-        let characters = Array(edit.text)
-        for start in stride(from: 0, to: characters.count, by: size) {
-            keys.append(.text(String(characters[start..<min(start + size, characters.count)])))
+        var chunk = ""
+        for character in edit.text {
+            if !chunk.isEmpty && (self == .characterByCharacter || chunk.utf16.count + character.utf16.count > Self.chunkUnits) {
+                keys.append(.text(chunk))
+                if pauses.chunk > 0 { keys.append(.pause(pauses.chunk)) }
+                chunk = ""
+            }
+            chunk.append(character)
+        }
+        if !chunk.isEmpty {
+            keys.append(.text(chunk))
             if pauses.chunk > 0 { keys.append(.pause(pauses.chunk)) }
         }
         return keys
+    }
+}
+
+enum SyntheticTyping {
+    static let marker: Int64 = 0x4D4B_4954
+
+    static func send(_ edit: TypingEdit, style: InjectionStyle) {
+        let source = CGEventSource(stateID: .combinedSessionState)
+        for key in style.plan(edit) {
+            switch key {
+            case .backspace:
+                post(CGEvent(keyboardEventSource: source, virtualKey: CGKeyCode(kVK_Delete), keyDown: true))
+                post(CGEvent(keyboardEventSource: source, virtualKey: CGKeyCode(kVK_Delete), keyDown: false))
+            case .text(let text):
+                let units = Array(text.utf16)
+                for isDown in [true, false] {
+                    let event = CGEvent(keyboardEventSource: source, virtualKey: 0, keyDown: isDown)
+                    event?.keyboardSetUnicodeString(stringLength: units.count, unicodeString: units)
+                    post(event)
+                }
+            case .pause(let micros):
+                usleep(micros)
+            }
+        }
+    }
+
+    static func press(_ keyCode: Int, flags: CGEventFlags) {
+        let source = CGEventSource(stateID: .combinedSessionState)
+        post(CGEvent(keyboardEventSource: source, virtualKey: CGKeyCode(keyCode), keyDown: true), flags: flags)
+        post(CGEvent(keyboardEventSource: source, virtualKey: CGKeyCode(keyCode), keyDown: false), flags: flags)
+    }
+
+    static func post(_ event: CGEvent?, flags: CGEventFlags = []) {
+        guard let event else { return }
+        event.setIntegerValueField(.eventSourceUserData, value: marker)
+        event.flags = flags
+        event.post(tap: .cgSessionEventTap)
     }
 }
 
@@ -176,7 +221,7 @@ enum InputSourceCheck {
 
 @MainActor
 final class VietnameseKeyboard: ObservableObject {
-    static let syntheticMarker: Int64 = 0x4D4B_4954
+    static let syntheticMarker = SyntheticTyping.marker
     static let watchdogInterval: TimeInterval = 2
     static let otherTypingApps = ["GoNhanh", "Gõ Nhanh", "OpenKey", "EVKey", "UniKey", "Unikey"]
     static let toggleSound = "Tink"
@@ -368,36 +413,11 @@ final class VietnameseKeyboard: ObservableObject {
         engine.reset()
         guard let edit else { return Unmanaged.passUnretained(event) }
         send(edit, style: style)
-        let source = CGEventSource(stateID: .combinedSessionState)
-        post(CGEvent(keyboardEventSource: source, virtualKey: CGKeyCode(keyCode), keyDown: true), keepFlags: event.flags)
-        post(CGEvent(keyboardEventSource: source, virtualKey: CGKeyCode(keyCode), keyDown: false), keepFlags: event.flags)
+        SyntheticTyping.press(keyCode, flags: event.flags)
         return nil
     }
 
     private func send(_ edit: TypingEdit, style: InjectionStyle) {
-        let source = CGEventSource(stateID: .combinedSessionState)
-        for key in style.plan(edit) {
-            switch key {
-            case .backspace:
-                post(CGEvent(keyboardEventSource: source, virtualKey: CGKeyCode(kVK_Delete), keyDown: true))
-                post(CGEvent(keyboardEventSource: source, virtualKey: CGKeyCode(kVK_Delete), keyDown: false))
-            case .text(let text):
-                let units = Array(text.utf16)
-                for isDown in [true, false] {
-                    let event = CGEvent(keyboardEventSource: source, virtualKey: 0, keyDown: isDown)
-                    event?.keyboardSetUnicodeString(stringLength: units.count, unicodeString: units)
-                    post(event)
-                }
-            case .pause(let micros):
-                usleep(micros)
-            }
-        }
-    }
-
-    private func post(_ event: CGEvent?, keepFlags: CGEventFlags = []) {
-        guard let event else { return }
-        event.setIntegerValueField(.eventSourceUserData, value: Self.syntheticMarker)
-        event.flags = keepFlags
-        event.post(tap: .cgSessionEventTap)
+        SyntheticTyping.send(edit, style: style)
     }
 }
