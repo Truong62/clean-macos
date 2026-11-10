@@ -20,6 +20,11 @@ targets:
     dependencies:
       - package: Sparkle
       - package: KeyboardShortcuts
+    preBuildScripts:
+      - name: Build Rust core
+        script: |
+          export PATH="/opt/homebrew/bin:$HOME/.cargo/bin:$PATH"
+          cargo build --release --manifest-path "$SRCROOT/Rust/Cargo.toml"
     info:
       path: Info.plist
       properties:
@@ -42,3 +47,5 @@ targets:
       CURRENT_PROJECT_VERSION: "51"
       SWIFT_VERSION: "5.9"
       ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+      SWIFT_INCLUDE_PATHS: $(SRCROOT)/Rust/include
+      LIBRARY_SEARCH_PATHS: $(SRCROOT)/Rust/target/release

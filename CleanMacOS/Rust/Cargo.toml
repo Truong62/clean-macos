@@ -1,0 +1,17 @@
+[package]
+name = "mackit-core"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+name = "mackit_core"
+crate-type = ["staticlib", "rlib"]
+
+[dependencies]
+rayon = "1.10"
+
+[profile.release]
+lto = true
+codegen-units = 1
+panic = "abort"

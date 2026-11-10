@@ -26,6 +26,7 @@ open(p, "w").write(s.replace(
     'bundle: Bundle(url: Bundle.main.resourceURL!.appendingPathComponent("KeyboardShortcuts_KeyboardShortcuts.bundle")) ?? .main,'))
 PY
 
+cargo build --release --manifest-path Rust/Cargo.toml
 swift build -c release
 BIN=$(swift build -c release --show-bin-path)
 

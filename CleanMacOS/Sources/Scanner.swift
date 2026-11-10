@@ -533,43 +533,7 @@ final class ScannerService: Sendable {
     }
 
     static func measureDirSize(path: String, timeout: TimeInterval = 10, maxDepth: Int = 50) -> (size: Int64, didTimeout: Bool) {
-        let deadline = Date().addingTimeInterval(timeout)
-        let rootURL = URL(fileURLWithPath: path)
-        let fm = FileManager.default
-
-        var isDir: ObjCBool = false
-        guard fm.fileExists(atPath: path, isDirectory: &isDir) else { return (0, false) }
-        if !isDir.boolValue {
-            return (allocatedSize(of: rootURL), false)
-        }
-
-        let keys: [URLResourceKey] = [
-            .isRegularFileKey, .isSymbolicLinkKey,
-            .totalFileAllocatedSizeKey, .fileAllocatedSizeKey, .fileSizeKey,
-        ]
-        guard let enumerator = fm.enumerator(
-            at: rootURL,
-            includingPropertiesForKeys: keys,
-            options: [],
-            errorHandler: { _, _ in true }
-        ) else { return (0, false) }
-
-        var total: Int64 = 0
-        var didTimeout = false
-        while let url = enumerator.nextObject() as? URL {
-            if Date() >= deadline {
-                didTimeout = true
-                break
-            }
-            if enumerator.level > maxDepth { enumerator.skipDescendants(); continue }
-
-            guard let v = try? url.resourceValues(forKeys: Set(keys)) else { continue }
-            if v.isSymbolicLink == true { continue }
-            if v.isRegularFile == true {
-                total += Int64(v.totalFileAllocatedSize ?? v.fileAllocatedSize ?? v.fileSize ?? 0)
-            }
-        }
-        return (total, didTimeout)
+        RustCore.dirSize(path: path, timeout: timeout, maxDepth: maxDepth)
     }
 
     static func calculateDirSize(path: String, timeout: TimeInterval = 10, maxDepth: Int = 50) -> Int64 {

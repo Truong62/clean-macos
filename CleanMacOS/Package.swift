@@ -9,9 +9,14 @@ let package = Package(
         .package(url: "https://github.com/sindresorhus/KeyboardShortcuts", from: "2.0.0"),
     ],
     targets: [
+        .systemLibrary(
+            name: "CMacKitCore",
+            path: "Rust/include"
+        ),
         .executableTarget(
             name: "CleanMacOS",
             dependencies: [
+                "CMacKitCore",
                 .product(name: "Sparkle", package: "Sparkle"),
                 .product(name: "KeyboardShortcuts", package: "KeyboardShortcuts"),
             ],
@@ -21,6 +26,9 @@ let package = Package(
             ],
             swiftSettings: [
                 .unsafeFlags(["-parse-as-library"])
+            ],
+            linkerSettings: [
+                .unsafeFlags(["-L\(Context.packageDirectory)/Rust/target/release"])
             ]
         ),
         .testTarget(

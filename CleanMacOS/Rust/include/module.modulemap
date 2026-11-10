@@ -1,0 +1,5 @@
+module CMacKitCore {
+    header "mackit_core.h"
+    link "mackit_core"
+    export *
+}

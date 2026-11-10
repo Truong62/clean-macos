@@ -42,3 +42,5 @@ sparkle_private_key*.txt
 
 # Compiler diagnostics
 *.dia
+
+CleanMacOS/Rust/target/
