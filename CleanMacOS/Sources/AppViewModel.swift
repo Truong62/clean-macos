@@ -23,11 +23,14 @@ final class AppViewModel: ObservableObject {
     @AppStorage("confirmBeforeClean") var confirmBeforeClean = true
     @AppStorage("showMenuBar") var showMenuBar = true
     @AppStorage("menuBarShowCPU") var menuBarShowCPU = true
-    @Published var hasFullDiskAccess = false
-    @Published var skipPermissionCheck = false
+    @Published var hasFullDiskAccess = false { didSet { resumeScanIfAllowed() } }
+    @Published var skipPermissionCheck = false { didSet { resumeScanIfAllowed() } }
+    @Published var isAskingPermission = false { didSet { if !isAskingPermission { pendingWork = nil } } }
 
     private let scanner = ScannerService()
     private let cleaner = CleanerService()
+    private let probeAccess: () -> Bool
+    private var pendingWork: (() async -> Void)?
 
     static let grantedVersionKey = "permission.grantedVersion"
 
@@ -44,7 +47,8 @@ final class AppViewModel: ObservableObject {
         return granted != nil && granted != appVersion
     }
 
-    init() {
+    init(probeAccess: @escaping () -> Bool = AppViewModel.probeFullDiskAccess) {
+        self.probeAccess = probeAccess
         let home = FileManager.default.homeDirectoryForCurrentUser.path
         scanPath = (home as NSString).deletingLastPathComponent
         refreshDiskInfo()
@@ -52,30 +56,30 @@ final class AppViewModel: ObservableObject {
     }
 
     func checkPermission() {
-        // Test Full Disk Access by trying to list a protected directory
+        let isGranted = probeAccess()
+        if isGranted { UserDefaults.standard.set(appVersion, forKey: Self.grantedVersionKey) }
+        hasFullDiskAccess = isGranted
+    }
+
+    nonisolated static func probeFullDiskAccess() -> Bool {
         let fm = FileManager.default
-        let testPaths = [
-            fm.homeDirectoryForCurrentUser.appendingPathComponent("Library/Safari").path,
-            fm.homeDirectoryForCurrentUser.appendingPathComponent("Library/Cookies").path,
-            fm.homeDirectoryForCurrentUser.appendingPathComponent("Library/Messages").path,
-        ]
+        let protectedFolders = ["Library/Safari", "Library/Cookies", "Library/Messages"].map { fm.homeDirectoryForCurrentUser.appendingPathComponent($0).path }
+        guard let folder = protectedFolders.first(where: { fm.fileExists(atPath: $0) }) else { return true }
+        return (try? fm.contentsOfDirectory(atPath: folder)) != nil
+    }
 
-        for path in testPaths {
-            if fm.fileExists(atPath: path) {
-                // Path exists, try to read contents — if we can, we have FDA
-                if (try? fm.contentsOfDirectory(atPath: path)) != nil {
-                    hasFullDiskAccess = true
-                    UserDefaults.standard.set(appVersion, forKey: Self.grantedVersionKey)
-                    return
-                } else {
-                    hasFullDiskAccess = false
-                    return
-                }
-            }
-        }
+    func withFullDiskAccess(_ work: @escaping () async -> Void) async {
+        isAskingPermission = false
+        checkPermission()
+        guard needsPermission else { return await work() }
+        pendingWork = work
+        isAskingPermission = true
+    }
 
-        // None of the test paths exist — can't determine, assume OK
-        hasFullDiskAccess = true
+    private func resumeScanIfAllowed() {
+        guard isAskingPermission, !needsPermission, let work = pendingWork else { return }
+        isAskingPermission = false
+        Task { await work() }
     }
 
     // MARK: - Computed
@@ -152,6 +156,10 @@ final class AppViewModel: ObservableObject {
     // MARK: - Actions
 
     func scan() async {
+        await withFullDiskAccess { [weak self] in await self?.scanNow() }
+    }
+
+    private func scanNow() async {
         isScanning = true
         scanStartedAt = .now
         statusMessage = "Scanning..."

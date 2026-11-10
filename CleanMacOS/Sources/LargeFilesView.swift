@@ -87,6 +87,7 @@ final class LargeFilesViewModel: ObservableObject {
 
 struct LargeFilesView: View {
     @StateObject private var vm = LargeFilesViewModel()
+    @EnvironmentObject private var app: AppViewModel
     @State private var sortOrder = [KeyPathComparator(\LargeFile.size, order: .reverse)]
 
     private static let dateFormatter: DateFormatter = {
@@ -142,7 +143,7 @@ struct LargeFilesView: View {
                 .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(.white.opacity(0.3), lineWidth: 1))
 
                 Button {
-                    Task { await vm.scan() }
+                    Task { await app.withFullDiskAccess { await vm.scan() } }
                 } label: {
                     HStack(spacing: 6) {
                         if vm.isScanning { ProgressView().controlSize(.small) }

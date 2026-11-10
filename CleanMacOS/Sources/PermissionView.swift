@@ -103,11 +103,15 @@ struct PermissionView: View {
                 ProgressView().controlSize(.mini)
                 Text("Waiting for access…").font(.caption).foregroundStyle(.secondary)
             }
-            Button("Skip for now (limited scan)") { vm.skipPermissionCheck = true }
-                .buttonStyle(.plain)
-                .font(.caption)
-                .foregroundStyle(.tertiary)
-                .pointerCursor()
+            HStack(spacing: 16) {
+                Button("Cancel") { vm.isAskingPermission = false }
+                    .keyboardShortcut(.cancelAction)
+                Button("Skip for now (limited scan)") { vm.skipPermissionCheck = true }
+            }
+            .buttonStyle(.plain)
+            .font(.caption)
+            .foregroundStyle(.tertiary)
+            .pointerCursor()
         }
     }
 

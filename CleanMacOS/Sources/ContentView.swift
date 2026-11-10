@@ -10,12 +10,11 @@ struct ContentView: View {
         Group {
             if account.needsSignIn {
                 SignInView()
-            } else if vm.needsPermission {
-                PermissionView()
             } else {
                 mainContent
             }
         }
+        .sheet(isPresented: $vm.isAskingPermission) { PermissionView().frame(width: 600, height: 640) }
         .overlay { UpdateModal(updater: updater) }
     }
 
