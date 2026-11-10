@@ -16,6 +16,7 @@ enum SidebarPage: Hashable {
     case powerRecovery
     case keepAwake
     case controls
+    case windows
     case devTools
     case settings
     case about

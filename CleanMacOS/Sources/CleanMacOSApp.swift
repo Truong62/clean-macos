@@ -52,6 +52,7 @@ struct CleanMacOSApp: App {
     @StateObject private var keyboard: VietnameseKeyboard
     @StateObject private var keepAwake: KeepAwake
     @StateObject private var bluetooth = BluetoothSleepGuard()
+    @StateObject private var windows = WindowManager()
     @AppStorage("showMenuBar") private var showMenuBar = true
     @State private var panelController: ClipboardPanelController?
 
@@ -84,6 +85,7 @@ struct CleanMacOSApp: App {
                 .environmentObject(keyboard)
                 .environmentObject(keepAwake)
                 .environmentObject(bluetooth)
+                .environmentObject(windows)
                 .frame(minWidth: 900, minHeight: 600)
                 .onAppear {
                     Task { await account.refreshSession() }
