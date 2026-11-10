@@ -8,6 +8,19 @@
 
     <!-- Paste new <item> blocks here when releasing (newest first) -->
     <item>
+      <title>Version 1.0.52</title>
+      <pubDate>Tue, 10 Nov 2026 17:42:00 +0700</pubDate>
+      <sparkle:version>53</sparkle:version>
+      <sparkle:shortVersionString>1.0.52</sparkle:shortVersionString>
+      <description><![CDATA[
+        <ul><li>Fixes MacKit freezing with a spinning cursor right after launch in 1.0.51</li></ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/Truong62/clean-macos/releases/download/v1.0.52/MacKit-1.0.52.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="OErOJLnbKT90/THp6JuNoZxi2cSvy1JgBE2CjYRX4ep3eANCNduNGo54jKJ8/vAhadPgq4oH6Ie36wont7YnBA==" length="12039935" />
+    </item>
+    <item>
       <title>Version 1.0.51</title>
       <pubDate>Tue, 10 Nov 2026 17:06:22 +0700</pubDate>
       <sparkle:version>52</sparkle:version>
