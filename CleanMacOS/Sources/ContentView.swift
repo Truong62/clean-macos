@@ -63,6 +63,9 @@ struct ContentView: View {
             case .keepAwake:
                 KeepAwakeView()
 
+            case .controls:
+                ControlsView()
+
             case .devTools:
                 DevToolsView()
 

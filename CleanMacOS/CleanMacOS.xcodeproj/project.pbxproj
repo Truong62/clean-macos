@@ -26,6 +26,7 @@
 		2CD6BD854BCDA0E493C97ABC /* LargeFilesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5DCE02A3AFD020C36EFFF76 /* LargeFilesView.swift */; };
 		31B5D338F0B2D2941C130613 /* ProcessModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3E23E9045ECAC8FF3EB37FF /* ProcessModels.swift */; };
 		353CBF5E2C37D2031FDC821F /* KeepAwakeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 394AC257CBEAA477FA20E821 /* KeepAwakeView.swift */; };
+		3628555B12BC61BC38474F54 /* QuickControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAB1671A3563CB387E46F2D9 /* QuickControls.swift */; };
 		3869FF6969D2F5E7A44FDD87 /* ArtifactTableView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44805A604CACFED574E48F5C /* ArtifactTableView.swift */; };
 		395E0E34B6F653070228E303 /* UninstallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 184DA560673D572637A24E64 /* UninstallView.swift */; };
 		412F63C52B2EDDC8940FEEC1 /* LoginItemsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EB2810848FCC205C4339083 /* LoginItemsService.swift */; };
@@ -41,6 +42,7 @@
 		5B8ECCFB5679914BE826349C /* GoogleSignIn.swift in Sources */ = {isa = PBXBuildFile; fileRef = B812B3AB61307A3EEE428398 /* GoogleSignIn.swift */; };
 		5BFE3184C5EBC13851AF4053 /* StartupSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C14516723EBF48D1B1FD224A /* StartupSettingsView.swift */; };
 		5DF8AD876142B74059E46536 /* PasteService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 938603F095D5C03621C2C879 /* PasteService.swift */; };
+		5F089B2C121295BCF555782B /* ControlsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 568625540BB09DFC3B23AF38 /* ControlsView.swift */; };
 		629F8B98ECF1850CAF10B28F /* AboutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F50E79083A48396AD0651E87 /* AboutView.swift */; };
 		6A9C36B97A60E412E45BF98A /* BackgroundRecording.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCCB2C047BA64A77789E6656 /* BackgroundRecording.swift */; };
 		6BF030E075601987D96F6EFF /* DevToolsModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA627A7F08BAF177E20286D7 /* DevToolsModels.swift */; };
@@ -142,6 +144,7 @@
 		4BDB8F98BBA9CA360C581E8E /* ClipboardStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardStore.swift; sourceTree = "<group>"; };
 		519973CA3556535EDD116B2C /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
 		55B5555C7B13EE1709B9A5CD /* MusicAlbumsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicAlbumsView.swift; sourceTree = "<group>"; };
+		568625540BB09DFC3B23AF38 /* ControlsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ControlsView.swift; sourceTree = "<group>"; };
 		586232A2D65D100703262AB1 /* ClipboardSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardSettings.swift; sourceTree = "<group>"; };
 		5A993B1ADB912A796AE468D9 /* MenuBarController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarController.swift; sourceTree = "<group>"; };
 		5DAB977EDC7157992917E243 /* HeadlessBrowser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeadlessBrowser.swift; sourceTree = "<group>"; };
@@ -178,6 +181,7 @@
 		AE1934A02858991DBDBF4B53 /* ReleaseHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReleaseHistory.swift; sourceTree = "<group>"; };
 		AEF83F7B546B77C747BCA698 /* CleanMacOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CleanMacOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B812B3AB61307A3EEE428398 /* GoogleSignIn.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleSignIn.swift; sourceTree = "<group>"; };
+		BAB1671A3563CB387E46F2D9 /* QuickControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickControls.swift; sourceTree = "<group>"; };
 		BC661B5A58FE8B57EF1C939C /* PermissionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionView.swift; sourceTree = "<group>"; };
 		BCA21C6DF18A5F4914577A05 /* ClipboardHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardHistoryView.swift; sourceTree = "<group>"; };
 		C0341956B1B2E6DC78E634B4 /* ScreenRecorder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenRecorder.swift; sourceTree = "<group>"; };
@@ -259,6 +263,7 @@
 				4BDB8F98BBA9CA360C581E8E /* ClipboardStore.swift */,
 				8669187F5AE68DE7119775DC /* ClipboardViewModel.swift */,
 				13997B35568795BEA3BF3A64 /* ContentView.swift */,
+				568625540BB09DFC3B23AF38 /* ControlsView.swift */,
 				32689F128B9A23B9FE888D4E /* DemoInput.swift */,
 				485DC44ED86D7BB2B5803378 /* DemoOverlay.swift */,
 				DA627A7F08BAF177E20286D7 /* DevToolsModels.swift */,
@@ -306,6 +311,7 @@
 				30D585B3710EAB1FA5FBF8DE /* PortsService.swift */,
 				C3E23E9045ECAC8FF3EB37FF /* ProcessModels.swift */,
 				FACD43C271B2FC1F2DAB2E4D /* ProcessService.swift */,
+				BAB1671A3563CB387E46F2D9 /* QuickControls.swift */,
 				6E5967A4047D750A42B3AC58 /* RAMView.swift */,
 				E113230622A0F6F81BE3C833 /* RecordingMCPServer.swift */,
 				85E5F1BC51FD98D575D2728A /* RecordingMCPTools.swift */,
@@ -464,6 +470,7 @@
 				D40AB6773397246222493362 /* ClipboardStore.swift in Sources */,
 				4CF6E5A0E538D5932ADFBD84 /* ClipboardViewModel.swift in Sources */,
 				55D09845383469CB506D3E85 /* ContentView.swift in Sources */,
+				5F089B2C121295BCF555782B /* ControlsView.swift in Sources */,
 				998294AE9C7B07B0DD299914 /* DSD.swift in Sources */,
 				C4B33DDCF993CC523F222E50 /* DemoInput.swift in Sources */,
 				7E893929047D6767AAD177F5 /* DemoOverlay.swift in Sources */,
@@ -511,6 +518,7 @@
 				DCB35EFE4BE9E0408C9E9B82 /* PortsService.swift in Sources */,
 				31B5D338F0B2D2941C130613 /* ProcessModels.swift in Sources */,
 				8898B200E4C8F6189458C3E8 /* ProcessService.swift in Sources */,
+				3628555B12BC61BC38474F54 /* QuickControls.swift in Sources */,
 				C5EA8F9FF738427D54D100F4 /* RAMView.swift in Sources */,
 				FB0625574C78B8AC4F719CDE /* RecordingMCPServer.swift in Sources */,
 				F6EF2B6C3FF094ECDBED34A6 /* RecordingMCPTools.swift in Sources */,

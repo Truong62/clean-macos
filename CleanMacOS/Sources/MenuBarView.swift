@@ -12,6 +12,8 @@ struct MenuBarView: View {
         VStack(spacing: 0) {
             header
             Divider()
+            ControlsStrip()
+            Divider()
             if case .recording(let since) = recorder.phase {
                 recordingRow(since: since)
                 Divider()
