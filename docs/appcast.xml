@@ -8,6 +8,19 @@
 
     <!-- Paste new <item> blocks here when releasing (newest first) -->
     <item>
+      <title>Version 1.0.49</title>
+      <pubDate>Tue, 10 Nov 2026 10:06:41 +0700</pubDate>
+      <sparkle:version>50</sparkle:version>
+      <sparkle:shortVersionString>1.0.49</sparkle:shortVersionString>
+      <description><![CDATA[
+        <ul><li>New Music tab: a hi-res player for your own lossless music. Import FLAC, ALAC, WAV, AIFF, DSF and DFF files or whole folders; they are copied into ~/Music/Clean macOS. MP3, AAC and other lossy files are refused</li><li>Bit-perfect playback: each track switches your output to its native sample rate and deepest bit depth, and the player shows whether playback is bit-perfect, resampled or limited by Bluetooth</li><li>DSD plays natively over DoP on DACs that support it (turn it on in the output menu), or is converted to high-resolution PCM</li><li>Gapless playback, shuffle, repeat, an Up Next queue, playlists, albums with cover art, media keys, Now Playing and controls in the menu bar</li></ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/Truong62/clean-macos/releases/download/v1.0.49/CleanMacOS-1.0.49.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="UIXEp4b1gT/GjVRYvTf4XA9V8RP5GSa3aniuFKQ7WZsayXwmnF1LIV2Mgg1Uekt95dgbbOqtUisNLCdQWDEwBA==" length="5054031" />
+    </item>
+    <item>
       <title>Version 1.0.48</title>
       <pubDate>Wed, 04 Nov 2026 11:34:35 +0700</pubDate>
       <sparkle:version>49</sparkle:version>
