@@ -24,6 +24,8 @@
 	<string>public.app-category.utilities</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>14.0</string>
+	<key>NSAppleEventsUsageDescription</key>
+	<string>MacKit asks Finder for the files you selected and the folder you are in, and changes system settings you turn on.</string>
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>NSMicrophoneUsageDescription</key>
@@ -32,11 +34,11 @@
 	<string>NSApplication</string>
 	<key>SUEnableAutomaticChecks</key>
 	<true/>
-	<key>SUScheduledCheckInterval</key>
-	<integer>3600</integer>
 	<key>SUFeedURL</key>
 	<string>https://truong62.github.io/clean-macos/appcast.xml</string>
 	<key>SUPublicEDKey</key>
 	<string>aSo25KstkpaOi/z97B2XUDWXSv/R7TxPpHbLJ0RpOa8=</string>
+	<key>SUScheduledCheckInterval</key>
+	<integer>3600</integer>
 </dict>
 </plist>

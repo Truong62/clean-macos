@@ -56,6 +56,7 @@ struct CleanMacOSApp: App {
     @StateObject private var bluetooth = BluetoothSleepGuard()
     @StateObject private var windows = WindowManager()
     @StateObject private var input = InputController()
+    @StateObject private var finder = FinderTools()
     @AppStorage("showMenuBar") private var showMenuBar = true
     @State private var panelController: ClipboardPanelController?
 
@@ -94,6 +95,7 @@ struct CleanMacOSApp: App {
                 .environmentObject(windows)
                 .environmentObject(input)
                 .environmentObject(snippets)
+                .environmentObject(finder)
                 .frame(minWidth: 900, minHeight: 600)
                 .onAppear {
                     Task { await account.refreshSession() }
