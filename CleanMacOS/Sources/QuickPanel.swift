@@ -8,6 +8,16 @@ struct QuickPanelSettings: Codable, Equatable {
 
     var isEnabled = false
     var tiles = QuickPanelSettings.defaultTiles
+
+    init() {}
+
+    private enum CodingKeys: String, CodingKey { case isEnabled, tiles }
+
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        isEnabled = try values.decodeIfPresent(Bool.self, forKey: .isEnabled) ?? false
+        tiles = QuickPanelEdits.normalized(try values.decodeIfPresent([String].self, forKey: .tiles) ?? Self.defaultTiles)
+    }
 }
 
 @MainActor
@@ -16,20 +26,24 @@ final class QuickPanelController: NSObject, ObservableObject, NSWindowDelegate {
     static let width: CGFloat = 420
     static let columns = 3
     static let tileHeight: CGFloat = 86
-    static let chrome: CGFloat = 70
+    static let chrome: CGFloat = 116
     static let heightShare: CGFloat = 0.62
 
     @Published var settings: QuickPanelSettings {
         didSet {
             UserDefaults.standard.set(try? JSONEncoder().encode(settings), forKey: Self.settingsKey)
             if oldValue.isEnabled != settings.isEnabled {
-                if settings.isEnabled { KeyboardShortcuts.enable([.quickPanel]) } else { KeyboardShortcuts.disable([.quickPanel]) }
+                if settings.isEnabled { KeyboardShortcuts.enable([.quickPanel]) } else { KeyboardShortcuts.disable([.quickPanel]); close() }
             }
+            if isOpen { reload() }
         }
     }
     @Published private(set) var tiles: [CommandItem] = []
     @Published var selection = 0
     @Published private(set) var isOpen = false
+
+    @Published private(set) var isEditing = false
+    private var draftTiles: [String] = []
 
     private var panel: NSPanel?
     private var keyMonitor: Any?
@@ -41,7 +55,7 @@ final class QuickPanelController: NSObject, ObservableObject, NSWindowDelegate {
             ?? QuickPanelSettings()
         super.init()
         KeyboardShortcuts.onKeyUp(for: .quickPanel) { [weak self] in MainActor.assumeIsolated { self?.toggle() } }
-        if !settings.isEnabled { KeyboardShortcuts.disable([.quickPanel]) }
+        if settings.isEnabled { KeyboardShortcuts.enable([.quickPanel]) } else { KeyboardShortcuts.disable([.quickPanel]) }
     }
 
     var available: [CommandItem] {
@@ -53,10 +67,12 @@ final class QuickPanelController: NSObject, ObservableObject, NSWindowDelegate {
     }
 
     func open() {
+        guard settings.isEnabled, !isOpen else { return }
         reload()
         selection = 0
         let rows = CGFloat((tiles.count + Self.columns - 1) / Self.columns)
-        let size = NSSize(width: Self.width, height: rows * Self.tileHeight + Self.chrome)
+        let maxHeight = (NSScreen.main?.visibleFrame.height ?? 800) - 40
+        let size = NSSize(width: Self.width, height: min(maxHeight, max(220, rows * Self.tileHeight + Self.chrome)))
         let panel = self.panel ?? KeyablePanel(contentRect: NSRect(origin: .zero, size: size), styleMask: [.borderless, .nonactivatingPanel],
                                                backing: .buffered, defer: false)
         panel.isFloatingPanel = true
@@ -84,12 +100,14 @@ final class QuickPanelController: NSObject, ObservableObject, NSWindowDelegate {
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             let keyCode = event.keyCode
             let windowNumber = event.windowNumber
-            let isHandled = MainActor.assumeIsolated { self?.handleKey(keyCode, windowNumber: windowNumber) ?? false }
+            let isHandled = MainActor.assumeIsolated { self?.handleKey(keyCode, modifiers: event.modifierFlags, windowNumber: windowNumber) ?? false }
             return isHandled ? nil : event
         }
     }
 
     func close() {
+        isEditing = false
+        draftTiles = []
         if let keyMonitor { NSEvent.removeMonitor(keyMonitor) }
         keyMonitor = nil
         panel?.orderOut(nil)
@@ -98,6 +116,7 @@ final class QuickPanelController: NSObject, ObservableObject, NSWindowDelegate {
 
     func run(_ index: Int) {
         guard tiles.indices.contains(index) else { return }
+        if isEditing { selection = index; return }
         let tile = tiles[index]
         if tile.kind == .toggle {
             tile.run(nil)
@@ -112,20 +131,64 @@ final class QuickPanelController: NSObject, ObservableObject, NSWindowDelegate {
         close()
     }
 
-    private func reload() {
-        let all = available
-        tiles = settings.tiles.compactMap { id in all.first { $0.id == id } }
+    var hiddenTiles: [CommandItem] {
+        available.filter { !draftTiles.contains($0.id) }
     }
 
-    private func handleKey(_ keyCode: UInt16, windowNumber: Int) -> Bool {
+    func beginEditing() {
+        draftTiles = QuickPanelEdits.normalized(settings.tiles)
+        isEditing = true
+        reload()
+    }
+
+    func finishEditing(save: Bool) {
+        let edited = draftTiles
+        isEditing = false
+        draftTiles = []
+        if save { settings.tiles = edited }
+        reload()
+    }
+
+    func hide(_ id: String) {
+        guard isEditing else { return }
+        draftTiles = QuickPanelEdits.hide(id, in: draftTiles)
+        reload()
+    }
+
+    func add(_ id: String) {
+        guard isEditing else { return }
+        draftTiles = QuickPanelEdits.add(id, to: draftTiles, available: Set(available.map(\.id)))
+        reload()
+        selection = tiles.firstIndex(where: { $0.id == id }) ?? selection
+    }
+
+    func moveSelection(_ move: GridMove.Key) {
+        guard isEditing, tiles.indices.contains(selection) else { return }
+        let target = GridMove.next(from: selection, key: move, count: tiles.count, columns: Self.columns)
+        let id = tiles[selection].id
+        guard let draftTarget = draftTiles.firstIndex(of: tiles[target].id) else { return }
+        draftTiles = QuickPanelEdits.move(id, to: draftTarget, in: draftTiles)
+        reload()
+        selection = target
+    }
+
+    private func reload() {
+        let all = available
+        tiles = (isEditing ? draftTiles : settings.tiles).compactMap { id in all.first { $0.id == id } }
+        selection = min(selection, max(0, tiles.count - 1))
+    }
+
+    private func handleKey(_ keyCode: UInt16, modifiers: NSEvent.ModifierFlags, windowNumber: Int) -> Bool {
         guard isOpen, panel?.windowNumber == windowNumber else { return false }
         let moves: [UInt16: GridMove.Key] = [CommandBarKeys.leftKey: .left, CommandBarKeys.rightKey: .right, PanelKeys.upKey: .up, PanelKeys.downKey: .down]
         if let move = moves[keyCode] {
-            selection = GridMove.next(from: selection, key: move, count: tiles.count, columns: Self.columns)
+            if isEditing && modifiers.contains(.option) { moveSelection(move) } else {
+                selection = GridMove.next(from: selection, key: move, count: tiles.count, columns: Self.columns)
+            }
         } else if keyCode == PanelKeys.returnKey || keyCode == PanelKeys.enterKey {
             run(selection)
         } else if keyCode == PanelKeys.escapeKey {
-            close()
+            if isEditing { finishEditing(save: false) } else { close() }
         } else if let digit = PanelKeys.digitKeys[keyCode] {
             run(digit - 1)
         } else {
@@ -140,150 +203,78 @@ struct QuickPanelView: View {
 
     var body: some View {
         VStack(spacing: 10) {
-            Text("Quick Panel").font(.headline).padding(.top, 12)
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: QuickPanelController.columns), spacing: 8) {
-                ForEach(Array(controller.tiles.enumerated()), id: \.element.id) { index, tile in
-                    VStack(spacing: 6) {
-                        ZStack(alignment: .topTrailing) {
-                            if case .symbol(let name) = tile.icon {
-                                Image(systemName: name).font(.system(size: 22)).frame(width: 40, height: 32)
-                            }
-                            if tile.isActive { Circle().fill(Color.green).frame(width: 7, height: 7) }
-                        }
-                        Text(tile.title).font(.caption).multilineTextAlignment(.center).lineLimit(2)
-                    }
-                    .frame(maxWidth: .infinity, minHeight: QuickPanelController.tileHeight - 10)
-                    .background(RoundedRectangle(cornerRadius: 12).fill(index == controller.selection ? Color.accentColor.opacity(0.22) : Color.primary.opacity(0.05)))
-                    .overlay(alignment: .topLeading) {
-                        if index < PanelKeys.digitKeys.count { Text("\(index + 1)").font(.caption2.monospaced()).foregroundStyle(.tertiary).padding(6) }
-                    }
-                    .contentShape(Rectangle())
-                    .onTapGesture { controller.run(index) }
+            HStack {
+                Text(controller.isEditing ? "Edit Quick Panel" : "Quick Panel").font(.headline)
+                Spacer()
+                if controller.isEditing {
+                    Button("Done") { controller.finishEditing(save: true) }
+                } else {
+                    Button("Edit") { controller.beginEditing() }
                 }
             }
-            .padding(.horizontal, 12)
-            .padding(.bottom, 12)
+            .padding(.horizontal, 16)
+            .padding(.top, 12)
+            ScrollViewReader { proxy in
+                ScrollView {
+                    if controller.tiles.isEmpty {
+                        Text("No tiles. Choose Edit to add actions.").foregroundStyle(.secondary).padding()
+                    }
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: QuickPanelController.columns), spacing: 8) {
+                        ForEach(Array(controller.tiles.enumerated()), id: \.element.id) { index, tile in
+                            VStack(spacing: 6) {
+                                ZStack(alignment: .topTrailing) {
+                                    if case .symbol(let name) = tile.icon {
+                                        Image(systemName: name).font(.system(size: 22)).frame(width: 40, height: 32)
+                                    }
+                                    if tile.isActive { Circle().fill(Color.green).frame(width: 7, height: 7) }
+                                }
+                                Text(tile.title).font(.caption).multilineTextAlignment(.center).lineLimit(2)
+                            }
+                            .frame(maxWidth: .infinity, minHeight: QuickPanelController.tileHeight - 10)
+                            .background(RoundedRectangle(cornerRadius: 12).fill(index == controller.selection ? Color.accentColor.opacity(0.22) : Color.primary.opacity(0.05)))
+                            .overlay(alignment: .topLeading) {
+                                if index < PanelKeys.digitKeys.count { Text("\(index + 1)").font(.caption2.monospaced()).foregroundStyle(.tertiary).padding(6) }
+                            }
+                            .overlay(alignment: .topTrailing) {
+                                if controller.isEditing {
+                                    Button { controller.hide(tile.id) } label: { Image(systemName: "minus.circle.fill") }
+                                        .buttonStyle(.borderless)
+                                        .padding(6)
+                                        .help("Hide " + tile.title)
+                                }
+                            }
+                            .id(tile.id)
+                            .contentShape(Rectangle())
+                            .onTapGesture { controller.run(index) }
+                        }
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 12)
+                }
+                .onChange(of: controller.selection) { _, index in
+                    if controller.tiles.indices.contains(index) { proxy.scrollTo(controller.tiles[index].id) }
+                }
+            }
+            if controller.isEditing {
+                HStack {
+                    Menu("Add Tile") {
+                        ForEach(controller.hiddenTiles) { tile in
+                            Button(tile.title) { controller.add(tile.id) }
+                        }
+                    }
+                    .disabled(controller.hiddenTiles.isEmpty)
+                    Button { controller.moveSelection(.left) } label: { Image(systemName: "arrow.left") }
+                        .help("Move selected tile earlier")
+                    Button { controller.moveSelection(.right) } label: { Image(systemName: "arrow.right") }
+                        .help("Move selected tile later")
+                    Spacer()
+                    Text("⌥ arrows reorder · Esc cancels").font(.caption2).foregroundStyle(.secondary)
+                }
+                .padding(.horizontal, 12)
+                .padding(.bottom, 12)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18))
-    }
-}
-
-struct LauncherSettingsCards: View {
-    @EnvironmentObject var radial: RadialMenuController
-    @EnvironmentObject var quick: QuickPanelController
-    @State private var newLink = ""
-
-    var body: some View {
-        CardSection(title: "Radial menu", icon: "circle.grid.cross") {
-            Toggle("Open a wheel of actions with a shortcut", isOn: $radial.settings.isEnabled)
-            if radial.settings.isEnabled {
-                HStack {
-                    Text("Shortcut")
-                    Spacer()
-                    KeyboardShortcuts.Recorder(for: .radialMenu)
-                }
-                Picker("Mouse button", selection: $radial.settings.mouseButton) {
-                    Text("None").tag(Int?.none)
-                    ForEach(Array(RadialMenuController.mouseButtons.prefix(8)), id: \.self) { Text("Button \($0)").tag(Int?.some($0)) }
-                }
-                .frame(maxWidth: 320)
-                Picker("Behavior", selection: $radial.settings.mode) {
-                    ForEach(RadialSettings.Mode.allCases) { Text($0.title).tag($0) }
-                }
-                .frame(maxWidth: 320)
-                Toggle("Open at the pointer instead of the screen center", isOn: $radial.settings.opensAtPointer)
-                Text("Press or hold: release over a slice to run it, or let go and click one.").font(.caption).foregroundStyle(.secondary)
-                ForEach(Array(radial.settings.slices.enumerated()), id: \.element.id) { index, slice in
-                    HStack {
-                        Image(systemName: slice.symbol).frame(width: 22)
-                        Text(slice.title)
-                        Spacer()
-                        Button { move(index, by: -1) } label: { Image(systemName: "chevron.up") }.buttonStyle(.borderless).disabled(index == 0)
-                        Button { move(index, by: 1) } label: { Image(systemName: "chevron.down") }.buttonStyle(.borderless)
-                            .disabled(index == radial.settings.slices.count - 1)
-                        Button { radial.settings.slices.remove(at: index) } label: { Image(systemName: "minus.circle") }.buttonStyle(.borderless)
-                    }
-                }
-                HStack {
-                    Menu("Add Slice") {
-                        Menu("MacKit Action") {
-                            ForEach(radial.actions()) { action in
-                                Button(action.title) { add(RadialSlice(title: action.title, symbol: symbol(of: action), action: .command(action.id))) }
-                            }
-                        }
-                        Menu("Media") {
-                            Button("Play/Pause") { add(RadialSlice(title: "Play/Pause", symbol: "playpause.fill", action: .media(RadialSettings.mediaPlay))) }
-                            Button("Next") { add(RadialSlice(title: "Next", symbol: "forward.fill", action: .media(RadialSettings.mediaNext))) }
-                            Button("Previous") { add(RadialSlice(title: "Previous", symbol: "backward.fill", action: .media(RadialSettings.mediaPrevious))) }
-                        }
-                        Button("App…") { chooseApp() }
-                        Button("Folder…") { chooseFolder() }
-                    }
-                    .fixedSize()
-                    .disabled(radial.settings.slices.count >= RadialSettings.maxSlices)
-                    Spacer()
-                    Button("General") { radial.settings.slices = RadialSettings.general }
-                    Button("Media") { radial.settings.slices = RadialSettings.media }
-                    Button("Clear") { radial.settings.slices = [] }
-                }
-                HStack {
-                    TextField("https://… link slice", text: $newLink).textFieldStyle(.roundedBorder)
-                    Button("Add Link") {
-                        guard let url = URL(string: newLink), url.scheme != nil else { return NSSound.beep() }
-                        add(RadialSlice(title: url.host ?? "Link", symbol: "link", action: .link(newLink)))
-                        newLink = ""
-                    }
-                }
-            }
-        }
-        CardSection(title: "Quick panel", icon: "square.grid.3x3") {
-            Toggle("Open a grid of tools with a shortcut", isOn: $quick.settings.isEnabled)
-            if quick.settings.isEnabled {
-                HStack {
-                    Text("Shortcut")
-                    Spacer()
-                    KeyboardShortcuts.Recorder(for: .quickPanel)
-                }
-                ForEach(quick.available) { item in
-                    Toggle(item.title, isOn: Binding(get: { quick.settings.tiles.contains(item.id) }, set: { isOn in
-                        quick.settings.tiles.removeAll { $0 == item.id }
-                        if isOn { quick.settings.tiles.append(item.id) }
-                    }))
-                }
-            }
-        }
-    }
-
-    private func symbol(of item: CommandItem) -> String {
-        if case .symbol(let name) = item.icon { return name }
-        return "app"
-    }
-
-    private func add(_ slice: RadialSlice) {
-        guard radial.settings.slices.count < RadialSettings.maxSlices else { return NSSound.beep() }
-        radial.settings.slices.append(slice)
-    }
-
-    private func move(_ index: Int, by offset: Int) {
-        let target = index + offset
-        guard radial.settings.slices.indices.contains(target) else { return }
-        radial.settings.slices.swapAt(index, target)
-    }
-
-    private func chooseApp() {
-        let panel = NSOpenPanel()
-        panel.allowedContentTypes = [.application]
-        panel.directoryURL = URL(fileURLWithPath: "/Applications")
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        add(RadialSlice(title: url.deletingPathExtension().lastPathComponent, symbol: "app", action: .app(url.path)))
-    }
-
-    private func chooseFolder() {
-        let panel = NSOpenPanel()
-        panel.canChooseDirectories = true
-        panel.canChooseFiles = false
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        add(RadialSlice(title: url.lastPathComponent, symbol: "folder", action: .folder(url.path)))
     }
 }
