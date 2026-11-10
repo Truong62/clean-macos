@@ -51,18 +51,19 @@ const MARKED: &[(char, char, Mark)] = &[
     ('đ', 'd', Mark::Stroke),
 ];
 
-const INITIALS: &[&str] = &[
-    "ngh", "ng", "nh", "ch", "gh", "gi", "kh", "ph", "qu", "th", "tr", "b", "c", "d", "đ", "g", "h", "k", "l", "m", "n", "p",
+pub const INITIALS: &[&str] = &[
+    "ngh", "ng", "nh", "ch", "gh", "gi", "kh", "kr", "ph", "qu", "th", "tr", "b", "c", "d", "đ", "g", "h", "k", "l", "m", "n", "p",
     "r", "s", "t", "v", "x", "",
 ];
 
-const NUCLEI: &[&str] = &[
+pub const NUCLEI: &[&str] = &[
     "a", "ă", "â", "e", "ê", "i", "o", "ô", "ơ", "u", "ư", "y", "ai", "ao", "au", "ay", "âu", "ây", "eo", "êu", "ia", "iê",
-    "iu", "oa", "oă", "oe", "oi", "oo", "ôi", "ơi", "ua", "uâ", "ue", "uê", "ui", "uô", "uơ", "uy", "ưa", "ưi", "ưu", "ươ",
-    "yê", "oai", "oay", "oeo", "uây", "uôi", "uya", "uyê", "uyu", "ươi", "ươu", "iêu", "yêu", "ưo",
+    "iu", "oa", "oă", "oe", "oi", "oo", "ôi", "ơi", "ua", "uâ", "uê", "ui", "uô", "uơ", "uy", "ưa", "ưi", "ưu", "ươ",
+    "yê", "oai", "oay", "oeo", "uây", "uôi", "uya", "uyê", "uyu", "ươi", "ươu", "iêu", "yêu",
 ];
 
-const FINALS: &[&str] = &["ch", "ng", "nh", "c", "m", "n", "p", "t", ""];
+pub const FINALS: &[&str] = &["ch", "ng", "nh", "c", "k", "m", "n", "p", "t", ""];
+pub const STOP_FINALS: &[&str] = &["c", "ch", "k", "p", "t"];
 
 impl Letter {
     pub fn new(base: char, upper: bool) -> Self {
@@ -170,15 +171,39 @@ pub fn is_valid_syllable(letters: &[Letter], tone: Tone) -> bool {
             let Some(nucleus) = rest.strip_suffix(last) else { return false };
             NUCLEI.contains(&nucleus)
                 && spelling_allows(initial, nucleus)
-                && (!matches!(*last, "c" | "ch" | "p" | "t") || matches!(tone, Tone::Acute | Tone::Dot))
+                && rhyme_allows(nucleus, last)
+                && (!STOP_FINALS.contains(last) || matches!(tone, Tone::Acute | Tone::Dot))
         })
+    })
+}
+
+pub fn rhyme_allows(nucleus: &str, last: &str) -> bool {
+    match last {
+        "ng" | "c" => !matches!(nucleus, "i" | "y" | "ê" | "uy" | "uê"),
+        "nh" | "ch" => matches!(nucleus, "a" | "ê" | "i" | "oa" | "uê" | "uy"),
+        _ => true,
+    }
+}
+
+pub fn base_of(ch: char) -> char {
+    MARKED.iter().find(|(marked, _, _)| *marked == ch).map_or(ch, |(_, base, _)| *base)
+}
+
+pub fn cluster_can_grow(cluster: &[Letter]) -> bool {
+    NUCLEI.iter().any(|nucleus| {
+        let chars: Vec<char> = nucleus.chars().collect();
+        chars.len() >= cluster.len()
+            && cluster.iter().zip(&chars).all(|(letter, &expected)| {
+                if letter.mark == Mark::None { base_of(expected) == letter.base } else { letter.plain() == expected }
+            })
     })
 }
 
 fn spelling_allows(initial: &str, nucleus: &str) -> bool {
     let front = nucleus.starts_with(['e', 'ê', 'i', 'y']);
     match initial {
-        "k" | "gh" | "ngh" => front,
+        "k" => front || nucleus.starts_with(['a', 'o', 'ô']),
+        "gh" | "ngh" => front,
         "c" | "g" | "ng" => !front || (initial == "g" && nucleus.starts_with('i')),
         "qu" => !nucleus.starts_with(['u', 'ư']),
         _ => true,
@@ -251,11 +276,11 @@ mod tests {
 
     #[test]
     fn checks_vietnamese_syllables() {
-        for valid in ["tiếng", "được", "người", "quý", "giữa", "khuyết", "nghiêng", "ăn", "ạ", "học", "gì", "kìa", "ki"] {
+        for valid in ["tiếng", "được", "người", "quý", "giữa", "khuyết", "nghiêng", "ăn", "ạ", "học", "gì", "kìa", "ki", "đắk", "krông", "kạn", "ích", "anh", "khoẻ"] {
             let (letters, tone) = letters_of(valid);
             assert!(is_valid_syllable(&letters, tone), "{valid}");
         }
-        for invalid in ["class", "hello", "windows", "cè", "ngi", "àc"] {
+        for invalid in ["class", "hello", "windows", "cè", "ngi", "àc", "thíng", "dât", "anhh", "ich"] {
             let (letters, tone) = letters_of(invalid);
             assert!(!is_valid_syllable(&letters, tone), "{invalid}");
         }

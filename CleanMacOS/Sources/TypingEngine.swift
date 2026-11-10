@@ -13,6 +13,15 @@ struct TypingOptions: Codable, Equatable {
     var modernTone = true
     var autoRestore = true
     var wAsU = true
+    var brackets = false
+    var foreignConsonants = false
+    var autoCapitalize = false
+
+    func flags(vietnamese: Bool) -> UInt32 {
+        [method == .vni, vietnamese, modernTone, autoRestore, wAsU, brackets, foreignConsonants, autoCapitalize]
+            .enumerated()
+            .reduce(UInt32(0)) { flags, option in option.element ? flags | (1 << UInt32(option.offset)) : flags }
+    }
 }
 
 struct TypingEdit: Equatable {
@@ -31,8 +40,8 @@ final class TypingEngine {
         mk_typing_free(handle)
     }
 
-    func configure(_ options: TypingOptions) {
-        mk_typing_configure(handle, options.method == .vni, options.modernTone, options.autoRestore, options.wAsU)
+    func configure(_ options: TypingOptions, vietnamese: Bool = true) {
+        mk_typing_configure(handle, options.flags(vietnamese: vietnamese))
     }
 
     func setMacros(_ macros: [String: String]) {
@@ -51,6 +60,11 @@ final class TypingEngine {
     func finish(separator: Unicode.Scalar?) -> TypingEdit? {
         var backspaces: UInt32 = 0
         return edit(mk_typing_finish(handle, separator?.value ?? 0, &backspaces), backspaces)
+    }
+
+    func restore() -> TypingEdit? {
+        var backspaces: UInt32 = 0
+        return edit(mk_typing_restore(handle, &backspaces), backspaces)
     }
 
     func backspace() {

@@ -48,6 +48,9 @@ struct ContentView: View {
             case .music:
                 MusicView()
 
+            case .typing:
+                TypingView()
+
             case .ram:
                 RAMView()
 
@@ -68,6 +71,9 @@ struct ContentView: View {
             }
         }
         .navigationSplitViewStyle(.balanced)
+        .onReceive(NotificationCenter.default.publisher(for: .openSidebarPage)) { note in
+            if let page = note.object as? SidebarPage { currentPage = page }
+        }
         .alert("Confirm Clean", isPresented: $vm.showCleanConfirmation) {
             Button("Cancel", role: .cancel) { }
             Button("Clean", role: .destructive) {

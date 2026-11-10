@@ -14,6 +14,7 @@
 		15251D9BC4DF543DCD8A403E /* PermissionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC661B5A58FE8B57EF1C939C /* PermissionView.swift */; };
 		171CB18E3F33997A33D09624 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 519973CA3556535EDD116B2C /* HomeView.swift */; };
 		179E822D590C3A03BCF4132C /* Cleaner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B132021AA2508B2000D6D63 /* Cleaner.swift */; };
+		1922ECF7A7E981B3880DCA9F /* VietnameseKeyboard.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0B0DEE1298E5E06A0FF41AC /* VietnameseKeyboard.swift */; };
 		1B3AE11732CEDA64960CB87A /* MusicAlbumsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 55B5555C7B13EE1709B9A5CD /* MusicAlbumsView.swift */; };
 		1BF633E6145E7F8438492DAF /* UninstallerService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3910672BE6DD40B3BC79BCD2 /* UninstallerService.swift */; };
 		1C884A8C2CAAEF989A9A2FB3 /* AgentDemoTools.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44B45543D9D527DAF4698D0A /* AgentDemoTools.swift */; };
@@ -54,6 +55,7 @@
 		86F8FF339B20317441EBBA6D /* DisplaysViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 869943FA6706D69B21CE1402 /* DisplaysViewModel.swift */; };
 		879BF88DEA1C98DBB92D6264 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 84D76118D8D7A26DB9A6EDE1 /* Sparkle */; };
 		8898B200E4C8F6189458C3E8 /* ProcessService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACD43C271B2FC1F2DAB2E4D /* ProcessService.swift */; };
+		8B3D07C9A5E4DAEDA7C1EE52 /* TypingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D2F6FF03B4509227FDB99B0 /* TypingView.swift */; };
 		8CA24DFD317DFD78FA648F31 /* WebRecording.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8800FAAC118949398B3206D3 /* WebRecording.swift */; };
 		8F84EA87D991663E4071FDBF /* ScreenRecordView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 483AD0BC51C436C61A365E34 /* ScreenRecordView.swift */; };
 		91D5705DF41581EA40B80285 /* LargeFilesService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30AE1414B4AC514340366221 /* LargeFilesService.swift */; };
@@ -72,6 +74,7 @@
 		ADB833098DB19DD1D86A7454 /* DockerService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90B7181574359261F04305FF /* DockerService.swift */; };
 		B078D1AAB8135A124C168355 /* HeadlessBrowser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DAB977EDC7157992917E243 /* HeadlessBrowser.swift */; };
 		B10E97CB352C07091C8C5EEA /* DisplaysView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED308EBDE68AC23F9837A5B5 /* DisplaysView.swift */; };
+		B4E95F91196C01394ABE2BA0 /* TypingEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = C27F72AB64B35E37E0101DA2 /* TypingEngine.swift */; };
 		B8B567AEC135583DD0A7F5CC /* DisplayArrangement.swift in Sources */ = {isa = PBXBuildFile; fileRef = 610BB2E5437843457F99F69F /* DisplayArrangement.swift */; };
 		B94D5E73B6A99CD323DB3DA8 /* GlobalShortcuts.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1FC8128FEE8FEEE7743FF7B /* GlobalShortcuts.swift */; };
 		BA677043A457E4296F2EACBF /* MusicPlayerBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4863E8A5D48D219ECA7EB47 /* MusicPlayerBar.swift */; };
@@ -148,6 +151,7 @@
 		7335EA96D5BFB7CA1CAAAD51 /* DevToolsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevToolsView.swift; sourceTree = "<group>"; };
 		76B7603C695D7E900696BC7D /* TokenFileStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenFileStore.swift; sourceTree = "<group>"; };
 		7BCCBE4E7BC381BBBE85076E /* Style.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Style.swift; sourceTree = "<group>"; };
+		7D2F6FF03B4509227FDB99B0 /* TypingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TypingView.swift; sourceTree = "<group>"; };
 		81091D6E9A716D758A5C5FDB /* PortsJobsModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortsJobsModels.swift; sourceTree = "<group>"; };
 		85E5F1BC51FD98D575D2728A /* RecordingMCPTools.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingMCPTools.swift; sourceTree = "<group>"; };
 		8669187F5AE68DE7119775DC /* ClipboardViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardViewModel.swift; sourceTree = "<group>"; };
@@ -165,6 +169,7 @@
 		9ECF14E8605AC58E4B9C07A2 /* PortsJobsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortsJobsViewModel.swift; sourceTree = "<group>"; };
 		9F48D3960F901521A483B0B5 /* MusicTrackTable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicTrackTable.swift; sourceTree = "<group>"; };
 		A006AC3D753EA22E7DAE17A9 /* PortsJobsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortsJobsView.swift; sourceTree = "<group>"; };
+		A0B0DEE1298E5E06A0FF41AC /* VietnameseKeyboard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VietnameseKeyboard.swift; sourceTree = "<group>"; };
 		A40894D8E1E3507A6E606193 /* OutputQuality.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OutputQuality.swift; sourceTree = "<group>"; };
 		A4863E8A5D48D219ECA7EB47 /* MusicPlayerBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicPlayerBar.swift; sourceTree = "<group>"; };
 		AE1934A02858991DBDBF4B53 /* ReleaseHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReleaseHistory.swift; sourceTree = "<group>"; };
@@ -174,6 +179,7 @@
 		BCA21C6DF18A5F4914577A05 /* ClipboardHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardHistoryView.swift; sourceTree = "<group>"; };
 		C0341956B1B2E6DC78E634B4 /* ScreenRecorder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenRecorder.swift; sourceTree = "<group>"; };
 		C14516723EBF48D1B1FD224A /* StartupSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StartupSettingsView.swift; sourceTree = "<group>"; };
+		C27F72AB64B35E37E0101DA2 /* TypingEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TypingEngine.swift; sourceTree = "<group>"; };
 		C3E23E9045ECAC8FF3EB37FF /* ProcessModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProcessModels.swift; sourceTree = "<group>"; };
 		C7BB01766B10D3D2EBD0F908 /* LegacyDataCleanup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LegacyDataCleanup.swift; sourceTree = "<group>"; };
 		CA9E35C7D8B82601564C5468 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
@@ -314,9 +320,12 @@
 				76B7603C695D7E900696BC7D /* TokenFileStore.swift */,
 				2FD309CF3EA6462034C2FE83 /* ToolCatalog.swift */,
 				3F7FB64029A8968F4822C64E /* TrackInspector.swift */,
+				C27F72AB64B35E37E0101DA2 /* TypingEngine.swift */,
+				7D2F6FF03B4509227FDB99B0 /* TypingView.swift */,
 				3910672BE6DD40B3BC79BCD2 /* UninstallerService.swift */,
 				184DA560673D572637A24E64 /* UninstallView.swift */,
 				6961B68D8844C43ABA231FF8 /* UpdaterViewModel.swift */,
+				A0B0DEE1298E5E06A0FF41AC /* VietnameseKeyboard.swift */,
 				8800FAAC118949398B3206D3 /* WebRecording.swift */,
 			);
 			path = Sources;
@@ -514,9 +523,12 @@
 				23D50491F3450FCA148381C4 /* TokenFileStore.swift in Sources */,
 				9E0AD96F4412E279DC603FCA /* ToolCatalog.swift in Sources */,
 				53D9A24ADD84071106A6BCD9 /* TrackInspector.swift in Sources */,
+				B4E95F91196C01394ABE2BA0 /* TypingEngine.swift in Sources */,
+				8B3D07C9A5E4DAEDA7C1EE52 /* TypingView.swift in Sources */,
 				395E0E34B6F653070228E303 /* UninstallView.swift in Sources */,
 				1BF633E6145E7F8438492DAF /* UninstallerService.swift in Sources */,
 				BC3CC10E02C22920507972BB /* UpdaterViewModel.swift in Sources */,
+				1922ECF7A7E981B3880DCA9F /* VietnameseKeyboard.swift in Sources */,
 				8CA24DFD317DFD78FA648F31 /* WebRecording.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

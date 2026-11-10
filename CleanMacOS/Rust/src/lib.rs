@@ -1,3 +1,4 @@
+pub mod english;
 pub mod fswalk;
 pub mod typing;
 pub mod vietnamese;
@@ -112,15 +113,26 @@ pub extern "C" fn mk_typing_free(raw: *mut typing::Engine) {
 }
 
 #[no_mangle]
-pub extern "C" fn mk_typing_configure(raw: *mut typing::Engine, vni: bool, modern_tone: bool, auto_restore: bool, w_as_u: bool) {
+pub extern "C" fn mk_typing_configure(raw: *mut typing::Engine, flags: u32) {
     let Some(engine) = engine(raw) else { return };
+    let on = |bit: u32| flags & (1 << bit) != 0;
     engine.options = typing::Options {
-        method: if vni { typing::Method::Vni } else { typing::Method::Telex },
-        modern_tone,
-        auto_restore,
-        w_as_u,
+        method: if on(0) { typing::Method::Vni } else { typing::Method::Telex },
+        vietnamese: on(1),
+        modern_tone: on(2),
+        auto_restore: on(3),
+        w_as_u: on(4),
+        brackets: on(5),
+        foreign_consonants: on(6),
+        auto_capitalize: on(7),
     };
     engine.reset();
+}
+
+#[no_mangle]
+pub extern "C" fn mk_typing_restore(raw: *mut typing::Engine, out_backspaces: *mut u32) -> *mut c_char {
+    let Some(engine) = engine(raw) else { return std::ptr::null_mut() };
+    typing_output(engine.restore(), out_backspaces)
 }
 
 #[no_mangle]
@@ -185,7 +197,7 @@ mod tests {
             }
         }
         assert_eq!(screen, "tiếng không ");
-        mk_typing_configure(engine, true, true, true, true);
+        mk_typing_configure(engine, 0b11111);
         assert!(mk_typing_key(engine, 'a' as u32, &mut backspaces).is_null());
         let toned = mk_typing_key(engine, '1' as u32, &mut backspaces);
         assert_eq!(unsafe { CStr::from_ptr(toned) }.to_str().unwrap(), "á");

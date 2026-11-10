@@ -49,6 +49,7 @@ struct CleanMacOSApp: App {
     @StateObject private var account = AccountViewModel()
     @StateObject private var library: MusicLibrary
     @StateObject private var music: MusicPlayer
+    @StateObject private var keyboard: VietnameseKeyboard
     @AppStorage("showMenuBar") private var showMenuBar = true
     @State private var panelController: ClipboardPanelController?
 
@@ -56,6 +57,11 @@ struct CleanMacOSApp: App {
         let library = MusicLibrary(legacyRoot: MusicLibrary.legacyRoot)
         _library = StateObject(wrappedValue: library)
         _music = StateObject(wrappedValue: MusicPlayer(library: library))
+        let keyboard = VietnameseKeyboard()
+        _keyboard = StateObject(wrappedValue: keyboard)
+        KeyboardShortcuts.onKeyUp(for: .toggleVietnamese) {
+            MainActor.assumeIsolated { keyboard.toggleMode() }
+        }
     }
 
     var body: some Scene {
@@ -68,6 +74,7 @@ struct CleanMacOSApp: App {
                 .environmentObject(account)
                 .environmentObject(library)
                 .environmentObject(music)
+                .environmentObject(keyboard)
                 .frame(minWidth: 900, minHeight: 600)
                 .onAppear {
                     Task { await account.refreshSession() }
@@ -112,6 +119,13 @@ struct CleanMacOSApp: App {
             Label(String(format: " %.0f%%", monitor.latestCPU), systemImage: recorder.isRecording || agentRecording.isRecording ? "record.circle.fill" : "square.grid.2x2.fill")
         }
         .menuBarExtraStyle(.window)
+
+        MenuBarExtra(isInserted: Binding(get: { keyboard.preferences.isEnabled }, set: { value in keyboard.update { $0.isEnabled = value } })) {
+            TypingMenu(keyboard: keyboard)
+        } label: {
+            Image(nsImage: TypingBadge.image(keyboard.isVietnamese ? "V" : "E"))
+        }
+        .menuBarExtraStyle(.menu)
     }
 
     private func setAppIcon() {
