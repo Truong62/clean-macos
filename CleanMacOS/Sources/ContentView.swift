@@ -69,6 +69,9 @@ struct ContentView: View {
             case .windows:
                 WindowsView()
 
+            case .input:
+                InputView()
+
             case .devTools:
                 DevToolsView()
 

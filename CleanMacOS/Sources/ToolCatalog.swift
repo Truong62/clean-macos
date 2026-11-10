@@ -26,6 +26,7 @@ enum ToolGroup: String, CaseIterable, Identifiable {
         ]
         case .system: [
             AppTool(page: .windows, icon: "macwindow.on.rectangle", title: "Windows", summary: "Snap and move windows", colors: [.indigo, .blue]),
+            AppTool(page: .input, icon: "computermouse.fill", title: "Mouse & Keyboard", summary: "Scrolling, buttons, ⌘Q guard", colors: [.mint, .blue]),
             AppTool(page: .ram, icon: "memorychip", title: "RAM", summary: "Memory and heavy apps", colors: [.mint, .teal]),
             AppTool(page: .displays, icon: "display.2", title: "Displays", summary: "Monitors and wallpapers", colors: [.purple, .pink]),
             AppTool(page: .portsJobs, icon: "network", title: "Ports & Jobs", summary: "Ports, cron jobs, login items", colors: [.cyan, .blue]),

@@ -13,6 +13,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         AudioHardware.restoreChangedDevices()
+        HyperKeyMapping.restoreIfNeeded()
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
@@ -53,6 +54,7 @@ struct CleanMacOSApp: App {
     @StateObject private var keepAwake: KeepAwake
     @StateObject private var bluetooth = BluetoothSleepGuard()
     @StateObject private var windows = WindowManager()
+    @StateObject private var input = InputController()
     @AppStorage("showMenuBar") private var showMenuBar = true
     @State private var panelController: ClipboardPanelController?
 
@@ -86,6 +88,7 @@ struct CleanMacOSApp: App {
                 .environmentObject(keepAwake)
                 .environmentObject(bluetooth)
                 .environmentObject(windows)
+                .environmentObject(input)
                 .frame(minWidth: 900, minHeight: 600)
                 .onAppear {
                     Task { await account.refreshSession() }
