@@ -338,6 +338,12 @@ struct ClipboardMenuCard: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                HStack {
+                    Button { clipboard.move(item, direction: -1) } label: { Image(systemName: "arrow.up") }
+                        .disabled(!clipboard.canMove(item, direction: -1)).help("Move up")
+                    Button { clipboard.move(item, direction: 1) } label: { Image(systemName: "arrow.down") }
+                        .disabled(!clipboard.canMove(item, direction: 1)).help("Move down")
+                }.buttonStyle(.borderless)
             }
         }
         .padding(.horizontal, 14)

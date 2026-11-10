@@ -123,6 +123,10 @@ final class IslandController: NSObject, ObservableObject {
                 self?.capturePreview = nil
             }
         }
+        context.shelf.openInIsland = { [weak self] in
+            self?.open()
+            self?.select(.files)
+        }
         downloads.onFinish = { [weak self] name in self?.notice(.download, name, section: .downloads) }
         power.onNotice = { [weak self] message in
             guard let self, self.settings.batteryNotices else { return }
@@ -244,6 +248,7 @@ final class IslandController: NSObject, ObservableObject {
         monitor.islandBatteryColors = settings.batteryColors
         if previous?.liveBars == false && settings.liveBars { bars.mayRequestAccess = true }
         if !settings.liveBars { bars.stop(); bars.mayRequestAccess = false }
+        context.shelf.isHostedInIsland = settings.isEnabled && settings.sections.contains(.files)
         if settings.isEnabled && settings.shortcut { KeyboardShortcuts.enable([.island]) } else { KeyboardShortcuts.disable([.island]) }
         if settings.isEnabled && settings.watchShortcut && settings.sections.contains(.watch) { KeyboardShortcuts.enable([.islandWatch]) } else { KeyboardShortcuts.disable([.islandWatch]) }
         agents.tracksIslandTurns = settings.isEnabled && settings.sections.contains(.agents) && (settings.claudeActivity || settings.codexActivity)
@@ -517,7 +522,7 @@ final class IslandController: NSObject, ObservableObject {
     }
 
     func close(explicit: Bool = true) {
-        state.protected = calendar.isRequestingAccess || context.camera.isRequestingAccess || menuOpen || NSApp.modalWindow != nil || panel?.attachedSheet != nil || context.scratchpad.pendingClose != nil
+        state.protected = AirPlayRoutes.pickerIsOpen || Date() < AirPlayRoutes.dismissalAllowedAfter || calendar.isRequestingAccess || context.camera.isRequestingAccess || menuOpen || NSApp.modalWindow != nil || panel?.attachedSheet != nil || context.scratchpad.pendingClose != nil
         state.close(explicit: explicit, now: clock)
         guard !isOpen else { return }
         stopCamera()

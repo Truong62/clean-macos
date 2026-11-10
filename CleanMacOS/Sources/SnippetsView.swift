@@ -29,6 +29,7 @@ struct SnippetsView: View {
                         .padding(14)
                         .glassCard(cornerRadius: 18)
                 }
+                SecureInputStatusCard()
                 CardSection(title: "Expansion", icon: "keyboard") {
                     Toggle("Expand snippets as you type", isOn: $expander.settings.expandsWhileTyping)
                     HStack {

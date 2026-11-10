@@ -127,7 +127,7 @@ struct ClipboardHistoryUpgradeTests {
         history.add("keep", maxItems: 2)
         history.togglePin(id: history.items[0].id, at: Date())
         for text in ["x", "y", "z"] { history.add(text, maxItems: 2) }
-        #expect(history.items.map(\.text) == ["z", "y", "keep"])
+        #expect(history.items.map(\.text) == ["keep", "z", "y"])
     }
 
     @Test func expiryAndClearingSparePinnedItems() {
@@ -137,7 +137,7 @@ struct ClipboardHistoryUpgradeTests {
         history.insert(ClipboardItem(text: "stale", createdAt: old), maxItems: 10)
         history.insert(ClipboardItem(text: "fresh"), maxItems: 10)
         history.prune(before: Date(timeIntervalSinceNow: -7 * 86_400))
-        #expect(history.items.map(\.text) == ["fresh", "pinned"])
+        #expect(history.items.map(\.text) == ["pinned", "fresh"])
         history.clear()
         #expect(history.items.map(\.text) == ["pinned"])
     }
@@ -148,7 +148,7 @@ struct ClipboardHistoryUpgradeTests {
         history.togglePin(id: history.items[0].id, at: Date(timeIntervalSince1970: 0))
         history.add("b", maxItems: 10)
         let now = Date()
-        history.togglePin(id: history.items[1].id, at: now)
+        history.togglePin(id: history.items.first { $0.text == "a" }!.id, at: now)
         #expect(history.items.map(\.text) == ["a", "b"])
         #expect(history.items[0].createdAt == now)
         #expect(!history.items[0].isPinned)

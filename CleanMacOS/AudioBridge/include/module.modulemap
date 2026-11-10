@@ -1,0 +1,4 @@
+module MacKitAudioBridge {
+    header "MacKitAudioBridge.h"
+    export *
+}

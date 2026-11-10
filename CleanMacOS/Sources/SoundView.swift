@@ -210,13 +210,22 @@ struct MixerSection: View {
             } else {
                 Toggle("Set the volume of each app", isOn: $mixer.settings.isEnabled)
                 if mixer.settings.isEnabled {
-                    Toggle("Hide apps that aren't playing", isOn: $mixer.settings.hidesInactive)
+                    DisclosureGroup("Options") {
+                        Toggle("Hide apps that aren't playing", isOn: $mixer.settings.hidesInactive)
+                        Toggle("Enable AirPlay app routes", isOn: $mixer.settings.airPlayEnabled)
+                            .disabled(ProcessInfo.processInfo.operatingSystemVersion.majorVersion < 27)
+                        Toggle("Use fine volume key steps", isOn: $mixer.settings.fineVolumeKeys)
+                        if mixer.settings.fineVolumeKeys {
+                            FineVolumeStatus(controller: mixer.fineVolume)
+                        }
+                    }
                     if let problem = mixer.problem {
                         Text(problem.message).font(.caption).foregroundStyle(.orange)
                     }
                     if mixer.visibleApps.isEmpty {
                         Text("No apps are using sound right now.").foregroundStyle(.secondary)
                     }
+                    AirPlayStatus(routes: mixer.airPlay)
                     ForEach(mixer.visibleApps) { MixerRow(app: $0) }
                     Text("The first change asks for Screen & System Audio Recording access. Above 100% a limiter keeps loud apps from clipping.")
                         .font(.caption).foregroundStyle(.secondary)
@@ -260,13 +269,58 @@ private struct MixerRow: View {
                 .buttonStyle(.borderless)
                 .help("Back to 100%")
                 .disabled(!canTap || (!mix.isMuted && abs(mix.volume - AppMix.unity) < AppMix.tolerance))
-            Picker("", selection: Binding(get: { mix.route }, set: { mixer.setRoute($0, for: app) })) {
-                Text("Default output").tag(String?.none)
-                ForEach(sound.outputs) { Text($0.name).tag(String?.some($0.uid)) }
-            }
-            .labelsHidden()
-            .frame(width: 150)
-            .disabled(!canTap)
+            MixerOutputPicker(app: app, mixer: mixer, sound: sound, airPlay: mixer.airPlay)
+                .disabled(!canTap)
         }
+    }
+}
+
+struct FineVolumeStatus: View {
+    @ObservedObject var controller: FineVolumeController
+    var body: some View {
+        if controller.unavailable {
+            Text("Fine volume keys need Accessibility and an available event tap.").font(.caption).foregroundStyle(.orange)
+            Button("Open Accessibility Settings") {
+                if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") { NSWorkspace.shared.open(url) }
+            }
+        }
+    }
+}
+
+struct MixerOutputPicker: View {
+    let app: AudioApp
+    @ObservedObject var mixer: MixerController
+    @ObservedObject var sound: SoundController
+    @ObservedObject var airPlay: AirPlayRoutes
+
+    var body: some View {
+        let route = mixer.mix(for: app).route
+        let outputs = sound.outputs.map { (id: $0.uid, name: $0.name) } + (airPlay.available ? [(id: AirPlayRouteLogic.uid, name: airPlay.title)] : [])
+        VStack(alignment: .leading, spacing: 2) {
+            Menu {
+                Button("Default output") { mixer.setRoute(nil, for: app) }
+                ForEach(outputs.sorted { $0.name == $1.name ? $0.id < $1.id : $0.name.localizedStandardCompare($1.name) == .orderedAscending }, id: \.id) { output in
+                    Button { mixer.setRoute(output.id, for: app) } label: {
+                        if route == output.id { Label(output.name, systemImage: "checkmark") } else { Text(output.name) }
+                    }
+                }
+                if airPlay.available {
+                    Divider()
+                    Button("Choose AirPlay Speaker…") { mixer.chooseAirPlay(for: app) }
+                }
+            } label: {
+                Text(outputs.first { $0.id == route }?.name ?? "Default output").lineLimit(1)
+            }
+            if route == AirPlayRouteLogic.uid && !airPlay.connected {
+                Text("No speaker · default output at 100%").font(.caption2).foregroundStyle(.secondary)
+            }
+        }.frame(width: 150)
+    }
+}
+
+struct AirPlayStatus: View {
+    @ObservedObject var routes: AirPlayRoutes
+    var body: some View {
+        if let warning = routes.warning { Text(warning).font(.caption).foregroundStyle(.secondary) }
     }
 }

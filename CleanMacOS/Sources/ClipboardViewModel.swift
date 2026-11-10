@@ -20,6 +20,8 @@ final class ClipboardViewModel: ObservableObject {
         }
     }
 
+    private let saveQueue = DispatchQueue(label: "mackit.clipboard.order", qos: .utility)
+    private var pendingSave: DispatchWorkItem?
     private var history: ClipboardHistory
     private let store: ClipboardStore
     private let monitor: ClipboardMonitor
@@ -81,48 +83,71 @@ final class ClipboardViewModel: ObservableObject {
     @discardableResult
     func copy(_ item: ClipboardItem) -> Bool {
         let pasteboard = NSPasteboard.general
+        let succeeded: Bool
         switch item.kind {
         case .text:
             pasteboard.clearContents()
-            pasteboard.setString(item.text, forType: .string)
+            succeeded = pasteboard.setString(item.text, forType: .string)
         case .image:
             guard let name = item.image?.fileName, let png = try? Data(contentsOf: store.imageURL(named: name)) else { return refuse() }
             pasteboard.clearContents()
-            pasteboard.setData(png, forType: .png)
+            succeeded = pasteboard.setData(png, forType: .png)
             if let tiff = NSImage(data: png)?.tiffRepresentation { pasteboard.setData(tiff, forType: .tiff) }
         case .files:
             let urls = item.files.map { URL(fileURLWithPath: $0) }.filter { FileManager.default.fileExists(atPath: $0.path) }
-            guard !urls.isEmpty else { return refuse() }
+            guard !urls.isEmpty, urls.count == item.files.count else { return refuse() }
             pasteboard.clearContents()
-            pasteboard.writeObjects(urls as [NSURL])
+            succeeded = pasteboard.writeObjects(urls as [NSURL])
         }
+        guard succeeded else { return refuse() }
         monitor.ignoreCurrentChange()
-        var used = item
-        used.createdAt = Date()
-        used.sourceApp = nil
-        insert(used)
+        history.recordUse([item.id], at: Date())
+        currentItemID = item.id
+        commit()
         return true
     }
 
     @discardableResult
     func copy(_ pile: [ClipboardItem]) -> Bool {
         guard pile.count > 1 else { return pile.first.map { copy($0) } ?? false }
+        guard pile.allSatisfy({ item in
+            switch item.kind {
+            case .text: return true
+            case .image: return item.image.map { FileManager.default.fileExists(atPath: store.imageURL(named: $0.fileName).path) } ?? false
+            case .files: return !item.files.isEmpty && item.files.allSatisfy { FileManager.default.fileExists(atPath: $0) }
+            }
+        }) else { return refuse() }
         let pasteboard = NSPasteboard.general
+        var succeeded = false
         if ClipboardPile.allFiles(pile) {
             let urls = pile.flatMap(\.files).map { URL(fileURLWithPath: $0) }.filter { FileManager.default.fileExists(atPath: $0.path) }
             guard !urls.isEmpty else { return refuse() }
             pasteboard.clearContents()
-            pasteboard.writeObjects(urls as [NSURL])
+            succeeded = pasteboard.writeObjects(urls as [NSURL])
         } else {
             let text = ClipboardPile.text(pile)
+            let hasImages = pile.contains { $0.kind == .image }
+            let rtfd = hasImages ? richDocument(pile) : nil
+            guard !hasImages || rtfd != nil else { return refuse() }
             pasteboard.clearContents()
-            if pile.contains(where: { $0.kind == .image }), let rtfd = richDocument(pile) { pasteboard.setData(rtfd, forType: .rtfd) }
-            if !text.isEmpty { pasteboard.setString(text, forType: .string) }
+            if let rtfd { succeeded = pasteboard.setData(rtfd, forType: .rtfd) }
+            if !text.isEmpty { succeeded = pasteboard.setString(text, forType: .string) || succeeded }
         }
+        guard succeeded else { return refuse() }
         pasteboard.setData(Data(), forType: .init(PasteboardFacts.transient))
         monitor.ignoreCurrentChange()
+        history.recordUse(pile.map(\.id), at: Date())
+        commit()
         currentItemID = nil
         return true
+    }
+
+    func canMove(_ item: ClipboardItem, direction: Int, query: String = "") -> Bool {
+        history.neighbor(of: item.id, direction: direction, query: query) != nil
+    }
+
+    func move(_ item: ClipboardItem, direction: Int, query: String = "") {
+        if history.move(item.id, direction: direction, query: query) { commit(batched: true) }
     }
 
     func delete(_ item: ClipboardItem) {
@@ -259,7 +284,7 @@ final class ClipboardViewModel: ObservableObject {
 
     private func insert(_ item: ClipboardItem) {
         history.insert(item, maxItems: ClipboardSettings.maxItems)
-        currentItemID = history.items.first?.id
+        currentItemID = history.items.first { $0.dedupKey == item.dedupKey }?.id
         pruneExpired()
         commit()
     }
@@ -269,10 +294,22 @@ final class ClipboardViewModel: ObservableObject {
         history.prune(before: Date(timeIntervalSinceNow: -Double(options.retentionDays) * 86_400))
     }
 
-    private func commit() {
+    private func commit(batched: Bool = false) {
+        pendingSave?.cancel()
         items = history.items
         if let id = currentItemID, !items.contains(where: { $0.id == id }) { currentItemID = nil }
-        if ClipboardSettings.persist { store.save(items) }
+        if ClipboardSettings.persist {
+            if batched {
+                let snapshot = items
+                let store = store
+                let work = DispatchWorkItem { store.save(snapshot) }
+                pendingSave = work
+                saveQueue.asyncAfter(deadline: .now() + 0.15, execute: work)
+            } else {
+                let snapshot = items
+                saveQueue.sync { store.save(snapshot) }
+            }
+        }
         store.removeImages(except: Set(items.compactMap { $0.image?.fileName }))
     }
 
@@ -289,15 +326,15 @@ final class ClipboardViewModel: ObservableObject {
     private func observeClearEvents() {
         let workspace = NSWorkspace.shared.notificationCenter
         let distributed = DistributedNotificationCenter.default()
-        let events: [(NotificationCenter, Notification.Name, KeyPath<ClipboardAutoClear, Bool>)] = [
-            (workspace, NSWorkspace.willSleepNotification, \.onSleep),
-            (workspace, NSWorkspace.screensDidSleepNotification, \.onDisplaySleep),
-            (distributed, Self.screenLocked, \.onLock),
+        let events: [(NotificationCenter, Notification.Name, @Sendable (ClipboardAutoClear) -> Bool)] = [
+            (workspace, NSWorkspace.willSleepNotification, { $0.onSleep }),
+            (workspace, NSWorkspace.screensDidSleepNotification, { $0.onDisplaySleep }),
+            (distributed, Self.screenLocked, { $0.onLock }),
         ]
         observers = events.map { center, name, rule in
             let token = center.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
                 MainActor.assumeIsolated {
-                    guard let self, self.options.autoClear[keyPath: rule] else { return }
+                    guard let self, rule(self.options.autoClear) else { return }
                     self.clearPasteboard()
                 }
             }

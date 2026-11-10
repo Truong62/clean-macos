@@ -19,8 +19,11 @@ final class ClipboardPanelController: NSObject, NSWindowDelegate {
     static let copyOnlyApps: Set<String> = ["com.microsoft.rdc.macos", "com.microsoft.rdc.osx.beta"]
 
     private var panel: NSPanel?
+    private var askedAccessibility = false
     private var previousApp: NSRunningApplication?
     private var keyMonitor: Any?
+    private var outsideMonitor: Any?
+    private var activationObserver: NSObjectProtocol?
     private var toggleObserver: NSObjectProtocol?
     private let clipboard: ClipboardViewModel
     private let model: ClipboardPanelModel
@@ -43,31 +46,48 @@ final class ClipboardPanelController: NSObject, NSWindowDelegate {
     }
 
     func show() {
-        previousApp = NSWorkspace.shared.frontmostApplication
+        let front = NSWorkspace.shared.frontmostApplication
+        previousApp = front?.activationPolicy == .regular && front?.processIdentifier != ProcessInfo.processInfo.processIdentifier ? front : nil
         model.reset()
+        let cards = model.layout == .cards
+        let screen = NSScreen.screens.first { $0.frame.contains(NSEvent.mouseLocation) } ?? NSScreen.main
+        let cardFrame = ClipboardCardGeometry.frame(in: screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1024, height: 768))
         let width = Self.size.width + (model.showsPreview ? Self.previewWidth : 0)
         let panel = KeyablePanel(contentRect: NSRect(x: 0, y: 0, width: width, height: Self.size.height),
-                                 styleMask: [.titled, .closable, .resizable, .fullSizeContentView, .nonactivatingPanel],
+                                 styleMask: cards ? [.borderless, .nonactivatingPanel] : [.titled, .closable, .resizable, .fullSizeContentView, .nonactivatingPanel],
                                  backing: .buffered, defer: false)
         panel.titleVisibility = .hidden
         panel.titlebarAppearsTransparent = true
         [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton].forEach { panel.standardWindowButton($0)?.isHidden = true }
-        panel.isMovableByWindowBackground = true
+        panel.isMovableByWindowBackground = !cards
         panel.isFloatingPanel = true
         panel.level = .floating
         panel.hidesOnDeactivate = false
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
-        panel.minSize = NSSize(width: Self.size.width, height: Self.minimumHeight)
+        if !cards { panel.minSize = NSSize(width: Self.size.width, height: Self.minimumHeight) }
         let host = NSHostingController(rootView: ClipboardPanelView(model: model, clipboard: clipboard).environmentObject(clipboard))
         host.sizingOptions = []
         panel.contentViewController = host
         panel.setContentSize(NSSize(width: width, height: Self.size.height))
         panel.delegate = self
-        positionAtCursor(panel)
+        if cards { panel.setFrame(cardFrame, display: false) } else { positionAtCursor(panel) }
         self.panel = panel
         panel.makeKeyAndOrderFront(nil)
         panel.orderFrontRegardless()
         installKeyMonitor()
+        outsideMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self, let panel = self.panel, !panel.frame.insetBy(dx: -2, dy: -2).contains(NSEvent.mouseLocation) else { return }
+                let appID = NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? ""
+                guard !appID.contains("AccessibilityKeyboard") else { return }
+                self.close()
+            }
+        }
+        activationObserver = NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main) { [weak self] note in
+            let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
+            guard app?.processIdentifier != ProcessInfo.processInfo.processIdentifier else { return }
+            MainActor.assumeIsolated { self?.close() }
+        }
     }
 
     func close() {
@@ -99,7 +119,7 @@ final class ClipboardPanelController: NSObject, NSWindowDelegate {
     }
 
     private func resizeForPreview(_ showsPreview: Bool) {
-        guard let panel else { return }
+        guard let panel, model.layout != .cards else { return }
         var frame = panel.frame
         frame.size.width += showsPreview ? Self.previewWidth : -Self.previewWidth
         panel.setFrame(frame, display: true, animate: true)
@@ -125,14 +145,23 @@ final class ClipboardPanelController: NSObject, NSWindowDelegate {
     }
 
     private func removeKeyMonitor() {
+        if let outsideMonitor { NSEvent.removeMonitor(outsideMonitor) }
+        outsideMonitor = nil
+        if let activationObserver { NSWorkspace.shared.notificationCenter.removeObserver(activationObserver) }
+        activationObserver = nil
         if let keyMonitor { NSEvent.removeMonitor(keyMonitor) }
         keyMonitor = nil
     }
 
     private func paste(_ items: [ClipboardItem]) {
-        guard clipboard.copy(items) else { return }
         close()
+        guard clipboard.copy(items) else { return }
         guard let app = previousApp, !Self.copyOnlyApps.contains(app.bundleIdentifier ?? "") else { return }
+        guard PasteService.isAccessibilityTrusted else {
+            if !askedAccessibility { askedAccessibility = true; PasteService.requestAccessibility() }
+            else { NSSound.beep() }
+            return
+        }
         app.activate()
         DispatchQueue.main.asyncAfter(deadline: .now() + Self.pasteDelay) {
             PasteService.pasteToFrontmostApp()

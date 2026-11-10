@@ -1,5 +1,6 @@
 import AppKit
 import CoreAudio
+import MacKitAudioBridge
 
 struct AudioProcess: Equatable {
     let object: AudioObjectID
@@ -72,7 +73,10 @@ final class RenderState: @unchecked Sendable {
     var desired: Float = 1
     var sampleRate: Double = 48000
     var limiter = BoostLimiter()
+    var compensation: Float = 1
+    var ramp = MixerGainRamp()
     var renders = 0
+    var airPlay: AirPlayStream?
 }
 
 enum MixerError: Error, Equatable {
@@ -94,13 +98,16 @@ final class AppTapEngine {
     let appID: String
     let outputUID: String
     let processObjects: [AudioObjectID]
+    let isAirPlay: Bool
     let state = RenderState()
     private var tapID = AudioObjectID(kAudioObjectUnknown)
     private var aggregateID = AudioObjectID(kAudioObjectUnknown)
     private var procID: AudioDeviceIOProcID?
     private let queue = DispatchQueue(label: "mackit.mixer.render", qos: .userInteractive)
 
-    init(appID: String, outputUID: String, processObjects: [AudioObjectID]) {
+    init(appID: String, outputUID: String, processObjects: [AudioObjectID], airPlay: AirPlayStream? = nil) {
+        isAirPlay = airPlay != nil
+        state.airPlay = airPlay
         self.appID = appID
         self.outputUID = outputUID
         self.processObjects = processObjects
@@ -108,6 +115,7 @@ final class AppTapEngine {
 
     func start(gain: Float) throws {
         state.desired = gain
+        state.ramp = MixerGainRamp(current: gain * state.compensation)
         let description = CATapDescription(stereoMixdownOfProcesses: processObjects)
         description.uuid = UUID()
         description.name = "\(Self.namePrefix) \(appID)"
@@ -136,8 +144,24 @@ final class AppTapEngine {
             let input = UnsafeMutableAudioBufferListPointer(UnsafeMutablePointer(mutating: inputData))
             let output = UnsafeMutableAudioBufferListPointer(outputData)
             let frames = output.first.map { Int($0.mDataByteSize) / (MemoryLayout<Float>.size * max(Int($0.mNumberChannels), 1)) } ?? 0
-            let gains = state.limiter.next(peak: MixerRender.peak(of: input), desired: state.desired, frames: frames, sampleRate: state.sampleRate)
-            MixerRender.copy(from: input, to: output, start: gains.start, end: gains.end)
+            let ramp = state.ramp.next(target: state.desired * state.compensation, frames: frames, sampleRate: state.sampleRate)
+            let limited = state.limiter.next(peak: MixerRender.peak(of: input), desired: max(ramp.start, ramp.end), frames: frames, sampleRate: state.sampleRate)
+            let gains = (start: min(ramp.start, limited.start), end: min(ramp.end, limited.end))
+            if let stream = state.airPlay {
+                let channels = MixerRender.channels(of: input)
+                let inputFrames = channels.map(\.frames).min() ?? 0
+                for frame in 0..<inputFrames {
+                    let gain = gains.start + (gains.end - gains.start) * Float(frame) / Float(max(1, inputFrames))
+                    let left = channels.first.map { $0.pointer[frame * $0.stride] } ?? 0
+                    let right = channels.count > 1 ? channels[1].pointer[frame * channels[1].stride] : left
+                    MKAudioRingWrite(stream.ring, left * gain, right * gain)
+                }
+                for buffer in output {
+                    if let data = buffer.mData { memset(data, 0, Int(buffer.mDataByteSize)) }
+                }
+            } else {
+                MixerRender.copy(from: input, to: output, start: gains.start, end: gains.end)
+            }
             state.renders &+= 1
         }
         guard status == noErr, let procID else {
@@ -150,6 +174,17 @@ final class AppTapEngine {
             throw MixerError.start(status)
         }
     }
+
+    func configure(gain: Float, compensation: Float, sampleRate: Double) {
+        let state = state
+        queue.async {
+            state.desired = gain
+            state.compensation = compensation
+            state.sampleRate = sampleRate
+        }
+    }
+
+    var renderCount: Int { queue.sync { state.renders } }
 
     func stop() {
         if let procID {
@@ -183,6 +218,8 @@ struct AppMix: Codable, Equatable {
 struct MixerSettings: Codable, Equatable {
     var isEnabled = false
     var hidesInactive = false
+    var fineVolumeKeys = false
+    var airPlayEnabled = false
     var mixes: [String: AppMix] = [:]
 }
 
@@ -200,13 +237,20 @@ final class MixerController: ObservableObject {
     @Published var settings: MixerSettings {
         didSet {
             UserDefaults.standard.set(try? JSONEncoder().encode(settings), forKey: Self.settingsKey)
+            sound.fineVolumeKeysEnabled = settings.isEnabled && settings.fineVolumeKeys
+            airPlay.setRunning(settings.isEnabled && settings.airPlayEnabled)
+            fineVolume.setEnabled(settings.isEnabled && settings.fineVolumeKeys, request: !oldValue.fineVolumeKeys && settings.fineVolumeKeys)
             applyEngines()
         }
     }
+    let fineVolume = FineVolumeController()
+    let airPlay = AirPlayRoutes()
     @Published private(set) var apps: [AudioApp] = []
     @Published private(set) var problem: MixerError?
 
     private let sound: SoundController
+    private var outputFormats: [String: (rate: Double, compensation: Float)] = [:]
+    private var lastFormatRead = Date.distantPast
     private var engines: [String: AnyObject] = [:]
     private var renderMarks: [String: (count: Int, since: Date)] = [:]
     private var failed: Set<String> = []
@@ -221,7 +265,13 @@ final class MixerController: ObservableObject {
         AudioProperty.listen(AudioProperty.system, kAudioHardwarePropertyDefaultOutputDevice) { [weak self] in
             MainActor.assumeIsolated { self?.applyEngines() }
         }
+        sound.fineVolumeKeysEnabled = settings.isEnabled && settings.fineVolumeKeys
+        fineVolume.onStep = { [weak sound] code in sound?.fineMonitorStep(code: code) ?? false }
+        airPlay.onChange = { [weak self] in self?.applyEngines() }
+        sound.onManualOutputChange = { [weak self] in self?.clearRoutes() }
+        airPlay.setRunning(settings.isEnabled && settings.airPlayEnabled)
         refresh()
+        fineVolume.setEnabled(settings.isEnabled && settings.fineVolumeKeys, request: false)
         applyEngines()
     }
 
@@ -247,6 +297,18 @@ final class MixerController: ObservableObject {
 
     func setRoute(_ uid: String?, for app: AudioApp) {
         update(app) { $0.route = uid }
+        if uid == AirPlayRouteLogic.uid && !airPlay.connected { airPlay.chooseSpeaker() }
+    }
+
+    func chooseAirPlay(for app: AudioApp) {
+        update(app) { $0.route = AirPlayRouteLogic.uid }
+        airPlay.chooseSpeaker()
+    }
+
+    private func clearRoutes() {
+        var updated = settings
+        for id in updated.mixes.keys { updated.mixes[id]?.route = nil }
+        settings = updated
     }
 
     private func update(_ app: AudioApp, _ change: (inout AppMix) -> Void) {
@@ -264,28 +326,47 @@ final class MixerController: ObservableObject {
         guard #available(macOS 14.4, *) else { return }
         let defaultUID = sound.outputs.first { $0.id == SoundHardware.defaultDevice(kAudioHardwarePropertyDefaultOutputDevice) }?.uid
         let available = Set(sound.outputs.map(\.uid))
-        var wanted: [String: (output: String, objects: [AudioObjectID], gain: Float)] = [:]
+        if Date().timeIntervalSince(lastFormatRead) >= 1 {
+            lastFormatRead = Date()
+            outputFormats = Dictionary(uniqueKeysWithValues: sound.outputs.map { device in
+                let streams = AudioProperty.array(device.id, kAudioDevicePropertyStreams, SoundHardware.output, as: AudioStreamID.self)
+                let channels = streams.reduce(0) { sum, stream in
+                    sum + Int(AudioProperty.get(stream, kAudioStreamPropertyVirtualFormat, as: AudioStreamBasicDescription.self)?.mChannelsPerFrame ?? 0)
+                }
+                let rate = AudioProperty.get(device.id, kAudioDevicePropertyNominalSampleRate, as: Float64.self) ?? 48000
+                return (device.uid, (rate, MixerGainRamp.compensation(channels: channels)))
+            })
+        }
+        var wanted: [String: (output: String, objects: [AudioObjectID], gain: Float, airPlay: Bool)] = [:]
         if settings.isEnabled {
             for app in apps where AudioAppPolicy.canTap(app.id) {
-                guard let mix = settings.mixes[app.id], mix.needsTap,
-                      let output = mix.route.flatMap({ available.contains($0) ? $0 : nil }) ?? defaultUID else { continue }
-                wanted[app.id] = (output, app.processObjects.sorted(), mix.gain)
+                guard let mix = settings.mixes[app.id], mix.needsTap else { continue }
+                let remote = mix.route == AirPlayRouteLogic.uid
+                if remote && !airPlay.connected { continue }
+                let clock = defaultUID ?? sound.outputs.first { $0.kind != .virtual }?.uid
+                guard let output = remote ? clock : mix.route.flatMap({ available.contains($0) ? $0 : nil }) ?? defaultUID else { continue }
+                wanted[app.id] = (output, app.processObjects.sorted(), mix.gain, remote)
             }
         }
         for (id, value) in engines {
             guard let engine = value as? AppTapEngine else { continue }
-            if let target = wanted[id], target.output == engine.outputUID, target.objects == engine.processObjects {
-                engine.state.desired = target.gain
+            if let target = wanted[id], target.output == engine.outputUID, target.objects == engine.processObjects, target.airPlay == engine.isAirPlay {
+                let format = outputFormats[target.output] ?? (rate: 48000, compensation: 1)
+                engine.configure(gain: target.gain, compensation: format.compensation, sampleRate: format.rate)
             } else if wanted[id] == nil || failed.contains(key(id, wanted[id]!.output)) {
                 engine.stop()
                 engines[id] = nil
             }
         }
         for (id, target) in wanted where !failed.contains(key(id, target.output)) {
-            if let engine = engines[id] as? AppTapEngine, engine.outputUID == target.output, engine.processObjects == target.objects { continue }
-            let replacement = AppTapEngine(appID: id, outputUID: target.output, processObjects: target.objects)
+            if let engine = engines[id] as? AppTapEngine, engine.outputUID == target.output, engine.processObjects == target.objects, engine.isAirPlay == target.airPlay { continue }
+            let stream = target.airPlay ? airPlay.stream(for: id) : nil
+            if target.airPlay && stream == nil { continue }
+            let replacement = AppTapEngine(appID: id, outputUID: target.output, processObjects: target.objects, airPlay: stream)
+            replacement.state.compensation = outputFormats[target.output]?.compensation ?? 1
             do {
                 try replacement.start(gain: target.gain)
+                if let stream { airPlay.attach(stream, for: id) }
                 (engines[id] as? AppTapEngine)?.stop()
                 engines[id] = replacement
                 renderMarks[id] = nil
@@ -297,6 +378,8 @@ final class MixerController: ObservableObject {
                 failed.insert(key(id, target.output))
             }
         }
+        let routed = Set(engines.compactMap { key, value in (value as? AppTapEngine)?.isAirPlay == true ? key : nil })
+        airPlay.retainStreams(routed, playing: apps.contains { routed.contains($0.id) && $0.isPlaying })
         updateTimer()
     }
 
@@ -324,10 +407,14 @@ final class MixerController: ObservableObject {
         let now = Date()
         for (id, value) in engines {
             guard let engine = value as? AppTapEngine else { continue }
+            if let stream = engine.state.airPlay {
+                stream.sampleRate = outputFormats[engine.outputUID]?.rate ?? stream.sampleRate
+            }
             let isPlaying = apps.first { $0.id == id }?.isPlaying ?? false
             let mark = renderMarks[id]
-            if !isPlaying || mark == nil || mark?.count != engine.state.renders {
-                renderMarks[id] = (engine.state.renders, now)
+            let rendered = engine.renderCount
+            if !isPlaying || mark == nil || mark?.count != rendered {
+                renderMarks[id] = (rendered, now)
             } else if let mark, now.timeIntervalSince(mark.since) > Self.stallLimit {
                 engine.stop()
                 engines[id] = nil
@@ -335,5 +422,16 @@ final class MixerController: ObservableObject {
             }
         }
         applyEngines()
+    }
+}
+
+extension MixerSettings {
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        isEnabled = try values.decodeIfPresent(Bool.self, forKey: .isEnabled) ?? false
+        hidesInactive = try values.decodeIfPresent(Bool.self, forKey: .hidesInactive) ?? false
+        airPlayEnabled = try values.decodeIfPresent(Bool.self, forKey: .airPlayEnabled) ?? false
+        fineVolumeKeys = try values.decodeIfPresent(Bool.self, forKey: .fineVolumeKeys) ?? false
+        mixes = try values.decodeIfPresent([String: AppMix].self, forKey: .mixes) ?? [:]
     }
 }

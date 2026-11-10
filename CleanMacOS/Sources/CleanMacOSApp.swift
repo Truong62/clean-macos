@@ -49,6 +49,7 @@ struct CleanMacOSApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var vm = AppViewModel()
     @StateObject private var updater = UpdaterViewModel()
+    @StateObject private var secureInput: SecureInputController
     @StateObject private var clipboard: ClipboardViewModel
     @StateObject private var snippets: SnippetExpander
     @StateObject private var monitor: SystemMonitor
@@ -99,6 +100,7 @@ struct CleanMacOSApp: App {
         let mouseTools = MouseToolsController()
         mouseTools.inputSettings = { [weak input] in input?.settings ?? InputSettings() }
         _mouseTools = StateObject(wrappedValue: mouseTools)
+        _secureInput = StateObject(wrappedValue: SecureInputController())
         let clipboard = ClipboardViewModel()
         _clipboard = StateObject(wrappedValue: clipboard)
         let snippets = SnippetExpander(clipboard: clipboard)
@@ -169,6 +171,7 @@ struct CleanMacOSApp: App {
                 .environmentObject(vm)
                 .environmentObject(updater)
                 .environmentObject(clipboard)
+                .environmentObject(secureInput)
                 .environmentObject(recorder)
                 .environmentObject(account)
                 .environmentObject(library)
@@ -245,6 +248,8 @@ struct CleanMacOSApp: App {
         MenuBarExtra(isInserted: $showMenuBar) {
             MenuBarView(monitor: monitor, recorder: recorder, agentRecording: agentRecording, music: music, keepAwake: keepAwake, clipboard: clipboard, shelf: shelf, screenshot: screenshot, brightness: brightness)
                 .environmentObject(island)
+                .environmentObject(sound)
+                .environmentObject(mixer)
         } label: {
             Label(monitor.showsCPUReadout ? "" : String(format: " %.0f%%", monitor.latestCPU), systemImage: recorder.isRecording || agentRecording.isRecording ? "record.circle.fill" : keepAwake.isActive ? "cup.and.saucer.fill" : "square.grid.2x2.fill")
         }

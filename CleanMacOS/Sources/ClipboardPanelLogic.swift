@@ -10,6 +10,7 @@ enum PanelCommand: Equatable {
     case delete
     case deletePile
     case togglePreview
+    case selectAll
     case escape
 }
 
@@ -33,8 +34,10 @@ enum PanelKeys {
         modifiers.intersection(relevantModifiers) == .command && (appCommandKeys.contains(keyCode) || keyCode == closeKey)
     }
 
-    static func command(keyCode: UInt16, modifiers: NSEvent.ModifierFlags, usedArrows: Bool, hasPile: Bool) -> PanelCommand? {
+    static func command(keyCode: UInt16, modifiers: NSEvent.ModifierFlags, usedArrows: Bool, hasPile: Bool, cards: Bool = false, emptySearch: Bool = false) -> PanelCommand? {
         let modifiers = modifiers.intersection(relevantModifiers)
+        if cards && modifiers.isEmpty && [123, 124].contains(keyCode) { return .move(keyCode == 123 ? -1 : 1) }
+        if keyCode == 0 && modifiers == .command && (hasPile || emptySearch) { return .selectAll }
         switch (keyCode, modifiers) {
         case (upKey, []), (pKey, .control): return .move(-1)
         case (downKey, []), (nKey, .control): return .move(1)
@@ -42,12 +45,12 @@ enum PanelKeys {
         case (returnKey, .shift), (enterKey, .shift): return .copyOnly
         case (returnKey, .command), (enterKey, .command): return .togglePile
         case (pKey, .option): return .togglePin
-        case (deleteKey, .option): return .delete
-        case (deleteKey, .command): return .deletePile
+        case (deleteKey, .option), (117, .option): return .delete
+        case (deleteKey, .command): return hasPile ? .deletePile : nil
         case (cKey, .command): return hasPile ? .copyOnly : nil
         case (spaceKey, []): return usedArrows ? .togglePreview : nil
         case (escapeKey, _): return .escape
-        default: return modifiers == .command ? digitKeys[keyCode].map(PanelCommand.pasteNumber) : nil
+        default: return modifiers == .command ? (digitKeys[keyCode] ?? [83: 1, 84: 2, 85: 3, 86: 4, 87: 5, 88: 6, 89: 7, 91: 8, 92: 9][keyCode]).map(PanelCommand.pasteNumber) : nil
         }
     }
 }

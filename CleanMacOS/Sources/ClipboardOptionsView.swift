@@ -16,6 +16,12 @@ struct ClipboardOptionsView: View {
                 Text("Pinned items are never removed.").font(.caption).foregroundStyle(.secondary)
             }
             CardSection(title: "Display", icon: "eye") {
+                Picker("Floating history layout", selection: $clipboard.options.layout) {
+                    Text("List").tag(ClipboardLayout.list)
+                    Text("Cards").tag(ClipboardLayout.cards)
+                }
+                .pickerStyle(.segmented)
+                Text("Applies the next time the floating history opens.").font(.caption).foregroundStyle(.secondary)
                 Toggle("Show the app each item was copied from", isOn: $clipboard.options.showsSourceIcons)
                 Toggle("Show recent items in the menu bar panel", isOn: $clipboard.options.showsInMenuPanel)
                 Toggle("Show the latest copy in the menu bar", isOn: $clipboard.options.showsLatestInMenuBar)

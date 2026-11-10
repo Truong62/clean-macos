@@ -6,9 +6,12 @@ final class ClipboardPanelModel: ObservableObject {
     static let previewKey = "clipboard.panel.showsPreview"
 
     @Published var search = "" {
-        didSet { if search != oldValue { state.selection = 0 } }
+        didSet { if search != oldValue { state.selection = 0; highlightedID = nil } }
     }
     @Published var state = ClipboardPanelState()
+    @Published var layout = ClipboardLayout.list
+    @Published var highlightedID: ClipboardItem.ID?
+    var navigationPointer: CGPoint?
     @Published var showsPreview: Bool {
         didSet {
             UserDefaults.standard.set(showsPreview, forKey: Self.previewKey)
@@ -37,16 +40,20 @@ final class ClipboardPanelModel: ObservableObject {
 
     var selected: ClipboardItem? {
         let items = visible
+        if let highlightedID, let item = items.first(where: { $0.id == highlightedID }) { return item }
         return items.indices.contains(state.selection) ? items[state.selection] : nil
     }
 
     func reset() {
         search = ""
         state = ClipboardPanelState()
+        highlightedID = nil
+        navigationPointer = nil
+        layout = clipboard.options.layout
     }
 
     func handle(keyCode: UInt16, modifiers: NSEvent.ModifierFlags) -> Bool {
-        guard let command = PanelKeys.command(keyCode: keyCode, modifiers: modifiers, usedArrows: state.usedArrows, hasPile: !state.pile.isEmpty) else {
+        guard let command = PanelKeys.command(keyCode: keyCode, modifiers: modifiers, usedArrows: state.usedArrows, hasPile: !state.pile.isEmpty, cards: layout == .cards, emptySearch: search.isEmpty) else {
             state.usedArrows = false
             return false
         }
@@ -56,12 +63,16 @@ final class ClipboardPanelModel: ObservableObject {
 
     func perform(_ command: PanelCommand) {
         let items = visible
-        let current = items.indices.contains(state.selection) ? items[state.selection] : nil
+        let current = selected
+        if let current { state.selection = items.firstIndex { $0.id == current.id } ?? state.selection }
         let targets = pile.isEmpty ? current.map { [$0] } ?? [] : pile
         switch command {
         case .move(let delta):
-            state.move(by: delta, count: items.count)
+            state.move(by: highlightedID == nil ? 0 : delta, count: items.count)
+            highlightedID = items.indices.contains(state.selection) ? items[state.selection].id : nil
             state.usedArrows = true
+            navigationPointer = NSEvent.mouseLocation
+            NSCursor.setHiddenUntilMouseMoves(true)
         case .paste:
             if !targets.isEmpty { onPaste?(targets) }
         case .copyOnly:
@@ -79,12 +90,16 @@ final class ClipboardPanelModel: ObservableObject {
             state.pile.remove(current.id)
             clipboard.delete(current)
             state.move(by: 0, count: visible.count)
+            highlightedID = visible.indices.contains(state.selection) ? visible[state.selection].id : nil
         case .deletePile:
             clipboard.delete(state.pile)
             state.pile = []
             state.move(by: 0, count: visible.count)
+            highlightedID = visible.indices.contains(state.selection) ? visible[state.selection].id : nil
         case .togglePreview:
             showsPreview.toggle()
+        case .selectAll:
+            state.pile = Set(items.map(\.id))
         case .escape:
             if state.pile.isEmpty { onClose?() } else { state.pile = [] }
         }
@@ -94,11 +109,12 @@ final class ClipboardPanelModel: ObservableObject {
         let flags = NSEvent.modifierFlags
         if flags.contains(.command) {
             state.togglePile(item.id)
+            state.selection = index
         } else if flags.contains(.shift) {
             state.extendPile(through: index, in: visible)
         } else {
             state.selection = index
-            onPaste?([item])
+            onPaste?(state.pile.contains(item.id) ? pile : [item])
         }
     }
 }
@@ -114,11 +130,11 @@ struct ClipboardPanelView: View {
             VStack(spacing: 0) {
                 toolbar
                 Divider()
-                list
+                if model.layout == .cards { cards } else { list }
                 Divider()
                 footer
             }
-            .frame(minWidth: ClipboardPanelController.size.width)
+            .frame(minWidth: model.layout == .cards ? 0 : ClipboardPanelController.size.width)
             if model.showsPreview {
                 Divider()
                 ClipboardPreviewPane(item: model.selected) { model.onCopy?([$0]) }
@@ -147,6 +163,34 @@ struct ClipboardPanelView: View {
         .padding(.horizontal, 12)
         .padding(.top, 14)
         .padding(.bottom, 10)
+    }
+
+    private var cards: some View {
+        ScrollViewReader { proxy in
+            ScrollView(.horizontal) {
+                LazyHStack(spacing: 12) {
+                    ForEach(Array(model.visible.enumerated()), id: \.element.id) { index, item in
+                        if index > 0 && model.search.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && model.visible[index - 1].isPinned && !item.isPinned {
+                            Divider().frame(height: 186)
+                        }
+                        ClipboardHistoryCard(item: item, index: index, model: model, clipboard: clipboard)
+                            .id(item.id)
+                    }
+                    if model.visible.isEmpty {
+                        Text(clipboard.items.isEmpty ? "Nothing copied yet" : "No matches").foregroundStyle(.secondary)
+                    }
+                }
+                .padding(.horizontal, 16)
+                .frame(maxHeight: .infinity)
+            }
+            .scrollBounceBehavior(.basedOnSize)
+            .onChange(of: model.highlightedID) { _, id in
+                if let id { proxy.scrollTo(id) }
+            }
+            .onChange(of: model.showsPreview) { _, _ in
+                if let id = model.highlightedID { proxy.scrollTo(id) }
+            }
+        }
     }
 
     private var list: some View {
@@ -184,7 +228,7 @@ struct ClipboardPanelView: View {
     }
 
     private func row(_ item: ClipboardItem, index: Int) -> some View {
-        let isSelected = index == model.state.selection
+        let isSelected = model.highlightedID == item.id
         let isPiled = model.state.pile.contains(item.id)
         return HStack(spacing: 10) {
             if isPiled { Image(systemName: "checkmark.circle.fill").foregroundStyle(Color.accentColor) }
@@ -212,6 +256,7 @@ struct ClipboardPanelView: View {
                 Button("Edit Image…") { ScreenshotEditorBridge.open(url) }
             }
             Button(item.isPinned ? "Unpin" : "Pin") { clipboard.togglePin(item) }
+            ClipboardMoveActions(clipboard: clipboard, item: item, search: model.search)
             Divider()
             Button("Delete", role: .destructive) { clipboard.delete(item) }
         }

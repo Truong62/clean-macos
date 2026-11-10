@@ -89,7 +89,7 @@ struct ClipboardHistory: Equatable {
     private(set) var items: [ClipboardItem]
 
     init(items: [ClipboardItem] = []) {
-        self.items = items
+        self.items = items.filter(\.isPinned) + items.filter { !$0.isPinned }
     }
 
     mutating func add(_ text: String, maxItems: Int) {
@@ -103,7 +103,7 @@ struct ClipboardHistory: Equatable {
             entry.createdAt = item.createdAt
             entry.sourceApp = item.sourceApp ?? entry.sourceApp
         }
-        items.insert(entry, at: 0)
+        items.insert(entry, at: entry.isPinned ? 0 : items.prefix { $0.isPinned }.count)
         trim(to: maxItems)
     }
 
@@ -112,7 +112,31 @@ struct ClipboardHistory: Equatable {
         var item = items.remove(at: index)
         item.isPinned.toggle()
         if !item.isPinned { item.createdAt = date }
-        items.insert(item, at: 0)
+        items.insert(item, at: item.isPinned ? 0 : items.prefix { $0.isPinned }.count)
+    }
+
+    func neighbor(of id: ClipboardItem.ID, direction: Int, query: String = "") -> Int? {
+        guard query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              abs(direction) == 1, let index = items.firstIndex(where: { $0.id == id }) else { return nil }
+        let next = index + direction
+        guard items.indices.contains(next), items[next].isPinned == items[index].isPinned else { return nil }
+        return next
+    }
+
+    @discardableResult
+    mutating func move(_ id: ClipboardItem.ID, direction: Int, query: String = "") -> Bool {
+        guard let next = neighbor(of: id, direction: direction, query: query),
+              let index = items.firstIndex(where: { $0.id == id }) else { return false }
+        items.swapAt(index, next)
+        return true
+    }
+
+    mutating func recordUse(_ ids: [ClipboardItem.ID], at date: Date) {
+        let used = ids.compactMap { id in items.first { $0.id == id } }.filter { !$0.isPinned }
+        let selected = Set(ids)
+        items.removeAll { selected.contains($0.id) && !$0.isPinned }
+        items.insert(contentsOf: used, at: items.prefix { $0.isPinned }.count)
+        for index in items.indices where selected.contains(items[index].id) { items[index].createdAt = date }
     }
 
     mutating func update(id: ClipboardItem.ID, text: String) {

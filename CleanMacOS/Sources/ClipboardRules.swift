@@ -313,6 +313,7 @@ struct ClipboardOptions: Codable, Equatable {
     static let key = "clipboard.options"
     static let retentionChoices = [0, 1, 7, 30, 90, 365]
 
+    var layout = ClipboardLayout.list
     var savesImagesAndFiles = true
     var retentionDays = 0
     var skipsSensitiveText = false
@@ -325,4 +326,34 @@ struct ClipboardOptions: Codable, Equatable {
     var showsLatestInMenuBar = false
     var latestLength = 20
     var showsInMenuPanel = true
+}
+
+
+enum ClipboardLayout: String, Codable, CaseIterable {
+    case list, cards
+
+    init(from decoder: Decoder) throws {
+        let value = try? decoder.singleValueContainer().decode(String.self)
+        self = value.flatMap(Self.init(rawValue:)) ?? .list
+    }
+}
+
+extension ClipboardOptions {
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        let defaults = Self()
+        layout = try values.decodeIfPresent(ClipboardLayout.self, forKey: .layout) ?? defaults.layout
+        savesImagesAndFiles = try values.decodeIfPresent(Bool.self, forKey: .savesImagesAndFiles) ?? defaults.savesImagesAndFiles
+        retentionDays = try values.decodeIfPresent(Int.self, forKey: .retentionDays) ?? defaults.retentionDays
+        skipsSensitiveText = try values.decodeIfPresent(Bool.self, forKey: .skipsSensitiveText) ?? defaults.skipsSensitiveText
+        skippedApps = try values.decodeIfPresent([String].self, forKey: .skippedApps) ?? defaults.skippedApps
+        cleansURLs = try values.decodeIfPresent(Bool.self, forKey: .cleansURLs) ?? defaults.cleansURLs
+        urlRules = try values.decodeIfPresent(URLCleanRules.self, forKey: .urlRules) ?? defaults.urlRules
+        autoClear = try values.decodeIfPresent(ClipboardAutoClear.self, forKey: .autoClear) ?? defaults.autoClear
+        pastesPlainText = try values.decodeIfPresent(Bool.self, forKey: .pastesPlainText) ?? defaults.pastesPlainText
+        showsSourceIcons = try values.decodeIfPresent(Bool.self, forKey: .showsSourceIcons) ?? defaults.showsSourceIcons
+        showsLatestInMenuBar = try values.decodeIfPresent(Bool.self, forKey: .showsLatestInMenuBar) ?? defaults.showsLatestInMenuBar
+        latestLength = try values.decodeIfPresent(Int.self, forKey: .latestLength) ?? defaults.latestLength
+        showsInMenuPanel = try values.decodeIfPresent(Bool.self, forKey: .showsInMenuPanel) ?? defaults.showsInMenuPanel
+    }
 }

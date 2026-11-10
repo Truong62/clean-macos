@@ -294,6 +294,9 @@ struct IslandClipboardView: View {
                     ForEach(clipboard.items.filter { search.isEmpty || $0.text.localizedCaseInsensitiveContains(search) }) { item in
                         Button { paste(item) } label: { Text(item.text).lineLimit(2).frame(maxWidth: .infinity, alignment: .leading).padding(8) }
                             .buttonStyle(.plain)
+                            .contextMenu { ClipboardMoveActions(clipboard: clipboard, item: item, search: search) }
+                            .accessibilityAction(named: "Move Up") { clipboard.move(item, direction: -1, query: search) }
+                            .accessibilityAction(named: "Move Down") { clipboard.move(item, direction: 1, query: search) }
                     }
                 }
             }

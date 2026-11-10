@@ -87,3 +87,16 @@ enum AudioAppPolicy {
         return !neverTapped.contains(bundleID)
     }
 }
+
+struct MixerGainRamp {
+    var current: Float = 1
+
+    mutating func next(target: Float, frames: Int, sampleRate: Double) -> (start: Float, end: Float) {
+        let start = current
+        guard frames > 0, sampleRate.isFinite, sampleRate > 0, target.isFinite else { return (start, start) }
+        current += (max(0, target) - current) * Float(1 - exp(-Double(frames) / sampleRate / 0.02))
+        return (start, current)
+    }
+
+    static func compensation(channels: Int) -> Float { min(4, max(1, Float(channels) / 2)) }
+}
