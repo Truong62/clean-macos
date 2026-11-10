@@ -74,6 +74,7 @@ struct CleanMacOSApp: App {
     @StateObject private var aiUsage = AIUsageMonitor()
     @StateObject private var homebrew: HomebrewController
     @StateObject private var appUpdates: AppUpdatesController
+    @StateObject private var mediaTools = MediaToolsController()
     @AppStorage("showMenuBar") private var showMenuBar = true
     @State private var panelController: ClipboardPanelController?
 
@@ -162,6 +163,7 @@ struct CleanMacOSApp: App {
                 .environmentObject(monitor)
                 .environmentObject(homebrew)
                 .environmentObject(appUpdates)
+                .environmentObject(mediaTools)
                 .frame(minWidth: 900, minHeight: 600)
                 .onAppear {
                     Task { await account.refreshSession() }

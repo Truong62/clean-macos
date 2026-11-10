@@ -141,6 +141,7 @@ enum RecordingMixdown {
 final class SamplePump: @unchecked Sendable {
     let output: AVAssetReaderOutput
     let input: AVAssetWriterInput
+    var onAppend: ((CMTime) -> Void)?
     private let queue = DispatchQueue(label: "click.ngoctruong.CleanMacOS.mixdown")
     private var isDone = false
 
@@ -159,6 +160,7 @@ final class SamplePump: @unchecked Sendable {
                         continuation.resume()
                         return
                     }
+                    onAppend?(CMSampleBufferGetPresentationTimeStamp(buffer))
                 }
             }
         }

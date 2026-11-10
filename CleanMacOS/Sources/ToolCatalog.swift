@@ -49,6 +49,7 @@ enum ToolGroup: String, CaseIterable, Identifiable {
         case .media: [
             AppTool(page: .sound, icon: "speaker.wave.2.fill", title: "Sound", summary: "Switch outputs, mute every mic", colors: [.pink, .orange]),
             AppTool(page: .music, icon: "music.note", title: "Music", summary: "Hi-res and DSD player", colors: [.pink, .purple]),
+            AppTool(page: .mediaTools, icon: "photo.on.rectangle.angled", title: "Media Tools", summary: "Compress video, GIFs, images, OCR", colors: [.orange, .purple]),
         ]
         case .developer: [
             AppTool(page: .devTools, icon: "terminal.fill", title: "Dev Tools", summary: "Runtimes and packages", colors: [.green, .teal]),

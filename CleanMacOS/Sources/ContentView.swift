@@ -50,6 +50,9 @@ struct ContentView: View {
             case .music:
                 MusicView()
 
+            case .mediaTools:
+                MediaToolsView()
+
             case .snippets:
                 SnippetsView()
 

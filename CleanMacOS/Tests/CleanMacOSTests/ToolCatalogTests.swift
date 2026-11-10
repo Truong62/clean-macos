@@ -6,8 +6,9 @@ struct ToolCatalogTests {
         let pages = ToolGroup.allTools.map(\.page)
         #expect(Set(pages).count == pages.count)
         #expect(Set(pages) == [.cleanDisk, .largeFiles, .uninstall, .appUpdates, .windows, .input, .ram, .monitor, .displays, .portsJobs, .powerRecovery,
-                               .keepAwake, .controls, .clipboard, .screenRecord, .typing, .commandBar, .snippets, .tools, .files, .sound, .music, .devTools,
-                               .homebrew, .aiUsage])
+                               .keepAwake, .controls, .clipboard, .screenRecord, .typing, .commandBar, .snippets, .tools, .files, .sound, .music, .mediaTools,
+                               .devTools, .homebrew, .aiUsage])
+        #expect(ToolGroup.media.tools.map(\.page) == [.sound, .music, .mediaTools])
         #expect(ToolGroup.allCases.allSatisfy { !$0.tools.isEmpty })
         #expect(ToolGroup.developer.tools.map(\.page) == [.devTools, .homebrew, .aiUsage])
     }
