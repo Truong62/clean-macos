@@ -31,6 +31,9 @@ struct CommandContext {
     let snippets: SnippetExpander
     let shelf: ShelfController
     let screenTools: ScreenTools
+    let scratchpad: ScratchpadController
+    let camera: CameraPreviewController
+    let quitApps: QuitAppsController
     let openPage: (SidebarPage) -> Void
 }
 
@@ -72,10 +75,8 @@ enum CommandSources {
                         icon: .symbol("sparkles.tv")) { _ in controls.startScreenSaver() },
             CommandItem(id: "emptyTrash", kind: .action, title: "Empty Trash", subtitle: "Finder · asks first", keywords: "bin delete",
                         icon: .symbol("trash.fill"), needsConfirmation: true) { _ in controls.emptyTrash() },
-            CommandItem(id: "quitAll", kind: .action, title: "Quit All Apps", subtitle: "Except MacKit and Finder · asks first", keywords: "close everything",
-                        icon: .symbol("xmark.app.fill"), needsConfirmation: true) { _ in
-                QuickControls.quit(QuickControls.appsToQuit(QuickControls.runningApps(), keep: [], own: Bundle.main.bundleIdentifier))
-            },
+            CommandItem(id: "quitAll", kind: .action, title: "Quit Apps…", subtitle: "Pick which open apps to quit", keywords: "quit all close everything",
+                        icon: .symbol("xmark.app.fill")) { _ in context.quitApps.open() },
             CommandItem(id: "micMute", kind: .toggle, title: context.sound.isMicMuted ? "Unmute Microphones" : "Mute Microphones", subtitle: "Sound",
                         keywords: "mic mute microphone", icon: .symbol("mic.slash.fill"), isActive: context.sound.isMicMuted) { _ in
                 context.sound.toggleMicMute()
@@ -96,6 +97,10 @@ enum CommandSources {
                         keywords: "ocr recognize scan qr", icon: .symbol("text.viewfinder")) { _ in context.screenTools.grabText() },
             CommandItem(id: "snippetLibrary", kind: .action, title: "Snippet Library", subtitle: "Snippets", keywords: "text expansion",
                         icon: .symbol("text.badge.plus")) { _ in context.snippets.openLibrary() },
+            CommandItem(id: "scratchpad", kind: .toggle, title: "Scratchpad", subtitle: "Tools · floating notes", keywords: "notes notepad markdown jot",
+                        icon: .symbol("note.text"), isActive: context.scratchpad.isOpen) { _ in context.scratchpad.toggle() },
+            CommandItem(id: "cameraPreview", kind: .toggle, title: "Camera Preview", subtitle: "Tools · mirror before a call", keywords: "webcam mirror facetime video",
+                        icon: .symbol("web.camera"), isActive: context.camera.isOpen) { _ in context.camera.toggle() },
         ]
         items += keepAwakeMinutes.map { minutes in
             CommandItem(id: "keepAwake.\(minutes)", kind: .action, title: "Keep Awake for \(minutes >= 60 ? "\(minutes / 60) hours" : "\(minutes) minutes")",

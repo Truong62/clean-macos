@@ -21,4 +21,7 @@ extension KeyboardShortcuts.Name {
     static let quickPanel = Self("quickPanel", default: .init(.v, modifiers: [.control, .command]))
     static let cycleOutput = Self("cycleOutput", default: .init(.s, modifiers: [.control, .option, .command]))
     static let toggleMicMute = Self("toggleMicMute", default: .init(.m, modifiers: [.control, .option, .command]))
+    static let scratchpad = Self("scratchpad", default: .init(.n, modifiers: [.control, .option, .command]))
+    static let cameraPreview = Self("cameraPreview", default: .init(.w, modifiers: [.control, .option, .command]))
+    static let quitApps = Self("quitApps", default: .init(.q, modifiers: [.control, .option, .command]))
 }

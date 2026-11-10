@@ -63,6 +63,9 @@ struct CleanMacOSApp: App {
     @StateObject private var brightness: BrightnessController
     @StateObject private var commandBar: CommandBarController
     @StateObject private var screenTools: ScreenTools
+    @StateObject private var scratchpad: ScratchpadController
+    @StateObject private var camera: CameraPreviewController
+    @StateObject private var quitApps: QuitAppsController
     @StateObject private var radial: RadialMenuController
     @StateObject private var quickPanel: QuickPanelController
     @StateObject private var sound: SoundController
@@ -91,8 +94,14 @@ struct CleanMacOSApp: App {
         _brightness = StateObject(wrappedValue: brightness)
         let screenTools = ScreenTools()
         _screenTools = StateObject(wrappedValue: screenTools)
+        let scratchpad = ScratchpadController()
+        _scratchpad = StateObject(wrappedValue: scratchpad)
+        let camera = CameraPreviewController()
+        _camera = StateObject(wrappedValue: camera)
+        let quitApps = QuitAppsController()
+        _quitApps = StateObject(wrappedValue: quitApps)
         let context = CommandContext(keepAwake: keepAwake, sound: sound, brightness: brightness, clipboard: clipboard, snippets: snippets, shelf: shelf,
-                                     screenTools: screenTools) { page in
+                                     screenTools: screenTools, scratchpad: scratchpad, camera: camera, quitApps: quitApps) { page in
             MainWindowController.show()
             NotificationCenter.default.post(name: .openSidebarPage, object: page)
         }
@@ -133,6 +142,9 @@ struct CleanMacOSApp: App {
                 .environmentObject(radial)
                 .environmentObject(quickPanel)
                 .environmentObject(screenTools)
+                .environmentObject(scratchpad)
+                .environmentObject(camera)
+                .environmentObject(quitApps)
                 .frame(minWidth: 900, minHeight: 600)
                 .onAppear {
                     Task { await account.refreshSession() }

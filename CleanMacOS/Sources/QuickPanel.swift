@@ -4,7 +4,7 @@ import SwiftUI
 
 struct QuickPanelSettings: Codable, Equatable {
     static let defaultTiles = ["keepAwake", "pickColor", "grabText", "clipboardHistory", "snippetLibrary", "micMute", "cycleOutput", "darkMode", "plainPaste", "lock",
-                               "displaySleep", "screenSaver", "hiddenFiles", "desktopIcons", "shelf"]
+                               "displaySleep", "screenSaver", "hiddenFiles", "desktopIcons", "shelf", "scratchpad", "cameraPreview", "quitAll"]
 
     var isEnabled = false
     var tiles = QuickPanelSettings.defaultTiles

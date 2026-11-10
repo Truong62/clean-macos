@@ -3,11 +3,12 @@ import SwiftUI
 
 struct ToolsView: View {
     @EnvironmentObject var screenTools: ScreenTools
+    @EnvironmentObject var camera: CameraPreviewController
 
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
-                PageHeader(icon: "wrench.and.screwdriver.fill", title: "Tools", subtitle: "Pick colors and grab text from anywhere on the screen.",
+                PageHeader(icon: "wrench.and.screwdriver.fill", title: "Tools", subtitle: "Pick colors, grab text, jot notes, check your camera and quit apps.",
                            colors: [.teal, .green])
                 CardSection(title: "Color picker", icon: "eyedropper") {
                     HStack {
@@ -36,6 +37,18 @@ struct ToolsView: View {
                     shortcutRow("Grab text with a shortcut", isOn: $screenTools.settings.textShortcut, name: .grabText)
                     Text("Needs Screen Recording access for \(AppIdentity.installedName) to see other apps' windows.").font(.caption).foregroundStyle(.secondary)
                 }
+                ScratchpadSettingsCard()
+                CardSection(title: "Camera preview", icon: "web.camera") {
+                    HStack {
+                        Button { camera.toggle() } label: { Label(camera.isOpen ? "Hide Camera Preview" : "Show Camera Preview", systemImage: "web.camera") }
+                            .buttonStyle(.borderedProminent)
+                        Spacer()
+                    }
+                    Text("A small mirrored window at the top of the screen to check how you look. Nothing is recorded, and the camera turns off when it closes.")
+                        .font(.caption).foregroundStyle(.secondary)
+                    shortcutRow("Show the camera with a shortcut", isOn: $camera.settings.isEnabled, name: .cameraPreview)
+                }
+                QuitAppsSettingsCard()
             }
             .padding(20)
         }
