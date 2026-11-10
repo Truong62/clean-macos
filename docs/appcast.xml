@@ -8,6 +8,19 @@
 
     <!-- Paste new <item> blocks here when releasing (newest first) -->
     <item>
+      <title>Version 1.0.51</title>
+      <pubDate>Tue, 10 Nov 2026 17:06:22 +0700</pubDate>
+      <sparkle:version>52</sparkle:version>
+      <sparkle:shortVersionString>1.0.51</sparkle:shortVersionString>
+      <description><![CDATA[
+        <ul><li>Dozens of new tools, all off until you turn them on: Command Bar (⌥Space) with a radial menu and quick panel, clipboard history and snippets, a file shelf and Finder tools, Vietnamese typing</li><li>Displays and sound: brightness for external monitors, per-app volume mixer, output switching and mic mute</li><li>Screenshots with an editor, screen recording with a video editor, color picker and text grab</li><li>System monitor with menu bar readouts and alerts, AI usage for Claude Code and Codex, Homebrew and app updates, media tools</li><li>Island notch panel, app switcher with window previews, window layouts, mouse and keyboard tweaks, keep awake</li><li>Full Disk Access is now asked only when you start a cleanup or large-file scan</li></ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/Truong62/clean-macos/releases/download/v1.0.51/MacKit-1.0.51.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="KOY3k4qhJamz7ezTjbb7YtictR5+dtL/xEfFHs9UHHLOjQ8ylEJ6Icj0xha5X97VFX7X9l5fh8ZFG5PCKVAMAA==" length="12037554" />
+    </item>
+    <item>
       <title>Version 1.0.50</title>
       <pubDate>Tue, 10 Nov 2026 11:48:51 +0700</pubDate>
       <sparkle:version>51</sparkle:version>
