@@ -35,6 +35,9 @@ struct ContentView: View {
             case .uninstall:
                 UninstallView()
 
+            case .appUpdates:
+                AppUpdatesView()
+
             case .clipboard:
                 ClipboardHistoryView()
 
@@ -88,6 +91,9 @@ struct ContentView: View {
 
             case .devTools:
                 DevToolsView()
+
+            case .homebrew:
+                HomebrewView()
 
             case .settings:
                 SettingsView()
