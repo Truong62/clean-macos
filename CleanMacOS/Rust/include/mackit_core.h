@@ -19,4 +19,8 @@ char *mk_typing_finish(MKTypingEngine *engine, uint32_t separator, uint32_t *out
 void mk_typing_backspace(MKTypingEngine *engine);
 void mk_typing_reset(MKTypingEngine *engine);
 
+bool mk_calc(const char *input, double *out_value, uint32_t *out_closed);
+char *mk_convert(const char *input);
+char *mk_rank(const char *query, const char *rows);
+
 #endif

@@ -1,6 +1,9 @@
+pub mod calc;
 pub mod english;
 pub mod fswalk;
+pub mod rank;
 pub mod typing;
+pub mod units;
 pub mod vietnamese;
 
 use std::collections::HashMap;
@@ -211,4 +214,54 @@ mod tests {
         assert_eq!(json_string("a\"b\\c\nd\u{1}"), "\"a\\\"b\\\\c\\nd\\u0001\"");
         assert_eq!(json_string("Nhạc/Sơn Tùng"), "\"Nhạc/Sơn Tùng\"");
     }
+}
+
+fn text_from<'a>(raw: *const c_char) -> Option<&'a str> {
+    if raw.is_null() {
+        return None;
+    }
+    unsafe { CStr::from_ptr(raw) }.to_str().ok()
+}
+
+#[no_mangle]
+pub extern "C" fn mk_calc(input: *const c_char, out_value: *mut f64, out_closed: *mut u32) -> bool {
+    let Some(result) = text_from(input).and_then(calc::evaluate) else { return false };
+    if !out_value.is_null() {
+        unsafe { *out_value = result.value };
+    }
+    if !out_closed.is_null() {
+        unsafe { *out_closed = result.closed as u32 };
+    }
+    true
+}
+
+#[no_mangle]
+pub extern "C" fn mk_convert(input: *const c_char) -> *mut c_char {
+    match text_from(input).and_then(units::convert) {
+        Some(conversion) => into_c_string(format!("{}\t{}\t{}\t{}", conversion.value, conversion.from, conversion.to, conversion.result)),
+        None => std::ptr::null_mut(),
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mk_rank(query: *const c_char, rows: *const c_char) -> *mut c_char {
+    let (Some(query), Some(rows)) = (text_from(query), text_from(rows)) else { return std::ptr::null_mut() };
+    let parsed: Vec<rank::Row> = rows
+        .split('\n')
+        .filter(|line| !line.is_empty())
+        .map(|line| {
+            let mut fields = line.split('\t');
+            rank::Row {
+                title: fields.next().unwrap_or_default().to_string(),
+                keywords: fields.next().unwrap_or_default().to_string(),
+                bias: fields.next().and_then(|value| value.parse().ok()).unwrap_or(0),
+                priority: fields.next().and_then(|value| value.parse().ok()).unwrap_or(0),
+            }
+        })
+        .collect();
+    let lines: Vec<String> = rank::rank(query, &parsed)
+        .into_iter()
+        .map(|ranked| format!("{}\t{}\t{}", ranked.index, ranked.score, ranked.tier))
+        .collect();
+    into_c_string(lines.join("\n"))
 }
