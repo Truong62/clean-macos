@@ -28,6 +28,10 @@
 	<string>MacKit asks Finder for the files you selected and the folder you are in, and changes system settings you turn on.</string>
 	<key>NSAudioCaptureUsageDescription</key>
 	<string>MacKit changes the volume of the apps you adjust in the volume mixer. Their sound is never recorded or saved.</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>MacKit shows Bluetooth connection alerts only when you enable them in Island.</string>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>MacKit shows your upcoming events in Island only when you enable Calendar and allow access.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>MacKit shows your camera in a small mirror window when you open Camera Preview. Nothing is recorded or saved.</string>
 	<key>NSHighResolutionCapable</key>

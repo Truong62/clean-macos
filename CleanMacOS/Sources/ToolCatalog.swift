@@ -44,6 +44,7 @@ enum ToolGroup: String, CaseIterable, Identifiable {
             AppTool(page: .commandBar, icon: "command", title: "Command Bar", summary: "Launch, calculate, convert", colors: [.indigo, .purple]),
             AppTool(page: .snippets, icon: "text.badge.plus", title: "Snippets", summary: "Short triggers, long text", colors: [.orange, .pink]),
             AppTool(page: .tools, icon: "wrench.and.screwdriver.fill", title: "Tools", summary: "Color picker, text grab", colors: [.teal, .green]),
+            AppTool(page: .island, icon: "capsule.fill", title: "Island", summary: "A notch panel for your tools and activities", colors: [.indigo, .purple]),
             AppTool(page: .files, icon: "folder.fill.badge.gearshape", title: "Finder Tools", summary: "Cut and paste, Shelf, installers", colors: [.cyan, .blue]),
         ]
         case .media: [

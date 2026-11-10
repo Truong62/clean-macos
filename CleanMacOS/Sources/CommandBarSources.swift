@@ -67,6 +67,10 @@ enum CommandSources {
                     if response == .OK, let url = panel.url { ScreenshotEditorBridge.open(url) }
                 }
             },
+            CommandItem(id: "island.toggle", kind: .action, title: "Toggle Island", subtitle: "Enabled in Island settings",
+                        keywords: "notch capsule panel", icon: .symbol("capsule")) { _ in
+                NotificationCenter.default.post(name: Notification.Name("MacKit.Island.Toggle"), object: nil)
+            },
             CommandItem(id: "keepAwake", kind: .toggle, title: context.keepAwake.isActive ? "Turn off Keep Awake" : "Turn on Keep Awake",
                         subtitle: "Keep the Mac awake", keywords: "caffeinate sleep awake", icon: .symbol("cup.and.saucer.fill"),
                         isActive: context.keepAwake.isActive) { _ in context.keepAwake.toggle() },

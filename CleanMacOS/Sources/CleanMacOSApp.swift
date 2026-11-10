@@ -47,6 +47,7 @@ struct CleanMacOSApp: App {
     @StateObject private var clipboard: ClipboardViewModel
     @StateObject private var snippets: SnippetExpander
     @StateObject private var monitor = SystemMonitor(store: .standard)
+    @StateObject private var monitor: SystemMonitor
     @StateObject private var recorder = ScreenRecorder()
     @StateObject private var agentRecording = AgentRecordingIndicator()
     @StateObject private var account = AccountViewModel()
@@ -75,6 +76,8 @@ struct CleanMacOSApp: App {
     @StateObject private var homebrew: HomebrewController
     @StateObject private var appUpdates: AppUpdatesController
     @StateObject private var mediaTools = MediaToolsController()
+    @StateObject private var aiUsage: AIUsageMonitor
+    @StateObject private var island: IslandController
     @AppStorage("showMenuBar") private var showMenuBar = true
     @State private var panelController: ClipboardPanelController?
 
@@ -85,10 +88,16 @@ struct CleanMacOSApp: App {
         _snippets = StateObject(wrappedValue: snippets)
         let sound = SoundController()
         _sound = StateObject(wrappedValue: sound)
-        _mixer = StateObject(wrappedValue: MixerController(sound: sound))
+        let mixer = MixerController(sound: sound)
+        _mixer = StateObject(wrappedValue: mixer)
+        let monitor = SystemMonitor()
+        _monitor = StateObject(wrappedValue: monitor)
         let library = MusicLibrary(legacyRoot: MusicLibrary.legacyRoot)
         _library = StateObject(wrappedValue: library)
-        _music = StateObject(wrappedValue: MusicPlayer(library: library))
+        let music = MusicPlayer(library: library)
+        _music = StateObject(wrappedValue: music)
+        let aiUsage = AIUsageMonitor()
+        _aiUsage = StateObject(wrappedValue: aiUsage)
         let keyboard = VietnameseKeyboard()
         _keyboard = StateObject(wrappedValue: keyboard)
         let keepAwake = KeepAwake()
@@ -118,6 +127,7 @@ struct CleanMacOSApp: App {
             MainWindowController.show()
             NotificationCenter.default.post(name: .openSidebarPage, object: page)
         }
+        _island = StateObject(wrappedValue: IslandController(context: context, music: music, agents: aiUsage, mixer: mixer, monitor: monitor))
         _commandBar = StateObject(wrappedValue: CommandBarController(context: context))
         _radial = StateObject(wrappedValue: RadialMenuController(context: context, windows: windows))
         _quickPanel = StateObject(wrappedValue: QuickPanelController(context: context))
@@ -164,6 +174,7 @@ struct CleanMacOSApp: App {
                 .environmentObject(homebrew)
                 .environmentObject(appUpdates)
                 .environmentObject(mediaTools)
+                .environmentObject(island)
                 .frame(minWidth: 900, minHeight: 600)
                 .onAppear {
                     Task { await account.refreshSession() }
@@ -204,6 +215,7 @@ struct CleanMacOSApp: App {
 
         MenuBarExtra(isInserted: $showMenuBar) {
             MenuBarView(monitor: monitor, recorder: recorder, agentRecording: agentRecording, music: music, keepAwake: keepAwake, clipboard: clipboard, shelf: shelf, brightness: brightness)
+                .environmentObject(island)
         } label: {
             Label(monitor.showsCPUReadout ? "" : String(format: " %.0f%%", monitor.latestCPU), systemImage: recorder.isRecording || agentRecording.isRecording ? "record.circle.fill" : keepAwake.isActive ? "cup.and.saucer.fill" : "square.grid.2x2.fill")
         }

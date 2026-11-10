@@ -9,6 +9,7 @@ struct MenuBarView: View {
     @ObservedObject var clipboard: ClipboardViewModel
     @ObservedObject var shelf: ShelfController
     @ObservedObject var brightness: BrightnessController
+    @EnvironmentObject private var island: IslandController
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
@@ -58,11 +59,15 @@ struct MenuBarView: View {
                 ClipboardMenuCard(clipboard: clipboard)
                 Divider()
             }
+            Toggle("Island", isOn: $island.settings.isEnabled).padding(.horizontal, 14).padding(.vertical, 8)
             systemStats
         }
         .frame(width: 300)
-        .onAppear { monitor.popoverDidOpen() }
+        .onAppear { monitor.popoverDidOpen(); island.close() }
         .onDisappear { monitor.popoverDidClose() }
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("MacKit.Island.Opened"))) { _ in
+            if let window = NSApp.keyWindow, window is NSPanel, !(window is IslandPanel) { window.orderOut(nil) }
+        }
     }
 
     private func openMain() {

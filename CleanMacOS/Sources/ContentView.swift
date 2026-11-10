@@ -62,6 +62,9 @@ struct ContentView: View {
             case .files:
                 FilesView()
 
+            case .island:
+                IslandSettingsView()
+
             case .tools:
                 ToolsView()
 

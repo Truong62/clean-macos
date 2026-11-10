@@ -25,6 +25,7 @@ extension KeyboardShortcuts.Name {
     static let radialMenu = Self("radialMenu", default: .init(.space, modifiers: [.control, .option, .command]))
     static let pickColor = Self("pickColor", default: .init(.c, modifiers: [.control, .option, .command]))
     static let grabText = Self("grabText", default: .init(.t, modifiers: [.control, .option, .command]))
+    static let island = Self("island", default: .init(.i, modifiers: [.control, .option, .command]))
     static let quickPanel = Self("quickPanel", default: .init(.v, modifiers: [.control, .command]))
     static let cycleOutput = Self("cycleOutput", default: .init(.s, modifiers: [.control, .option, .command]))
     static let toggleMicMute = Self("toggleMicMute", default: .init(.m, modifiers: [.control, .option, .command]))
