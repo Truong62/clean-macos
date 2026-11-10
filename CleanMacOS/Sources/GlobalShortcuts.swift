@@ -2,6 +2,8 @@ import Foundation
 import KeyboardShortcuts
 
 extension KeyboardShortcuts.Name {
+    static let editImageFile = Self("editImageFile")
+    static let editClipboardImage = Self("editClipboardImage")
     static func radialWheel(_ id: UUID) -> Self {
         id == RadialWheel.originalID ? .radialMenu : Self("radial.wheel.\(id.uuidString)")
     }

@@ -176,6 +176,9 @@ final class ShelfDragView: NSView, NSDraggingSource {
         let menu = NSMenu()
         menu.addItem(ActionMenuItem(item.isPinned ? "Unpin" : "Pin") { controller.togglePin(item) })
         menu.addItem(ActionMenuItem("Open") { controller.open(item) })
+        if let url = item.fileURL, item.kind == .image || ["png", "jpg", "jpeg", "heic", "tiff", "webp"].contains(url.pathExtension.lowercased()) {
+            menu.addItem(ActionMenuItem("Edit Image…") { ScreenshotEditorBridge.open(url) })
+        }
         let apps = controller.commonApps(for: targets)
         if !apps.isEmpty {
             let openWith = NSMenuItem(title: "Open With", action: nil, keyEquivalent: "")

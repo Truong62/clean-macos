@@ -156,7 +156,7 @@ struct ClipboardHistoryView: View {
                             ClipboardRow(item: item,
                                          onCopy: { clipboard.copy(item) },
                                          onPin: { clipboard.togglePin(item) },
-                                         onEdit: item.kind == .text ? { editing = item } : nil,
+                                         onEdit: item.kind == .text ? { editing = item } : clipboard.imageURL(for: item).map { url in { ScreenshotEditorBridge.open(url) } },
                                          onDelete: { clipboard.delete(item) })
                         }
                     }
