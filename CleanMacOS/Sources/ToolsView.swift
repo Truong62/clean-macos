@@ -23,6 +23,7 @@ struct ToolsView: View {
                     .pickerStyle(.segmented)
                     .frame(maxWidth: 360)
                     Toggle("Leave out the # in HEX", isOn: $screenTools.settings.dropsHash).disabled(screenTools.settings.colorFormat != .hex)
+                    Toggle("Show mode palette in color picker", isOn: $screenTools.settings.showsColorModes)
                     shortcutRow("Pick a color with a shortcut", isOn: $screenTools.settings.colorShortcut, name: .pickColor)
                 }
                 CardSection(title: "Grab text", icon: "text.viewfinder") {
@@ -34,6 +35,7 @@ struct ToolsView: View {
                     Text("Drag over any part of the screen. The text is copied, and QR codes are read first.").font(.caption).foregroundStyle(.secondary)
                     Toggle("Read QR and other codes first", isOn: $screenTools.settings.detectsCodes)
                     Toggle("Join lines into one paragraph", isOn: $screenTools.settings.removesLineBreaks)
+                    Toggle("Show mode palette in text grab", isOn: $screenTools.settings.showsTextModes)
                     shortcutRow("Grab text with a shortcut", isOn: $screenTools.settings.textShortcut, name: .grabText)
                     Text("Needs Screen Recording access for \(AppIdentity.installedName) to see other apps' windows.").font(.caption).foregroundStyle(.secondary)
                 }

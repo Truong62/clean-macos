@@ -28,8 +28,8 @@ enum PickedColorFormat: String, Codable, CaseIterable, Identifiable {
         case .hsl:
             return ColorFormats.hsl(color)
         case .swiftUI:
-            let base = String(format: "Color(red: %.3f, green: %.3f, blue: %.3f", color.red, color.green, color.blue)
-            return color.alpha < 1 ? base + String(format: ", opacity: %.3f)", color.alpha) : base + ")"
+            let base = String(format: "Color(red: %.3f, green: %.3f, blue: %.3f", locale: Locale(identifier: "en_US_POSIX"), color.red, color.green, color.blue)
+            return color.alpha < 1 ? base + String(format: ", opacity: %.3f)", locale: Locale(identifier: "en_US_POSIX"), color.alpha) : base + ")"
         }
     }
 }
@@ -146,6 +146,22 @@ struct ScreenToolSettings: Codable, Equatable {
     var textShortcut = false
     var removesLineBreaks = false
     var detectsCodes = true
+    var showsColorModes = false
+    var showsTextModes = false
+}
+
+extension ScreenToolSettings {
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        colorFormat = try c.decodeIfPresent(PickedColorFormat.self, forKey: .colorFormat) ?? .hex
+        dropsHash = try c.decodeIfPresent(Bool.self, forKey: .dropsHash) ?? false
+        colorShortcut = try c.decodeIfPresent(Bool.self, forKey: .colorShortcut) ?? false
+        textShortcut = try c.decodeIfPresent(Bool.self, forKey: .textShortcut) ?? false
+        removesLineBreaks = try c.decodeIfPresent(Bool.self, forKey: .removesLineBreaks) ?? false
+        detectsCodes = try c.decodeIfPresent(Bool.self, forKey: .detectsCodes) ?? true
+        showsColorModes = try c.decodeIfPresent(Bool.self, forKey: .showsColorModes) ?? false
+        showsTextModes = try c.decodeIfPresent(Bool.self, forKey: .showsTextModes) ?? false
+    }
 }
 
 @MainActor
@@ -161,6 +177,9 @@ final class ScreenTools: ObservableObject {
     }
     @Published private(set) var lastColor: String?
 
+    private(set) var isSelecting = false
+    weak var screenshot: ScreenshotController?
+
     private var captureToken = 0
     private var codePanel: NSPanel?
     private let hud = InputHUD()
@@ -174,8 +193,12 @@ final class ScreenTools: ObservableObject {
     }
 
     func pickColor() {
+        guard !isSelecting, screenshot?.busy != true else { return }
+        if ScreenshotHardware.permitted, let screenshot { screenshot.start(.color); return }
+        isSelecting = true
         NSColorSampler().show { [weak self] picked in
             MainActor.assumeIsolated {
+                self?.isSelecting = false
                 guard let self, let picked, let rgb = picked.usingColorSpace(.sRGB) else { return }
                 let color = ClipboardColor(red: rgb.redComponent, green: rgb.greenComponent, blue: rgb.blueComponent, alpha: rgb.alphaComponent)
                 let text = self.settings.colorFormat.text(color, dropsHash: self.settings.dropsHash)
@@ -187,6 +210,9 @@ final class ScreenTools: ObservableObject {
     }
 
     func grabText() {
+        guard !isSelecting, screenshot?.busy != true else { return }
+        if ScreenshotHardware.permitted, let screenshot { screenshot.start(.text); return }
+        isSelecting = true
         captureToken += 1
         let token = captureToken
         let file = FileManager.default.temporaryDirectory.appendingPathComponent("mackit-grab-\(UUID().uuidString).png")
@@ -195,7 +221,10 @@ final class ScreenTools: ObservableObject {
         let removesLineBreaks = settings.removesLineBreaks
         DispatchQueue.global(qos: .userInitiated).async {
             _ = CommandRunner.run("/usr/sbin/screencapture", ["-i", "-x", "-o", file.path])
-            defer { try? FileManager.default.removeItem(at: file) }
+            defer {
+                try? FileManager.default.removeItem(at: file)
+                DispatchQueue.main.async { self.isSelecting = false }
+            }
             guard let image = TextRecognizer.image(at: file) else { return }
             let result = TextRecognizer.recognize(image, detectsCodes: detectsCodes, removesLineBreaks: removesLineBreaks)
             DispatchQueue.main.async {
@@ -203,6 +232,26 @@ final class ScreenTools: ObservableObject {
             }
         }
     }
+
+    func acceptColor(_ color: ClipboardColor) {
+        let text = settings.colorFormat.text(color, dropsHash: settings.dropsHash)
+        Self.copy(text)
+        lastColor = text
+        hud.show("Copied \(text)", for: 1.4, color: NSColor(srgbRed: color.red, green: color.green, blue: color.blue, alpha: color.alpha))
+    }
+
+    func recognize(_ image: CGImage) {
+        captureToken += 1
+        let token = captureToken
+        let changeCount = NSPasteboard.general.changeCount
+        let options = settings
+        Task {
+            let result = await Task.detached { TextRecognizer.recognize(image, detectsCodes: options.detectsCodes, removesLineBreaks: options.removesLineBreaks) }.value
+            finish(result, token: token, changeCount: changeCount)
+        }
+    }
+
+    func presentCode(_ code: CodeResult) { showCode(code) }
 
     static func copy(_ text: String) {
         NSPasteboard.general.clearContents()

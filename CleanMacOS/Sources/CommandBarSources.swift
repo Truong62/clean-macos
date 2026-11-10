@@ -104,6 +104,19 @@ enum CommandSources {
             CommandItem(id: "cameraPreview", kind: .toggle, title: "Camera Preview", subtitle: "Tools · mirror before a call", keywords: "webcam mirror facetime video",
                         icon: .symbol("web.camera"), isActive: context.camera.isOpen) { _ in context.camera.toggle() },
         ]
+        if let capture = context.screenTools.screenshot {
+            let permission = ScreenshotHardware.permitted ? "Screenshot" : "Requires Screen Recording access"
+            for (id, title, mode) in [("captureArea", "Capture Area or Window", CaptureMode.screenshot), ("captureScroll", "Capture Scrolling Region", CaptureMode.scrolling)] {
+                items.append(CommandItem(id: id, kind: .action, title: title, subtitle: permission, keywords: "screenshot capture", icon: .symbol("viewfinder")) { _ in
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { capture.start(mode) }
+                })
+            }
+            items.append(CommandItem(id: "captureDisplay", kind: .action, title: "Capture Full Display", subtitle: permission, icon: .symbol("display")) { _ in
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { capture.start(displayOnly: true) }
+            })
+            items.append(CommandItem(id: "captureHistory", kind: .action, title: "Recent Captures", subtitle: "Screenshot history", icon: .symbol("photo.stack")) { _ in capture.showHistory() })
+            items.append(CommandItem(id: "captureLatest", kind: .action, title: "Edit Latest Screenshot", subtitle: "Open in editor", icon: .symbol("pencil")) { _ in capture.editLatest() })
+        }
         items += keepAwakeMinutes.map { minutes in
             CommandItem(id: "keepAwake.\(minutes)", kind: .action, title: "Keep Awake for \(minutes >= 60 ? "\(minutes / 60) hours" : "\(minutes) minutes")",
                         subtitle: "Keep Awake", keywords: "caffeinate timer", icon: .symbol("timer")) { _ in context.keepAwake.start(.minutes(minutes)) }

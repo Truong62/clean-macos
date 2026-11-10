@@ -47,7 +47,7 @@ struct CleanMacOSApp: App {
     @StateObject private var clipboard: ClipboardViewModel
     @StateObject private var snippets: SnippetExpander
     @StateObject private var monitor = SystemMonitor()
-    @StateObject private var recorder = ScreenRecorder()
+    @StateObject private var recorder: ScreenRecorder
     @StateObject private var agentRecording = AgentRecordingIndicator()
     @StateObject private var account = AccountViewModel()
     @StateObject private var library: MusicLibrary
@@ -62,6 +62,7 @@ struct CleanMacOSApp: App {
     @StateObject private var shelf: ShelfController
     @StateObject private var brightness: BrightnessController
     @StateObject private var commandBar: CommandBarController
+    @StateObject private var screenshot: ScreenshotController
     @StateObject private var screenTools: ScreenTools
     @StateObject private var scratchpad: ScratchpadController
     @StateObject private var camera: CameraPreviewController
@@ -94,6 +95,11 @@ struct CleanMacOSApp: App {
         _brightness = StateObject(wrappedValue: brightness)
         let screenTools = ScreenTools()
         _screenTools = StateObject(wrappedValue: screenTools)
+        let recorder = ScreenRecorder()
+        _recorder = StateObject(wrappedValue: recorder)
+        let screenshot = ScreenshotController(screenTools: screenTools, shelf: shelf, recorder: recorder)
+        screenTools.screenshot = screenshot
+        _screenshot = StateObject(wrappedValue: screenshot)
         let scratchpad = ScratchpadController()
         _scratchpad = StateObject(wrappedValue: scratchpad)
         let camera = CameraPreviewController()
@@ -144,6 +150,7 @@ struct CleanMacOSApp: App {
                 .environmentObject(radial)
                 .environmentObject(quickPanel)
                 .environmentObject(screenTools)
+                .environmentObject(screenshot)
                 .environmentObject(scratchpad)
                 .environmentObject(camera)
                 .environmentObject(quitApps)
@@ -186,7 +193,7 @@ struct CleanMacOSApp: App {
         }
 
         MenuBarExtra(isInserted: $showMenuBar) {
-            MenuBarView(monitor: monitor, recorder: recorder, agentRecording: agentRecording, music: music, keepAwake: keepAwake, clipboard: clipboard, shelf: shelf, brightness: brightness)
+            MenuBarView(monitor: monitor, recorder: recorder, agentRecording: agentRecording, music: music, keepAwake: keepAwake, clipboard: clipboard, shelf: shelf, screenshot: screenshot, brightness: brightness)
         } label: {
             Label(String(format: " %.0f%%", monitor.latestCPU), systemImage: recorder.isRecording || agentRecording.isRecording ? "record.circle.fill" : keepAwake.isActive ? "cup.and.saucer.fill" : "square.grid.2x2.fill")
         }
