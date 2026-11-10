@@ -49,6 +49,7 @@ enum ToolGroup: String, CaseIterable, Identifiable {
         ]
         case .developer: [
             AppTool(page: .devTools, icon: "terminal.fill", title: "Dev Tools", summary: "Runtimes and packages", colors: [.green, .teal]),
+            AppTool(page: .aiUsage, icon: "chart.bar.xaxis", title: "AI Usage", summary: "Claude Code and Codex tokens and cost", colors: [.purple, .indigo]),
         ]
         }
     }

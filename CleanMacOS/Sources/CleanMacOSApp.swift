@@ -70,6 +70,7 @@ struct CleanMacOSApp: App {
     @StateObject private var quickPanel: QuickPanelController
     @StateObject private var sound: SoundController
     @StateObject private var mixer: MixerController
+    @StateObject private var aiUsage = AIUsageMonitor()
     @AppStorage("showMenuBar") private var showMenuBar = true
     @State private var panelController: ClipboardPanelController?
 
@@ -147,6 +148,7 @@ struct CleanMacOSApp: App {
                 .environmentObject(scratchpad)
                 .environmentObject(camera)
                 .environmentObject(quitApps)
+                .environmentObject(aiUsage)
                 .frame(minWidth: 900, minHeight: 600)
                 .onAppear {
                     Task { await account.refreshSession() }

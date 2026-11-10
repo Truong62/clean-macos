@@ -22,5 +22,6 @@ void mk_typing_reset(MKTypingEngine *engine);
 bool mk_calc(const char *input, double *out_value, uint32_t *out_closed);
 char *mk_convert(const char *input);
 char *mk_rank(const char *query, const char *rows);
+char *mk_ai_usage(const char *request);
 
 #endif

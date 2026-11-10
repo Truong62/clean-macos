@@ -4,6 +4,7 @@ pub mod fswalk;
 pub mod rank;
 pub mod typing;
 pub mod units;
+pub mod usage;
 pub mod vietnamese;
 
 use std::collections::HashMap;
@@ -264,4 +265,9 @@ pub extern "C" fn mk_rank(query: *const c_char, rows: *const c_char) -> *mut c_c
         .map(|ranked| format!("{}\t{}\t{}", ranked.index, ranked.score, ranked.tier))
         .collect();
     into_c_string(lines.join("\n"))
+}
+
+#[no_mangle]
+pub extern "C" fn mk_ai_usage(request: *const c_char) -> *mut c_char {
+    into_c_string(usage::handle(text_from(request).unwrap_or("")))
 }

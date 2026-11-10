@@ -89,6 +89,9 @@ struct ContentView: View {
             case .devTools:
                 DevToolsView()
 
+            case .aiUsage:
+                AIUsageView()
+
             case .settings:
                 SettingsView()
 
