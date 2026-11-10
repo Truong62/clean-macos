@@ -14,7 +14,7 @@ final class InputController: ObservableObject {
     static let guardTick: TimeInterval = 0.05
     static let protectedKeys: [Int: String] = [kVK_ANSI_Q: "Q", kVK_ANSI_W: "W"]
     static let hyperFlags: CGEventFlags = [.maskControl, .maskAlternate, .maskShift, .maskCommand]
-    static let focusableSubroles: Set<String> = [kAXStandardWindowSubrole, kAXDialogSubrole]
+    nonisolated static let focusableSubroles: Set<String> = [kAXStandardWindowSubrole, kAXDialogSubrole]
 
     @Published var settings: InputSettings {
         didSet {

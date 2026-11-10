@@ -24,6 +24,8 @@ struct DisplaysView: View {
                     DisplayDetailPanel(display: selected, vm: vm)
                 }
 
+                BrightnessSection()
+
                 lockScreenNote
 
                 if !vm.statusMessage.isEmpty {

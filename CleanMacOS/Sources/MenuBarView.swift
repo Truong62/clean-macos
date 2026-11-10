@@ -8,6 +8,7 @@ struct MenuBarView: View {
     @ObservedObject var keepAwake: KeepAwake
     @ObservedObject var clipboard: ClipboardViewModel
     @ObservedObject var shelf: ShelfController
+    @ObservedObject var brightness: BrightnessController
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
@@ -30,6 +31,16 @@ struct MenuBarView: View {
             }
             if let track = music.current {
                 nowPlayingRow(track)
+                Divider()
+            }
+            if brightness.settings.isEnabled && !brightness.displays.isEmpty {
+                VStack(spacing: 6) {
+                    ForEach(brightness.displays.filter(\.isOn)) { BrightnessRow(display: $0, isCompact: true) }
+                }
+                .font(.system(size: 12))
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .environmentObject(brightness)
                 Divider()
             }
             if shelf.settings.isEnabled {

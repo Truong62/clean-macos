@@ -14,6 +14,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillTerminate(_ notification: Notification) {
         AudioHardware.restoreChangedDevices()
         HyperKeyMapping.restoreIfNeeded()
+        PictureDimmer.restoreAll()
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
@@ -59,6 +60,7 @@ struct CleanMacOSApp: App {
     @StateObject private var finder = FinderTools()
     @StateObject private var diskImages = DiskImageWatcher()
     @StateObject private var shelf = ShelfController()
+    @StateObject private var brightness = BrightnessController()
     @AppStorage("showMenuBar") private var showMenuBar = true
     @State private var panelController: ClipboardPanelController?
 
@@ -100,6 +102,7 @@ struct CleanMacOSApp: App {
                 .environmentObject(finder)
                 .environmentObject(diskImages)
                 .environmentObject(shelf)
+                .environmentObject(brightness)
                 .frame(minWidth: 900, minHeight: 600)
                 .onAppear {
                     Task { await account.refreshSession() }
@@ -139,7 +142,7 @@ struct CleanMacOSApp: App {
         }
 
         MenuBarExtra(isInserted: $showMenuBar) {
-            MenuBarView(monitor: monitor, recorder: recorder, agentRecording: agentRecording, music: music, keepAwake: keepAwake, clipboard: clipboard, shelf: shelf)
+            MenuBarView(monitor: monitor, recorder: recorder, agentRecording: agentRecording, music: music, keepAwake: keepAwake, clipboard: clipboard, shelf: shelf, brightness: brightness)
         } label: {
             Label(String(format: " %.0f%%", monitor.latestCPU), systemImage: recorder.isRecording || agentRecording.isRecording ? "record.circle.fill" : keepAwake.isActive ? "cup.and.saucer.fill" : "square.grid.2x2.fill")
         }

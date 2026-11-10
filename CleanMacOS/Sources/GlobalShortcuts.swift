@@ -10,4 +10,8 @@ extension KeyboardShortcuts.Name {
     static let pastePlainText = Self("pastePlainText", default: .init(.v, modifiers: [.command, .option, .shift]))
     static let snippetLibrary = Self("snippetLibrary", default: .init(.l, modifiers: [.control, .option, .command]))
     static let toggleShelf = Self("toggleShelf", default: .init(.d, modifiers: [.control, .option, .command]))
+    static let displayBrightnessUp = Self("displayBrightnessUp", default: .init(.equal, modifiers: [.command, .shift]))
+    static let displayBrightnessDown = Self("displayBrightnessDown", default: .init(.minus, modifiers: [.command, .shift]))
+    static let keyboardLightUp = Self("keyboardLightUp", default: .init(.equal, modifiers: [.command, .option]))
+    static let keyboardLightDown = Self("keyboardLightDown", default: .init(.minus, modifiers: [.command, .option]))
 }
