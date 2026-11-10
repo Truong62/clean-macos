@@ -303,6 +303,7 @@ final class RadialMenuController: NSObject, ObservableObject, NSWindowDelegate {
     }
 
     private func applyTap() {
+        MouseToolsController.reservedButtons = settings.isEnabled ? Set(settings.wheels.compactMap { $0.mouseButton.map { $0 - 1 } }) : []
         let needsTap = mousePresses.hasPendingRelease || (settings.isEnabled && settings.wheels.contains { $0.mouseButton != nil } && AXIsProcessTrusted())
         guard needsTap != (tap != nil) else { return }
         if needsTap { startTap() } else { stopTap() }
@@ -341,7 +342,7 @@ final class RadialMenuController: NSObject, ObservableObject, NSWindowDelegate {
             if let tap { CGEvent.tapEnable(tap: tap, enable: true) }
             return pass
         }
-        guard type == .otherMouseDown || type == .otherMouseUp else { return pass }
+        guard !MouseToolsController.capturing, type == .otherMouseDown || type == .otherMouseUp else { return pass }
         let button = Int(event.getIntegerValueField(.mouseEventButtonNumber)) + 1
         let triggers = settings.wheels.map { RadialTrigger(wheelID: $0.id, mouseButton: $0.mouseButton) }
         switch mousePresses.handle(button: button, isDown: type == .otherMouseDown, triggers: triggers, isEnabled: settings.isEnabled) {

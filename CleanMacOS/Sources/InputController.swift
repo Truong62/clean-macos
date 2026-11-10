@@ -6,7 +6,7 @@ import SwiftUI
 @MainActor
 final class InputController: ObservableObject {
     static let settingsKey = "input.settings"
-    static let marker: Int64 = 0x4D4B_494E
+    nonisolated static let marker: Int64 = 0x4D4B_494E
     static let pixelsPerStep: Double = 40
     static let pointsPerLine: Double = 10
     static let smoothResponse = 0.25
@@ -19,6 +19,7 @@ final class InputController: ObservableObject {
     @Published var settings: InputSettings {
         didSet {
             UserDefaults.standard.set(try? JSONEncoder().encode(settings), forKey: Self.settingsKey)
+            pinch.settings = settings
             resetState()
             applyTap()
         }
@@ -42,11 +43,18 @@ final class InputController: ObservableObject {
     private let focusQueue = DispatchQueue(label: "mackit.input.focus", qos: .userInteractive)
     private let hud = InputHUD()
     private let cleaning = CleaningMode()
+    private let pinch = WheelPinchController()
 
     init() {
         settings = UserDefaults.standard.data(forKey: Self.settingsKey).flatMap { try? JSONDecoder().decode(InputSettings.self, from: $0) } ?? InputSettings()
         cleaning.onFinish = { [weak self] in self?.isCleaning = false }
         HyperKeyMapping.restoreIfNeeded()
+        pinch.settings = settings
+        pinch.cancelGlide = { [weak self] in
+            self?.smoothTimer?.invalidate()
+            self?.smoothTimer = nil
+            self?.smooth = SmoothScroll(response: Self.smoothResponse)
+        }
         resetState()
         applyTap()
         NotificationCenter.default.addObserver(forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
@@ -66,6 +74,7 @@ final class InputController: ObservableObject {
     }
 
     private func applyTap() {
+        pinch.apply()
         let types = AXIsProcessTrusted() ? settings.eventTypes : []
         if types != activeTypes {
             stopTap()
@@ -136,6 +145,9 @@ final class InputController: ObservableObject {
     }
 
     private func scroll(_ event: CGEvent) -> Bool {
+        let packet = WheelPacket(event)
+        if abs(packet.x) > abs(packet.y), MouseToolsController.capturing || MouseToolsController.assignedButtons.contains((packet.x > 0) != settings.invertHorizontal ? -1 : -2) { return false }
+        if settings.wheelPinch && WheelPinchState.matches(event.flags, modifier: settings.pinchModifier) { return false }
         let continuous = event.getIntegerValueField(.scrollWheelEventIsContinuous) != 0
         let lineY = event.getDoubleValueField(.scrollWheelEventFixedPtDeltaAxis1)
         let lineX = event.getDoubleValueField(.scrollWheelEventFixedPtDeltaAxis2)
@@ -191,6 +203,7 @@ final class InputController: ObservableObject {
 
     private func press(_ event: CGEvent, now: TimeInterval) -> Bool {
         let number = event.getIntegerValueField(.mouseEventButtonNumber)
+        if MouseToolsController.capturing || MouseToolsController.reservedButtons.contains(Int(number)) || MouseToolsController.assignedButtons.contains(Int(number)) { return false }
         if clicks.shouldDrop(key: Int(number), isDown: true, at: now) {
             swallowedButtons.insert(number)
             return true

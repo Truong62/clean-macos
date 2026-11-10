@@ -64,6 +64,8 @@ enum MouseButtonAction: String, Codable, CaseIterable, Identifiable {
 }
 
 struct InputSettings: Codable, Equatable {
+    var wheelPinch = false
+    var pinchModifier = ModifierChoice.control
     var invertVertical = false
     var invertHorizontal = false
     var sidewaysModifier = ModifierChoice.none
@@ -99,6 +101,34 @@ struct InputSettings: Codable, Equatable {
         if keyDebounceMs > 0 || quitProtection != .off || closeProtection != .off || hyperKey { types += [.keyDown, .keyUp] }
         if focusFollowsMouse { types.append(.mouseMoved) }
         return types
+    }
+}
+
+extension InputSettings {
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let defaults = InputSettings()
+        wheelPinch = try container.decodeIfPresent(Bool.self, forKey: .wheelPinch) ?? defaults.wheelPinch
+        pinchModifier = try container.decodeIfPresent(ModifierChoice.self, forKey: .pinchModifier) ?? defaults.pinchModifier
+        invertVertical = try container.decodeIfPresent(Bool.self, forKey: .invertVertical) ?? defaults.invertVertical
+        invertHorizontal = try container.decodeIfPresent(Bool.self, forKey: .invertHorizontal) ?? defaults.invertHorizontal
+        sidewaysModifier = try container.decodeIfPresent(ModifierChoice.self, forKey: .sidewaysModifier) ?? defaults.sidewaysModifier
+        fastModifier = try container.decodeIfPresent(ModifierChoice.self, forKey: .fastModifier) ?? defaults.fastModifier
+        fastMultiplier = try container.decodeIfPresent(Double.self, forKey: .fastMultiplier) ?? defaults.fastMultiplier
+        linearLines = try container.decodeIfPresent(Int.self, forKey: .linearLines) ?? defaults.linearLines
+        smoothScroll = try container.decodeIfPresent(Bool.self, forKey: .smoothScroll) ?? defaults.smoothScroll
+        zoomModifier = try container.decodeIfPresent(ModifierChoice.self, forKey: .zoomModifier) ?? defaults.zoomModifier
+        buttonActions = try container.decodeIfPresent([Int: MouseButtonAction].self, forKey: .buttonActions) ?? defaults.buttonActions
+        clickDebounceMs = try container.decodeIfPresent(Int.self, forKey: .clickDebounceMs) ?? defaults.clickDebounceMs
+        keyDebounceMs = try container.decodeIfPresent(Int.self, forKey: .keyDebounceMs) ?? defaults.keyDebounceMs
+        quitProtection = try container.decodeIfPresent(QuitGuard.Mode.self, forKey: .quitProtection) ?? defaults.quitProtection
+        closeProtection = try container.decodeIfPresent(QuitGuard.Mode.self, forKey: .closeProtection) ?? defaults.closeProtection
+        focusFollowsMouse = try container.decodeIfPresent(Bool.self, forKey: .focusFollowsMouse) ?? defaults.focusFollowsMouse
+        focusDelayMs = try container.decodeIfPresent(Int.self, forKey: .focusDelayMs) ?? defaults.focusDelayMs
+        raisesOnFocus = try container.decodeIfPresent(Bool.self, forKey: .raisesOnFocus) ?? defaults.raisesOnFocus
+        hyperKey = try container.decodeIfPresent(Bool.self, forKey: .hyperKey) ?? defaults.hyperKey
+        hyperTapsEscape = try container.decodeIfPresent(Bool.self, forKey: .hyperTapsEscape) ?? defaults.hyperTapsEscape
+        excludedApps = try container.decodeIfPresent([String].self, forKey: .excludedApps) ?? defaults.excludedApps
     }
 }
 

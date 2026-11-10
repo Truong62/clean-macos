@@ -10,6 +10,8 @@ struct CommandBarSettings: Codable, Equatable {
     var searchesClipboard = true
     var links: [CommandLink] = []
     var fileFolders: [String] = []
+    var scripts: [CommandScript] = []
+    var searchesScripts = false
 }
 
 extension CommandBarSettings {
@@ -22,6 +24,8 @@ extension CommandBarSettings {
         searchesSnippets = try container.decodeIfPresent(Bool.self, forKey: .searchesSnippets) ?? defaults.searchesSnippets
         searchesClipboard = try container.decodeIfPresent(Bool.self, forKey: .searchesClipboard) ?? defaults.searchesClipboard
         links = try container.decodeIfPresent([CommandLink].self, forKey: .links) ?? defaults.links
+        scripts = try container.decodeIfPresent([CommandScript].self, forKey: .scripts) ?? defaults.scripts
+        searchesScripts = try container.decodeIfPresent(Bool.self, forKey: .searchesScripts) ?? defaults.searchesScripts
         fileFolders = try container.decodeIfPresent([String].self, forKey: .fileFolders) ?? defaults.fileFolders
     }
 }
@@ -95,7 +99,12 @@ final class CommandBarController: NSObject, ObservableObject, NSWindowDelegate {
 
     @Published var settings: CommandBarSettings {
         didSet {
-            UserDefaults.standard.set(try? JSONEncoder().encode(settings), forKey: Self.settingsKey)
+            scriptIntent += 1
+            var saved = settings
+            saved.scripts = Array(settings.scripts.compactMap(\.normalized).prefix(max(0, 60 - settings.links.count)))
+            UserDefaults.standard.set(try? JSONEncoder().encode(saved), forKey: Self.settingsKey)
+            configureScriptShortcuts()
+            scheduleScript()
             if oldValue.isEnabled != settings.isEnabled {
                 if settings.isEnabled { KeyboardShortcuts.enable([.commandBar]) } else { KeyboardShortcuts.disable([.commandBar]) }
             }
@@ -104,21 +113,25 @@ final class CommandBarController: NSObject, ObservableObject, NSWindowDelegate {
     @Published var query = "" {
         didSet {
             guard query != oldValue else { return }
+            scriptIntent += 1
             selection = 0
             confirming = nil
             rowActions = []
             rebuild()
             scheduleFileSearch()
+            scheduleScript()
         }
     }
     @Published var category = CommandCategory.all {
         didSet {
+            scriptIntent += 1
             selection = 0
             rebuild()
+            scheduleScript()
         }
     }
     @Published private(set) var rows: [CommandRow] = []
-    @Published var selection = 0
+    @Published var selection = 0 { didSet { if oldValue != selection { scriptIntent += 1 } } }
     @Published private(set) var confirming: String?
     @Published private(set) var isOpen = false
     @Published private(set) var rowActions: [CommandRowActionKind] = []
@@ -133,6 +146,11 @@ final class CommandBarController: NSObject, ObservableObject, NSWindowDelegate {
     private var fileSearch: DispatchWorkItem?
     private var fileToken = 0
     private var openToken = 0
+    private var scriptIntent = 0
+    private var scriptDebounce: DispatchWorkItem?
+    private var scriptRuns = ScriptRunState()
+    private var scriptWaiters: [ScriptRunKey: () -> Void] = [:]
+    private var registeredScripts: Set<UUID> = []
     private var panel: NSPanel?
     private var keyMonitor: Any?
     private let context: CommandContext
@@ -145,6 +163,7 @@ final class CommandBarController: NSObject, ObservableObject, NSWindowDelegate {
         memory = defaults.data(forKey: Self.memoryKey).flatMap { try? JSONDecoder().decode(CommandMemory.self, from: $0) } ?? CommandMemory()
         super.init()
         KeyboardShortcuts.onKeyUp(for: .commandBar) { [weak self] in MainActor.assumeIsolated { self?.toggle() } }
+        configureScriptShortcuts()
         if !settings.isEnabled { KeyboardShortcuts.disable([.commandBar]) }
     }
 
@@ -155,6 +174,8 @@ final class CommandBarController: NSObject, ObservableObject, NSWindowDelegate {
     func open() {
         openToken += 1
         let token = openToken
+        scriptRuns.open()
+        scriptWaiters = [:]
         let front = NSWorkspace.shared.frontmostApplication
         items = CommandSources.actions(context) + CommandSources.apps() + CommandSources.macSettings() + CommandSources.folders()
             + (settings.searchesSnippets ? CommandSources.snippets(context) : []) + (settings.searchesClipboard ? CommandSources.clipboard(context) : [])
@@ -189,6 +210,8 @@ final class CommandBarController: NSObject, ObservableObject, NSWindowDelegate {
     }
 
     func close() {
+        scriptDebounce?.cancel()
+        scriptWaiters = [:]
         if let keyMonitor { NSEvent.removeMonitor(keyMonitor) }
         keyMonitor = nil
         let closing = panel
@@ -344,7 +367,7 @@ final class CommandBarController: NSObject, ObservableObject, NSWindowDelegate {
             rows = emojiRows(emoji)
             return
         }
-        let all = items + liveItems + fileItems + CommandSources.quitRows(query) + CommandSources.facts(query)
+        let all = scriptItems() + items + liveItems + fileItems + CommandSources.quitRows(query) + CommandSources.facts(query)
         let pool = category == .all ? all : all.filter { category.kinds.contains($0.kind) }
         guard !text.isEmpty else {
             rows = home(pool)
@@ -353,6 +376,10 @@ final class CommandBarController: NSObject, ObservableObject, NSWindowDelegate {
         var result: [CommandRow] = []
         if category == .all {
             result += CommandAnswers.answers(for: text).map(CommandRow.answer)
+            if settings.searchesScripts, let match = CommandScript.match(text, scripts: settings.scripts),
+               let output = scriptRuns.results[ScriptRunKey(id: match.script.id, path: match.script.path, argument: match.argument)], let title = output.rowText {
+                result.append(.answer(CommandAnswer(kind: .script, title: title, detail: match.script.name, copyText: title)))
+            }
             if let match = CommandLink.match(text, links: settings.links) { result.append(.link(match.link, match.query)) }
             if let argument = CommandArgument.split(text) {
                 let numbered = pool.filter { $0.numberRange != nil }
@@ -363,7 +390,12 @@ final class CommandBarController: NSObject, ObservableObject, NSWindowDelegate {
                 }
             }
         }
-        let candidates = pool.filter { text.count >= Self.menuMinimum || $0.kind != .menu }
+        if category == .all, settings.searchesScripts, let match = CommandScript.match(text, scripts: settings.scripts),
+           let item = pool.first(where: { $0.id == "script.\(match.script.id)" }) {
+            result.append(.item(item, argument: nil))
+        }
+        let present = Set(result.compactMap { row -> String? in if case .item(let item, _) = row { return item.id }; return nil })
+        let candidates = pool.filter { !present.contains($0.id) }.filter { text.count >= Self.menuMinimum || $0.kind != .menu }
         let now = Date()
         let rankRows = candidates.map { item in
             RankRow(title: item.title, keywords: item.keywords,
@@ -440,6 +472,94 @@ final class CommandBarController: NSObject, ObservableObject, NSWindowDelegate {
         let actions = pool.filter { ($0.kind == .action || $0.kind == .toggle) && !shown.contains($0.id) }.prefix(Self.homeActions)
         let clips = pool.filter { $0.kind == .clipboard }.prefix(Self.homeClipboard)
         return (pinned + suggestions + actions + clips).map { .item($0, argument: nil) }
+    }
+
+    private func scriptItems() -> [CommandItem] {
+        guard settings.searchesScripts else { return [] }
+        return settings.scripts.compactMap(\.normalized).filter { !$0.hidden }.map { script in
+            CommandItem(id: "script.\(script.id)", kind: .action, title: script.name, subtitle: script.path,
+                        icon: .symbol("terminal"), keepsBarOpen: true) { [weak self] _ in self?.runScriptRow(script) }
+        }
+    }
+
+    private func runScriptRow(_ script: CommandScript) {
+        guard let argument = script.argument(in: query) ?? (script.runOnBareName ? "" : nil) else {
+            query = script.name + " "
+            return
+        }
+        let key = ScriptRunKey(id: script.id, path: script.path, argument: argument)
+        if let result = scriptRuns.results[key] {
+            if let text = result.rowText { copy(text) }
+            return
+        }
+        let token = openToken
+        let intent = scriptIntent
+        let originalQuery = query
+        let originalCategory = category
+        let originalSelection = selection
+        scriptWaiters[key] = { [weak self] in
+            guard let self, self.isOpen, self.openToken == token, self.scriptIntent == intent, self.settings.searchesScripts, self.query == originalQuery,
+                  self.category == originalCategory, self.selection == originalSelection,
+                  let text = self.scriptRuns.results[key]?.rowText else { return }
+            self.copy(text)
+        }
+        startScript(script, argument: argument)
+    }
+
+    private func scheduleScript() {
+        scriptDebounce?.cancel()
+        guard isOpen, category == .all, settings.searchesScripts, EmojiCatalog.query(query) == nil,
+              let match = CommandScript.match(query, scripts: settings.scripts) else { return }
+        let work = DispatchWorkItem { [weak self] in self?.startScript(match.script, argument: match.argument) }
+        scriptDebounce = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25, execute: work)
+    }
+
+    private func startScript(_ script: CommandScript, argument: String) {
+        let key = ScriptRunKey(id: script.id, path: script.path, argument: argument)
+        guard scriptRuns.begin(key) else { return }
+        let opening = scriptRuns.opening
+        let token = openToken
+        DispatchQueue.global(qos: .userInitiated).async {
+            let result = CommandScriptRunner.run(path: script.path, argument: argument)
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                self.scriptRuns.finish(key, result: result, opening: opening)
+                guard self.openToken == token else { self.scheduleScript(); return }
+                let waiter = self.scriptWaiters.removeValue(forKey: key)
+                waiter?()
+                self.rebuild()
+            }
+        }
+    }
+
+    private func configureScriptShortcuts() {
+        for id in registeredScripts { KeyboardShortcuts.disable([.commandScript(id)]) }
+        registeredScripts = Set(settings.scripts.map(\.id))
+        for script in settings.scripts.compactMap(\.normalized) {
+            let name = KeyboardShortcuts.Name.commandScript(script.id)
+            KeyboardShortcuts.onKeyUp(for: name) { [weak self] in
+                MainActor.assumeIsolated {
+                    guard let self, self.settings.searchesScripts, script.shortcutEnabled, !script.hidden else { return }
+                    if script.directShortcut {
+                        let key = ScriptRunKey(id: script.id, path: script.path, argument: "")
+                        guard self.scriptRuns.begin(key, direct: true) else { return }
+                        DispatchQueue.global(qos: .userInitiated).async {
+                            let result = CommandScriptRunner.run(path: script.path, argument: "")
+                            DispatchQueue.main.async {
+                                self.scriptRuns.finish(key, result: result, opening: nil)
+                                if result.failed { NSSound.beep() }
+                            }
+                        }
+                    } else {
+                        self.open()
+                        self.query = script.name + " "
+                    }
+                }
+            }
+            if settings.searchesScripts && script.shortcutEnabled && !script.hidden { KeyboardShortcuts.enable([name]) }
+            else { KeyboardShortcuts.disable([name]) }
+        }
     }
 
     private func saveMemory() {
