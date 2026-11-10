@@ -2,6 +2,7 @@ import Foundation
 import KeyboardShortcuts
 
 extension KeyboardShortcuts.Name {
+    static func commandScript(_ id: UUID) -> Self { Self("command.script.\(id.uuidString)") }
     static let editImageFile = Self("editImageFile")
     static let editClipboardImage = Self("editClipboardImage")
     static func radialWheel(_ id: UUID) -> Self {

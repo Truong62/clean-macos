@@ -211,7 +211,7 @@ struct CommandBarSettingsView: View {
                     Text("Try “2(3+4)^2”, “15% of 80”, “100 km to mi”, “#ff8800”, “time in tokyo”, “in 3 weeks” or “volume 40”.")
                         .font(.caption).foregroundStyle(.secondary)
                 }
-                CardSection(title: "Links", icon: "link") {
+                CardSection(title: "Saved links and scripts", icon: "link") {
                     Text("Type the keyword, a space and your text. Use {query}, {clipboard}, {selection} and {date} in the address.")
                         .font(.caption).foregroundStyle(.secondary)
                     ForEach($bar.settings.links) { $link in
@@ -226,7 +226,28 @@ struct CommandBarSettingsView: View {
                     }
                     Button { bar.settings.links.append(CommandLink(name: "Google", keyword: "g", template: "https://www.google.com/search?q={query}")) } label: {
                         Label("Add Link", systemImage: "plus")
+                    }.disabled(bar.settings.links.count + bar.settings.scripts.count >= 60)
+                    Toggle("Search and run saved scripts", isOn: $bar.settings.searchesScripts)
+                    ForEach($bar.settings.scripts) { $script in
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                TextField("Name", text: $script.name)
+                                Text(script.path).lineLimit(1).truncationMode(.middle)
+                                Button { bar.settings.scripts.removeAll { $0.id == script.id } } label: { Image(systemName: "minus.circle") }
+                            }
+                            Toggle("Run on the bare name", isOn: $script.runOnBareName)
+                            Toggle("Hide this script", isOn: $script.hidden)
+                            Toggle("Enable global shortcut", isOn: $script.shortcutEnabled)
+                            if script.shortcutEnabled {
+                                KeyboardShortcuts.Recorder(for: .commandScript(script.id))
+                                Toggle("Run directly without opening the bar", isOn: $script.directShortcut)
+                            }
+                        }
                     }
+                    Button("Add Script…") { addScript() }
+                        .disabled(bar.settings.links.count + bar.settings.scripts.count >= 60)
+                    Text("Scripts run directly with one text argument. Output is limited to 64 KB and execution to 5 seconds.")
+                        .font(.caption).foregroundStyle(.secondary)
                 }
                 CardSection(title: "Files", icon: "doc.text.magnifyingglass") {
                     Text("Find files by name with Spotlight, only inside the folders you add here. Hidden files, app bundles and build folders are skipped.")
@@ -255,6 +276,15 @@ struct CommandBarSettingsView: View {
             .padding(20)
         }
         .background(Color(nsColor: .windowBackgroundColor))
+    }
+
+    private func addScript() {
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        guard panel.runModal() == .OK, let url = panel.url,
+              let script = CommandScript(name: "", path: url.path).normalized else { return }
+        bar.settings.scripts.append(script)
     }
 
     private func addFileFolder() {

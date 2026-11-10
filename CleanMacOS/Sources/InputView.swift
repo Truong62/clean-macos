@@ -1,7 +1,11 @@
 import SwiftUI
+import KeyboardShortcuts
 
 struct InputView: View {
     @EnvironmentObject var input: InputController
+    @EnvironmentObject var mouseTools: MouseToolsController
+    @EnvironmentObject var pointer: PointerAccelerationController
+    @EnvironmentObject var trackpadMiddle: TrackpadMiddleController
     private let buttons: [(Int, String)] = [(2, "Middle button"), (3, "Button 4 (side, back)"), (4, "Button 5 (side, forward)"), (5, "Button 6"), (6, "Button 7")]
 
     var body: some View {
@@ -33,7 +37,62 @@ struct InputView: View {
                             Text("\(Int(input.settings.fastMultiplier))×").monospacedDigit()
                         }
                     }
-                    modifierPicker("Zoom in and out while holding", $input.settings.zoomModifier)
+                    Toggle("Pinch zoom with the wheel", isOn: $input.settings.wheelPinch)
+                        .onChange(of: input.settings.wheelPinch) { _, enabled in
+                            if enabled { _ = AXIsProcessTrustedWithOptions([kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary) }
+                        }
+                    Picker("Pinch modifier", selection: $input.settings.pinchModifier) {
+                        Text("None (inactive)").tag(ModifierChoice.none)
+                        Text("⌥ Option").tag(ModifierChoice.option)
+                        Text("⌃ Control").tag(ModifierChoice.control)
+                        Text("⌘ Command").tag(ModifierChoice.command)
+                    }.disabled(!input.settings.wheelPinch)
+                    Text("Control-wheel replaces macOS screen zoom. Hold only the selected modifier.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                CardSection(title: "Trackpad middle click", icon: "hand.point.up.left") {
+                    Toggle("Three-finger press sends a middle click", isOn: $trackpadMiddle.settings.pressEnabled)
+                        .onChange(of: trackpadMiddle.settings.pressEnabled) { _, enabled in if enabled { trackpadMiddle.requestPermission() } }
+                    Picker("Light tap", selection: $trackpadMiddle.settings.tapFingers) {
+                        Text("Off").tag(0)
+                        Text("3 fingers").tag(3)
+                        Text("4 fingers").tag(4)
+                    }.onChange(of: trackpadMiddle.settings.tapFingers) { _, count in if count != 0 { trackpadMiddle.requestPermission() } }
+                    Text("With three-finger drag enabled, press with four fingers; three-finger light taps are disabled. Requires trackpad touch data.")
+                        .font(.caption).foregroundStyle(.secondary)
+                    if let status = trackpadMiddle.status { Text(status).font(.caption).foregroundStyle(.orange) }
+                    AppListEditor(title: "Keep normal trackpad clicks in these apps", bundleIDs: $trackpadMiddle.settings.excludedApps)
+                }
+                CardSection(title: "Pointer acceleration", icon: "cursorarrow") {
+                    Toggle("Turn off mouse pointer acceleration", isOn: $pointer.settings.accelerationOff)
+                    Text("Changes connected mice only. Original values are restored when disabled, asleep, signed out or quitting.")
+                        .font(.caption).foregroundStyle(.secondary)
+                    if let status = pointer.status { Text(status).font(.caption).foregroundStyle(.orange) }
+                }
+                CardSection(title: "Mouse shortcuts and Spaces", icon: "computermouse") {
+                    Toggle("Mouse button shortcuts", isOn: $mouseTools.settings.shortcutsEnabled)
+                        .onChange(of: mouseTools.settings.shortcutsEnabled) { _, enabled in if enabled { mouseTools.enablePermission() } }
+                    ForEach(mouseTools.settings.shortcuts) { shortcut in
+                        HStack {
+                            Text(MouseShortcut.title(shortcut.button))
+                            Text(KeyboardShortcuts.Shortcut(KeyboardShortcuts.Key(rawValue: Int(shortcut.key)),
+                                                           modifiers: NSEvent.ModifierFlags(rawValue: UInt(shortcut.flags))).description).foregroundStyle(.secondary)
+                            Spacer()
+                            Button("Remove") { mouseTools.settings.shortcuts.removeAll { $0.id == shortcut.id } }
+                        }
+                    }
+                    Button("Add Button Shortcut…") { mouseTools.capture(spaces: false) }.disabled(!mouseTools.settings.shortcutsEnabled)
+                    Toggle("Hold a mouse button to drag between Spaces", isOn: $mouseTools.settings.spacesEnabled)
+                        .onChange(of: mouseTools.settings.spacesEnabled) { _, enabled in if enabled { mouseTools.enablePermission() } }
+                    if mouseTools.settings.spacesEnabled {
+                        Button(mouseTools.settings.spacesButton.map(MouseShortcut.title) ?? "Choose Drag Button…") { mouseTools.capture(spaces: true) }
+                        Toggle("Natural horizontal direction", isOn: $mouseTools.settings.naturalSpaces)
+                        if mouseTools.allSpacesHotkeysOff { Text("Enable Spaces and Mission Control keyboard shortcuts in System Settings.").foregroundStyle(.orange) }
+                    }
+                    if let message = mouseTools.captureMessage {
+                        Text(message).font(.caption)
+                        Button("Cancel Capture") { mouseTools.cancelCapture() }
+                    }
                 }
                 CardSection(title: "Mouse buttons", icon: "computermouse") {
                     ForEach(buttons, id: \.0) { number, title in

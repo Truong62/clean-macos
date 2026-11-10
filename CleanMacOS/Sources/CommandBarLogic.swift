@@ -172,7 +172,7 @@ struct CommandLink: Codable, Equatable, Identifiable {
 
 struct CommandAnswer: Equatable {
     enum Kind: Equatable {
-        case calculation, conversion, color, link, date, time
+        case calculation, conversion, color, link, date, time, script
     }
 
     let kind: Kind

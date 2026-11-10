@@ -33,6 +33,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 @main
 enum AppEntry {
     static func main() {
+        if CommandLine.arguments.contains(PointerRecovery.flag) {
+            exit(PointerRecovery.restore() ? 0 : 1)
+        }
+        _ = PointerRecovery.restore()
         if CommandLine.arguments.contains(RecordingMCPServer.flag) {
             RecordingMCPServer.run()
         }
@@ -56,7 +60,10 @@ struct CleanMacOSApp: App {
     @StateObject private var keepAwake: KeepAwake
     @StateObject private var bluetooth = BluetoothSleepGuard()
     @StateObject private var windows: WindowManager
-    @StateObject private var input = InputController()
+    @StateObject private var input: InputController
+    @StateObject private var mouseTools: MouseToolsController
+    @StateObject private var pointer: PointerAccelerationController
+    @StateObject private var trackpadMiddle: TrackpadMiddleController
     @StateObject private var finder = FinderTools()
     @StateObject private var diskImages = DiskImageWatcher()
     @StateObject private var shelf: ShelfController
@@ -81,6 +88,15 @@ struct CleanMacOSApp: App {
     @State private var panelController: ClipboardPanelController?
 
     init() {
+        _pointer = StateObject(wrappedValue: PointerAccelerationController())
+        let input = InputController()
+        _input = StateObject(wrappedValue: input)
+        let trackpadMiddle = TrackpadMiddleController()
+        trackpadMiddle.isCleaning = { [weak input] in input?.isCleaning ?? false }
+        _trackpadMiddle = StateObject(wrappedValue: trackpadMiddle)
+        let mouseTools = MouseToolsController()
+        mouseTools.inputSettings = { [weak input] in input?.settings ?? InputSettings() }
+        _mouseTools = StateObject(wrappedValue: mouseTools)
         let clipboard = ClipboardViewModel()
         _clipboard = StateObject(wrappedValue: clipboard)
         let snippets = SnippetExpander(clipboard: clipboard)
@@ -158,6 +174,9 @@ struct CleanMacOSApp: App {
                 .environmentObject(bluetooth)
                 .environmentObject(windows)
                 .environmentObject(input)
+                .environmentObject(mouseTools)
+                .environmentObject(pointer)
+                .environmentObject(trackpadMiddle)
                 .environmentObject(snippets)
                 .environmentObject(finder)
                 .environmentObject(diskImages)
