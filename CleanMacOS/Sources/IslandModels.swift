@@ -62,7 +62,9 @@ enum IslandSection: String, Codable, CaseIterable, Identifiable {
 }
 
 struct IslandSettings: Codable, Equatable {
-    var isEnabled = false
+    var isEnabled = false {
+        didSet { if isEnabled && !oldValue { populateSections() } }
+    }
     var shortcut = false
     var display = IslandDisplayChoice.automatic
     var opening = IslandOpening.click
@@ -114,6 +116,9 @@ struct IslandSettings: Codable, Equatable {
     var fileDropTarget = false
     var timerMinutes = 15
     init() {}
+    mutating func populateSections() {
+        if isEnabled && sections.isEmpty { sections = [.music, .timer, .files, .clipboard] }
+    }
 }
 
 extension IslandSettings {
@@ -171,6 +176,7 @@ extension IslandSettings {
         keepAwakeActivity = try c.decodeIfPresent(Bool.self, forKey: .keepAwakeActivity) ?? false
         fileDropTarget = try c.decodeIfPresent(Bool.self, forKey: .fileDropTarget) ?? false
         timerMinutes = min(180, max(1, try c.decodeIfPresent(Int.self, forKey: .timerMinutes) ?? 15))
+        populateSections()
     }
 }
 
@@ -456,6 +462,8 @@ struct IslandMediaSample: Equatable {
     var rate: Double
     var playing: Bool
     var album = ""
+    var artwork: Data?
+    var artworkURL: URL?
     func position(at date: Date) -> Double {
         guard duration.isFinite, duration > 0, duration <= 604800, elapsed.isFinite else { return 0 }
         let speed = rate.isFinite ? min(16, max(0, rate)) : 0
