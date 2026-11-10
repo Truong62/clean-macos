@@ -54,7 +54,7 @@ struct MusicTrackTable: View {
             Button("Cancel", role: .cancel) {}
             Button("Move to Trash", role: .destructive) { library.moveToTrash(pendingTrash) }
         } message: {
-            Text("The files are removed from ~/Music/Clean macOS. You can put them back from the Trash.")
+            Text("The files are removed from ~/Music/MacKit. You can put them back from the Trash.")
         }
     }
 

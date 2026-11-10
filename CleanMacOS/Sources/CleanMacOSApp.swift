@@ -53,7 +53,7 @@ struct CleanMacOSApp: App {
     @State private var panelController: ClipboardPanelController?
 
     init() {
-        let library = MusicLibrary()
+        let library = MusicLibrary(legacyRoot: MusicLibrary.legacyRoot)
         _library = StateObject(wrappedValue: library)
         _music = StateObject(wrappedValue: MusicPlayer(library: library))
     }
@@ -109,7 +109,7 @@ struct CleanMacOSApp: App {
         MenuBarExtra(isInserted: $showMenuBar) {
             MenuBarView(monitor: monitor, recorder: recorder, agentRecording: agentRecording, music: music)
         } label: {
-            Label(String(format: " %.0f%%", monitor.latestCPU), systemImage: recorder.isRecording || agentRecording.isRecording ? "record.circle.fill" : "sparkles")
+            Label(String(format: " %.0f%%", monitor.latestCPU), systemImage: recorder.isRecording || agentRecording.isRecording ? "record.circle.fill" : "square.grid.2x2.fill")
         }
         .menuBarExtraStyle(.window)
     }

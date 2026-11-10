@@ -380,7 +380,7 @@ final class ScreenRecorder: NSObject, ObservableObject {
         guard phase == .idle, Self.isSupported else { return }
         message = nil
         if options.microphone, !(await AVCaptureDevice.requestAccess(for: .audio)) {
-            message = "Clean macOS can't use the microphone. Allow it in System Settings › Privacy & Security › Microphone."
+            message = "\(AppIdentity.installedName) can't use the microphone. Allow it in System Settings › Privacy & Security › Microphone."
             return
         }
         self.options = options

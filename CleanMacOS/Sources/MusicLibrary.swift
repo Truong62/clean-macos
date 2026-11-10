@@ -170,6 +170,10 @@ struct ImportProgress: Equatable {
 @MainActor
 final class MusicLibrary: ObservableObject {
     nonisolated static var defaultRoot: URL {
+        FileManager.default.urls(for: .musicDirectory, in: .userDomainMask)[0].appendingPathComponent("MacKit", isDirectory: true)
+    }
+
+    nonisolated static var legacyRoot: URL {
         FileManager.default.urls(for: .musicDirectory, in: .userDomainMask)[0].appendingPathComponent("Clean macOS", isDirectory: true)
     }
 
@@ -192,19 +196,23 @@ final class MusicLibrary: ObservableObject {
     @Published var notice: String?
 
     let root: URL
+    private let legacyRoot: URL?
     private let store: MusicLibraryStore
     private let trash: (URL) throws -> Void
     private var covers: [String: URL] = [:]
     private var importer: MusicImporter { MusicImporter(root: root) }
 
-    init(root: URL = MusicLibrary.defaultRoot, store: MusicLibraryStore = MusicLibraryStore(fileURL: MusicLibrary.defaultIndex),
+    init(root: URL = MusicLibrary.defaultRoot, legacyRoot: URL? = nil,
+         store: MusicLibraryStore = MusicLibraryStore(fileURL: MusicLibrary.defaultIndex),
          trash: @escaping (URL) throws -> Void = { try FileManager.default.trashItem(at: $0, resultingItemURL: nil) }) {
         self.root = root
+        self.legacyRoot = legacyRoot
         self.store = store
         self.trash = trash
     }
 
     func load() async {
+        moveLegacyFolder()
         let index = store.load()
         let scan = await importer.scan(known: Set(index.tracks.map(\.id)))
         tracks = index.tracks.filter { scan.present.contains($0.id) } + scan.added
@@ -296,6 +304,13 @@ final class MusicLibrary: ObservableObject {
         guard let playlist = playlists.first(where: { $0.id == id }) else { return [] }
         let byID = Dictionary(tracks.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         return playlist.trackIDs.compactMap { byID[$0] }
+    }
+
+    private func moveLegacyFolder() {
+        let manager = FileManager.default
+        guard let legacyRoot, manager.fileExists(atPath: legacyRoot.path), !manager.fileExists(atPath: root.path) else { return }
+        try? manager.createDirectory(at: root.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try? manager.moveItem(at: legacyRoot, to: root)
     }
 
     private func updatePlaylist(_ id: Playlist.ID, _ change: (inout Playlist) -> Void) {

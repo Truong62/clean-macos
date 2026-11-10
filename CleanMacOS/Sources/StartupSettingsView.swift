@@ -52,7 +52,7 @@ struct StartupSettingsView: View {
             FlowNode(step: .lock, icon: "lock.fill", colors: [.indigo, .purple], name: "Lock", title: "Lock the screen",
                      detail: lockerJob.map { job in
                          "Done by your job \(job.label)\(StartupJobs.lockDelay(job).map { ", \($0) s after logging in" } ?? " after logging in"). Changing the seconds edits that job and applies from the next startup."
-                     } ?? "Done by Clean macOS, \(lockDelay) s after logging in without a password, so the desktop isn't left open.",
+                     } ?? "Done by MacKit, \(lockDelay) s after logging in without a password, so the desktop isn't left open.",
                      state: isLocking ? .ready : .off),
         ]
     }
@@ -182,7 +182,7 @@ struct StartupSettingsView: View {
         case .lock:
             if lockerJob == nil && locksScreen && !opensAtLogin {
                 HStack {
-                    Label("Clean macOS must open at login to lock the screen", systemImage: "exclamationmark.triangle.fill")
+                    Label("\(AppIdentity.installedName) must open at login to lock the screen", systemImage: "exclamationmark.triangle.fill")
                         .font(.caption)
                         .foregroundStyle(.orange)
                     Spacer()

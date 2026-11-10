@@ -12,6 +12,7 @@ enum SidebarPage: Hashable {
     case music
     case ram
     case portsJobs
+    case powerRecovery
     case devTools
     case settings
     case about
@@ -23,107 +24,39 @@ struct SidebarView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Navigation
-            VStack(spacing: 4) {
-                SidebarItem(icon: "house.fill", label: "Home", color: .blue, isSelected: currentPage == .home) {
-                    currentPage = .home
-                }
-                SidebarItem(icon: "internaldrive.fill", label: "Clean Disk", color: .teal, isSelected: currentPage == .cleanDisk) {
-                    currentPage = .cleanDisk
-                }
-                SidebarItem(icon: "doc.text.magnifyingglass", label: "Large Files", color: .orange, isSelected: currentPage == .largeFiles) {
-                    currentPage = .largeFiles
-                }
-                SidebarItem(icon: "trash.fill", label: "Uninstall Apps", color: .red, isSelected: currentPage == .uninstall) {
-                    currentPage = .uninstall
-                }
-                SidebarItem(icon: "doc.on.clipboard.fill", label: "Clipboard", color: .indigo, isSelected: currentPage == .clipboard) {
-                    currentPage = .clipboard
-                }
-                SidebarItem(icon: "display.2", label: "Displays", color: .purple, isSelected: currentPage == .displays) {
-                    currentPage = .displays
-                }
-                SidebarItem(icon: "record.circle", label: "Screen Record", color: .red, isSelected: currentPage == .screenRecord) {
-                    currentPage = .screenRecord
-                }
-                SidebarItem(icon: "music.note", label: "Music", color: .pink, isSelected: currentPage == .music) {
-                    currentPage = .music
-                }
-                if currentPage == .music {
-                    MusicSidebarSection()
-                        .transition(.sidebarDisclosure)
-                }
-                SidebarItem(icon: "memorychip", label: "RAM", color: .mint, isSelected: currentPage == .ram) {
-                    currentPage = .ram
-                }
-                SidebarItem(icon: "network", label: "Ports & Jobs", color: .cyan, isSelected: currentPage == .portsJobs) {
-                    currentPage = .portsJobs
-                }
-                SidebarItem(icon: "terminal.fill", label: "Dev Tools", color: .green, isSelected: currentPage == .devTools) {
-                    currentPage = .devTools
-                }
-                SidebarItem(icon: "gearshape.fill", label: "Settings", color: .gray, isSelected: currentPage == .settings) {
-                    currentPage = .settings
-                }
-                if currentPage == .settings {
-                    SettingsSidebarSection()
-                        .transition(.sidebarDisclosure)
-                }
-                SidebarItem(icon: "info.circle.fill", label: "About", color: .gray, isSelected: currentPage == .about) {
-                    currentPage = .about
-                }
-            }
-            .padding(.horizontal, 12)
-            .padding(.top, 12)
-            .padding(.bottom, 8)
-
-            if currentPage == .cleanDisk && !vm.categoryCounts.isEmpty {
-                Divider()
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 4)
-
-                // Categories header
-                HStack {
-                    Text("CATEGORIES")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(.tertiary)
-                        .tracking(0.8)
-                    Spacer()
-                }
-                .padding(.horizontal, 16)
-                .padding(.bottom, 6)
-
-                ScrollView {
-                    VStack(spacing: 2) {
-                        CategoryRow(
-                            icon: "square.grid.2x2",
-                            label: "All",
-                            count: vm.artifacts.count,
-                            size: formatBytes(vm.totalCleanableSize),
-                            color: .blue,
-                            isSelected: vm.selectedCategory == nil
-                        ) {
-                            vm.selectedCategory = nil
-                        }
-
-                        ForEach(vm.categoryCounts, id: \.0) { cat, count, size in
-                            CategoryRow(
-                                icon: cat.icon,
-                                label: cat.displayName,
-                                count: count,
-                                size: formatBytes(size),
-                                color: cat.color,
-                                isSelected: vm.selectedCategory == cat
-                            ) {
-                                vm.selectedCategory = cat
+            ScrollView {
+                VStack(spacing: 4) {
+                    SidebarItem(icon: "house.fill", label: "Home", color: .blue, isSelected: currentPage == .home) {
+                        currentPage = .home
+                    }
+                    ForEach(ToolGroup.allCases) { group in
+                        SidebarGroupHeader(title: group.title)
+                        ForEach(group.tools) { tool in
+                            SidebarItem(icon: tool.icon, label: tool.title, color: tool.color, isSelected: currentPage == tool.page) {
+                                currentPage = tool.page
+                            }
+                            if currentPage == tool.page {
+                                subSection(for: tool.page)
                             }
                         }
                     }
-                    .padding(.horizontal, 12)
+                    Divider()
+                        .padding(.vertical, 6)
+                    SidebarItem(icon: "gearshape.fill", label: "Settings", color: .gray, isSelected: currentPage == .settings) {
+                        currentPage = .settings
+                    }
+                    if currentPage == .settings {
+                        SettingsSidebarSection()
+                            .transition(.sidebarDisclosure)
+                    }
+                    SidebarItem(icon: "info.circle.fill", label: "About", color: .gray, isSelected: currentPage == .about) {
+                        currentPage = .about
+                    }
                 }
+                .padding(.horizontal, 12)
+                .padding(.top, 12)
+                .padding(.bottom, 8)
             }
-
-            Spacer()
 
             ReleaseHistoryButton()
                 .padding(.horizontal, 12)
@@ -131,6 +64,51 @@ struct SidebarView: View {
         }
         .animation(.easeInOut(duration: 0.25), value: currentPage)
         .navigationSplitViewColumnWidth(min: 200, ideal: 240)
+    }
+
+    @ViewBuilder private func subSection(for page: SidebarPage) -> some View {
+        switch page {
+        case .music:
+            MusicSidebarSection()
+                .transition(.sidebarDisclosure)
+        case .cleanDisk where !vm.categoryCounts.isEmpty:
+            categories
+                .transition(.sidebarDisclosure)
+        default:
+            EmptyView()
+        }
+    }
+
+    private var categories: some View {
+        VStack(spacing: 2) {
+            CategoryRow(icon: "square.grid.2x2", label: "All", count: vm.artifacts.count, size: formatBytes(vm.totalCleanableSize),
+                        color: .blue, isSelected: vm.selectedCategory == nil) {
+                vm.selectedCategory = nil
+            }
+            ForEach(vm.categoryCounts, id: \.0) { cat, count, size in
+                CategoryRow(icon: cat.icon, label: cat.displayName, count: count, size: formatBytes(size), color: cat.color,
+                            isSelected: vm.selectedCategory == cat) {
+                    vm.selectedCategory = cat
+                }
+            }
+        }
+        .padding(.leading, 18)
+        .padding(.bottom, 4)
+    }
+}
+
+private struct SidebarGroupHeader: View {
+    let title: String
+
+    var body: some View {
+        Text(title.uppercased())
+            .font(.system(size: 10, weight: .semibold))
+            .foregroundStyle(.tertiary)
+            .tracking(0.8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 12)
+            .padding(.top, 10)
+            .padding(.bottom, 2)
     }
 }
 

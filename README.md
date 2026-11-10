@@ -1,12 +1,12 @@
 <p align="center">
-  <img src="docs/images/icon.png" width="96" alt="Clean macOS icon">
+  <img src="docs/images/icon.png" width="96" alt="MacKit icon">
 </p>
 
-<h1 align="center">Clean macOS</h1>
+<h1 align="center">MacKit</h1>
 
 <p align="center">
-  A free, native macOS app to reclaim disk space, uninstall apps cleanly, keep a clipboard history<br>
-  and see every port and scheduled job, all from one window.
+  Everything your Mac needs in one calm, native app: reclaim disk space, uninstall apps cleanly,<br>
+  record the screen, keep a clipboard history, play hi-res music and see every port and scheduled job.
 </p>
 
 <p align="center">
@@ -22,7 +22,7 @@
   <a href="#install"><b>Install</b></a>
 </p>
 
-![Clean macOS home: disk gauge with live CPU, memory and disk vitals](docs/images/card-home.jpg)
+![MacKit home: disk gauge with live CPU, memory and disk vitals](docs/images/card-home.jpg)
 
 ## Highlights
 
@@ -68,7 +68,7 @@
 - **Ports & Jobs** — listening ports of your own processes, plus LaunchAgents/LaunchDaemons and crontab entries with status and logs; system jobs are read-only
 - **Displays** — arrange monitors, choose the main display and set a wallpaper per display
 - **RAM** — memory pressure and the processes using the most memory, with Quit / Force Quit
-- **Music** — a hi-res player for your own lossless files (FLAC, ALAC, WAV, AIFF, DSF, DFF). Imports are copied into `~/Music/Clean macOS`; each track switches the output to its native sample rate and deepest bit depth for bit-perfect playback, with gapless playback, DSD over DoP or DSD→PCM, playlists, a queue, media keys and Now Playing. MP3, AAC and other lossy files are refused
+- **Music** — a hi-res player for your own lossless files (FLAC, ALAC, WAV, AIFF, DSF, DFF). Imports are copied into `~/Music/MacKit`; each track switches the output to its native sample rate and deepest bit depth for bit-perfect playback, with gapless playback, DSD over DoP or DSD→PCM, playlists, a queue, media keys and Now Playing. MP3, AAC and other lossy files are refused
 - **Menu bar + monitoring** — quick access and live system stats from the menu bar
 - **Automatic updates** — Sparkle keeps the app up to date and installs new versions **in place**, no reinstall needed
 
@@ -87,12 +87,12 @@ Everything found is grouped into five clear buckets:
 ## Install
 
 1. Grab the latest `.dmg` from [Releases](https://github.com/Truong62/clean-macos/releases).
-2. Open the `.dmg` and drag **Clean macOS** onto the **Applications** folder.
+2. Open the `.dmg` and drag **MacKit** onto the **Applications** folder.
 3. The app isn't notarized, so the first launch is blocked by Gatekeeper. Clear it **once**, either way:
    - **Right-click** the app → **Open** → **Open** in the dialog, **or**
    - run:
      ```bash
-     xattr -cr "/Applications/CleanMacOS.app"
+     xattr -cr "/Applications/MacKit.app"
      ```
 4. Open the app normally from then on.
 
@@ -134,7 +134,7 @@ Or open `CleanMacOS.xcodeproj` in Xcode and hit `Cmd + R`.
 
 ## Clipboard history
 
-Clean macOS records the text you copy (while it's running) so a new copy no
+MacKit records the text you copy (while it's running) so a new copy no
 longer discards the previous one.
 
 - **Clipboard tab** — browse, search, re-copy, or delete past items; **Clear All** wipes the list.
@@ -167,7 +167,7 @@ cd CleanMacOS
 ./scripts/package.sh 1.0.3
 ```
 
-This builds the app, creates `dist/CleanMacOS-1.0.3.dmg`, **EdDSA-signs it** (there is no separate signing step — the script does it), and prints an `<item>` block containing the signature and file size.
+This builds the app, creates `dist/MacKit-1.0.3.dmg`, **EdDSA-signs it** (there is no separate signing step — the script does it), and prints an `<item>` block containing the signature and file size.
 
 ### 3. Add the item to the feed
 
@@ -184,12 +184,12 @@ git push
 ### 5. Publish the DMG on GitHub
 
 ```bash
-open -R CleanMacOS/dist/CleanMacOS-1.0.3.dmg   # reveals the exact file in Finder
+open -R CleanMacOS/dist/MacKit-1.0.3.dmg   # reveals the exact file in Finder
 ```
 
 Open `https://github.com/Truong62/clean-macos/releases/new?tag=v1.0.3`, drag **that file** into the release's assets, set the title to `v1.0.3`, and **Publish**.
 
-> ⚠️ **Upload the DMG that `package.sh` produced — do not rebuild, rename, or re-zip it.** The appcast signature is tied to those exact bytes; changing a single byte makes installed apps reject the update. The filename must stay `CleanMacOS-1.0.3.dmg` to match the `url` in the appcast item.
+> ⚠️ **Upload the DMG that `package.sh` produced — do not rebuild, rename, or re-zip it.** The appcast signature is tied to those exact bytes; changing a single byte makes installed apps reject the update. The filename must stay `MacKit-1.0.3.dmg` to match the `url` in the appcast item.
 
 Installed apps (v1.0.2+) pick up the update on their next check. The one-time v1.0.1 migration and signing-key handling are documented in [`docs/RELEASING.md`](docs/RELEASING.md).
 
@@ -211,7 +211,7 @@ Các bước đưa một phiên bản mới lên GitHub (ví dụ lên **v1.0.3*
    cd CleanMacOS
    ./scripts/package.sh 1.0.3
    ```
-   Script tạo `dist/CleanMacOS-1.0.3.dmg`, ký bằng khoá EdDSA, và **in ra một khối `<item>`** (có sẵn chữ ký + dung lượng).
+   Script tạo `dist/MacKit-1.0.3.dmg`, ký bằng khoá EdDSA, và **in ra một khối `<item>`** (có sẵn chữ ký + dung lượng).
 
 3. **Dán khối `<item>`** vừa in vào **trên cùng** danh sách trong `docs/appcast.xml` (mới nhất ở trên, phía trên item của bản trước), rồi sửa dòng `TODO` thành ghi chú thật.
 
@@ -227,11 +227,11 @@ Các bước đưa một phiên bản mới lên GitHub (ví dụ lên **v1.0.3*
 
 5. **Tạo Release trên GitHub + upload DMG:**
    ```bash
-   open -R CleanMacOS/dist/CleanMacOS-1.0.3.dmg   # mở Finder, chọn sẵn đúng file
+   open -R CleanMacOS/dist/MacKit-1.0.3.dmg   # mở Finder, chọn sẵn đúng file
    ```
    Mở `https://github.com/Truong62/clean-macos/releases/new?tag=v1.0.3`, kéo **đúng file đó** vào phần assets, đặt title `v1.0.3`, bấm **Publish**.
 
-   > ⚠️ Upload **đúng file `package.sh` vừa tạo** — đừng build lại, đừng đổi tên, đừng nén lại. Chữ ký gắn với từng byte của file; sai 1 byte là app từ chối update. Tên file phải giữ nguyên `CleanMacOS-1.0.3.dmg` để khớp URL trong appcast.
+   > ⚠️ Upload **đúng file `package.sh` vừa tạo** — đừng build lại, đừng đổi tên, đừng nén lại. Chữ ký gắn với từng byte của file; sai 1 byte là app từ chối update. Tên file phải giữ nguyên `MacKit-1.0.3.dmg` để khớp URL trong appcast.
 
 Xong. App của bạn bè (v1.0.2 trở lên) lần kiểm tra kế tiếp sẽ tự tải và cài v1.0.3 tại chỗ.
 

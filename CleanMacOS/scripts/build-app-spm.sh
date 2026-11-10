@@ -6,7 +6,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-APP=".build/spm-app/CleanMacOS.app"
+APP=".build/spm-app/MacKit.app"
 KS=".build/checkouts/KeyboardShortcuts/Sources/KeyboardShortcuts"
 VERSION=$(sed -n 's/.*MARKETING_VERSION: "\(.*\)"/\1/p' project.yml)
 BUILD=$(sed -n 's/.*CURRENT_PROJECT_VERSION: "\(.*\)"/\1/p' project.yml)

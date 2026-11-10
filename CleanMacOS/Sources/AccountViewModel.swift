@@ -116,7 +116,7 @@ struct SignInView: View {
             Image(nsImage: NSApp.applicationIconImage)
                 .resizable()
                 .frame(width: 96, height: 96)
-            Text("Welcome to Clean macOS").font(.system(size: 26, weight: .bold, design: .rounded))
+            Text("Welcome to MacKit").font(.system(size: 26, weight: .bold, design: .rounded))
             Text("Sign in with your Google account to continue.").foregroundStyle(.secondary)
             if account.isSigningIn {
                 ProgressView().controlSize(.small).padding(.top, 6)

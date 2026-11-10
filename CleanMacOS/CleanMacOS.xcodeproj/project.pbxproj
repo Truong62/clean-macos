@@ -65,6 +65,7 @@
 		9AA36941E7F3C9F381E72BB7 /* StartupRoutine.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDF18DB363FF320F98DFF3AE /* StartupRoutine.swift */; };
 		9BACF5E03C14B194CB3FDA58 /* KeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = 325D204C31C3D5AAF952C5D9 /* KeyboardShortcuts */; };
 		9DD6BA1E28BA04A198D47BD5 /* ClipboardItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E43375821CBBE9DA578E345 /* ClipboardItem.swift */; };
+		9E0AD96F4412E279DC603FCA /* ToolCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FD309CF3EA6462034C2FE83 /* ToolCatalog.swift */; };
 		9FB7AC07F1831FD94F649E30 /* CleanMacOSApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7CB583C51545CB2D5649473 /* CleanMacOSApp.swift */; };
 		A7FD38BC30A09373541D4ED4 /* PortsJobsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A006AC3D753EA22E7DAE17A9 /* PortsJobsView.swift */; };
 		AD997E71E12F6326F17AE7D0 /* AudioHardware.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63D9647A4B610BC04F302D7F /* AudioHardware.swift */; };
@@ -114,6 +115,7 @@
 		184DA560673D572637A24E64 /* UninstallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UninstallView.swift; sourceTree = "<group>"; };
 		185CCDDE3D43CD6FEF6FDA72 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		2E1AFCF54748CE37CC3E0517 /* DSD.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DSD.swift; sourceTree = "<group>"; };
+		2FD309CF3EA6462034C2FE83 /* ToolCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolCatalog.swift; sourceTree = "<group>"; };
 		30AE1414B4AC514340366221 /* LargeFilesService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LargeFilesService.swift; sourceTree = "<group>"; };
 		30D585B3710EAB1FA5FBF8DE /* PortsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortsService.swift; sourceTree = "<group>"; };
 		31AF67BD118549BEBA8736D7 /* FrameWriter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FrameWriter.swift; sourceTree = "<group>"; };
@@ -307,6 +309,7 @@
 				7BCCBE4E7BC381BBBE85076E /* Style.swift */,
 				146D7CD67B5D337110ABE8C9 /* SystemMonitor.swift */,
 				76B7603C695D7E900696BC7D /* TokenFileStore.swift */,
+				2FD309CF3EA6462034C2FE83 /* ToolCatalog.swift */,
 				3F7FB64029A8968F4822C64E /* TrackInspector.swift */,
 				3910672BE6DD40B3BC79BCD2 /* UninstallerService.swift */,
 				184DA560673D572637A24E64 /* UninstallView.swift */,
@@ -483,6 +486,7 @@
 				8261125933A50008A2E302C7 /* Style.swift in Sources */,
 				EB2804A3FF935E9CF1A4AE3F /* SystemMonitor.swift in Sources */,
 				23D50491F3450FCA148381C4 /* TokenFileStore.swift in Sources */,
+				9E0AD96F4412E279DC603FCA /* ToolCatalog.swift in Sources */,
 				53D9A24ADD84071106A6BCD9 /* TrackInspector.swift in Sources */,
 				395E0E34B6F653070228E303 /* UninstallView.swift in Sources */,
 				1BF633E6145E7F8438492DAF /* UninstallerService.swift in Sources */,

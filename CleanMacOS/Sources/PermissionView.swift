@@ -40,7 +40,7 @@ struct PermissionView: View {
             Text(vm.permissionLostAfterUpdate ? "Grant Access Again" : "Full Disk Access Required")
                 .font(.title2)
                 .fontWeight(.bold)
-            Text("Clean macOS needs Full Disk Access to scan and clean caches, logs and build artifacts. Nothing leaves your Mac.")
+            Text("MacKit needs Full Disk Access to scan and clean caches, logs and build artifacts. Nothing leaves your Mac.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -55,7 +55,7 @@ struct PermissionView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(vm.appVersion.isEmpty ? "Just updated" : "Updated to \(vm.appVersion)")
                     .fontWeight(.semibold)
-                Text("macOS sees each update as a new app, so the old permission no longer applies. Clean macOS may still look **ON** in the list — turn it **OFF and ON again**.")
+                Text("macOS sees each update as a new app, so the old permission no longer applies. \(AppIdentity.installedName) may still look **ON** in the list — turn it **OFF and ON again**.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -70,7 +70,7 @@ struct PermissionView: View {
     private var steps: some View {
         VStack(alignment: .leading, spacing: 12) {
             StepRow(number: 1, text: "Click **Open Settings** below")
-            StepRow(number: 2, text: "Find **Clean macOS** and turn it **ON**")
+            StepRow(number: 2, text: "Find **\(AppIdentity.installedName)** and turn it **ON**")
             StepRow(number: 3, text: "Already ON? Turn it **OFF then ON**, or remove it with **−** and add it again with **+**")
             StepRow(number: 4, text: "Come back here — access is detected automatically")
         }
@@ -119,7 +119,7 @@ struct PermissionView: View {
                 Text("Why again after every update?")
                     .font(.callout)
                     .fontWeight(.semibold)
-                Text("Clean macOS is free and open source, so it isn't signed with a paid Apple Developer certificate. Without that signature macOS can't tell a new version is the same app, so Full Disk Access and Accessibility need to be approved again after each update.")
+                Text("MacKit is free and open source, so it isn't signed with a paid Apple Developer certificate. Without that signature macOS can't tell a new version is the same app, so Full Disk Access and Accessibility need to be approved again after each update.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -140,6 +140,11 @@ struct PermissionView: View {
         try? reopen.run()
         NSApp.terminate(nil)
     }
+}
+
+enum AppIdentity {
+    static let name = "MacKit"
+    static var installedName: String { FileManager.default.displayName(atPath: Bundle.main.bundlePath) }
 }
 
 struct StepRow: View {

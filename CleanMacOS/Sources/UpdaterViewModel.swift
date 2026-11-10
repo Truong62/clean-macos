@@ -126,7 +126,7 @@ struct UpdateCard: View {
                     .font(.system(size: 44))
                     .foregroundStyle(.orange.gradient)
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("Clean macOS \(update.version) is available").font(.title3).fontWeight(.bold)
+                    Text("MacKit \(update.version) is available").font(.title3).fontWeight(.bold)
                     Text(update.isDownloaded ? "Downloaded and ready — you have \(currentVersion)." : "You have \(currentVersion).")
                         .font(.callout)
                         .foregroundStyle(.secondary)

@@ -73,7 +73,7 @@ final class UninstallViewModel: ObservableObject {
         if let failure = outcomes.first(where: { !$0.success }) {
             let failCount = outcomes.filter { !$0.success }.count
             let error = failure.error ?? "unknown error"
-            let hint = error.contains("not permitted") ? " — allow Clean macOS in System Settings → Privacy & Security → App Management" : ""
+            let hint = error.contains("not permitted") ? " — allow \(AppIdentity.installedName) in System Settings → Privacy & Security → App Management" : ""
             statusMessage = "\(failCount) item(s) not removed — \(failure.name): \(error)\(hint)"
         } else {
             statusMessage = "Uninstalled \(app.name) — \(freed) moved to Trash"
@@ -249,7 +249,7 @@ struct UninstallView: View {
                 VStack(spacing: 6) {
                     Text("Select an app to uninstall")
                         .font(.title3).fontWeight(.semibold)
-                    Text("Clean macOS finds every file the app left behind.")
+                    Text("MacKit finds every file the app left behind.")
                         .font(.callout).foregroundStyle(.secondary)
                 }
             }

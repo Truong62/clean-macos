@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-APP="${1:?Usage: ./scripts/inject-auth.sh <path to CleanMacOS.app>}"
+APP="${1:?Usage: ./scripts/inject-auth.sh <path to MacKit.app>}"
 ENV_FILE="${CLEAN_MACOS_AUTH_ENV:-$HOME/.config/clean-macos/google-auth.env}"
 PLIST="$APP/Contents/Info.plist"
 

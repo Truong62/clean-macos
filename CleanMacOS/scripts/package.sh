@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # ============================================================
-# Clean macOS - Package & Sign for Sparkle auto-update
+# MacKit - Package & Sign for Sparkle auto-update
 #
 # Usage:   ./scripts/package.sh <version>      e.g. ./scripts/package.sh 1.0.2
 #
@@ -12,7 +12,7 @@ set -euo pipefail
 #          (SUPublicEDKey) and the version bumped (MARKETING_VERSION +
 #          CURRENT_PROJECT_VERSION).
 #
-# Produces: dist/CleanMacOS-<version>.dmg  (EdDSA-signed)
+# Produces: dist/MacKit-<version>.dmg  (EdDSA-signed)
 #           + prints the <item> block to paste into docs/appcast.xml.
 # You still upload the DMG to the GitHub Release manually.
 # ============================================================
@@ -22,7 +22,7 @@ cd "$(dirname "$0")/.."
 
 GITHUB_REPO="Truong62/clean-macos"
 DIST="dist"
-DMG="${DIST}/CleanMacOS-${VERSION}.dmg"
+DMG="${DIST}/MacKit-${VERSION}.dmg"
 SIGN_TOOL=".build/artifacts/sparkle/Sparkle/bin/sign_update"
 
 # xcodebuild needs full Xcode; fall back to /Applications/Xcode.app if the
@@ -60,7 +60,7 @@ rm -rf "$DIST"; mkdir -p "$DIST"
 STAGE=$(mktemp -d)
 cp -R "$APP" "$STAGE/"
 ln -s /Applications "$STAGE/Applications"
-hdiutil create -volname "Clean macOS ${VERSION}" -srcfolder "$STAGE" \
+hdiutil create -volname "MacKit ${VERSION}" -srcfolder "$STAGE" \
   -ov -format UDZO "$DMG" >/dev/null
 rm -rf "$STAGE"
 
@@ -71,7 +71,7 @@ echo "==> EdDSA-signing the DMG (private key read from Keychain)..."
 SIG_LINE=$("$SIGN_TOOL" "$DMG")
 
 PUBDATE=$(LC_TIME=C date "+%a, %d %b %Y %H:%M:%S %z")
-DLURL="https://github.com/${GITHUB_REPO}/releases/download/v${VERSION}/CleanMacOS-${VERSION}.dmg"
+DLURL="https://github.com/${GITHUB_REPO}/releases/download/v${VERSION}/MacKit-${VERSION}.dmg"
 
 cat <<XML
 

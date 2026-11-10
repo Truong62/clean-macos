@@ -550,7 +550,7 @@ final class RecordingMCPServer {
             let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "dev"
             return ["protocolVersion": params["protocolVersion"] as? String ?? Self.defaultProtocolVersion,
                     "capabilities": ["tools": [:]],
-                    "serverInfo": ["name": "clean-macos-screen-record", "version": version],
+                    "serverInfo": ["name": "mackit-screen-record", "version": version],
                     "instructions": RecordingMCPTools.instructions]
         case "ping":
             return [:]

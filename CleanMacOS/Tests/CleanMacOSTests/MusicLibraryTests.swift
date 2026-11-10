@@ -81,6 +81,21 @@ struct MusicLibraryTests {
         #expect(library.playlists.isEmpty)
     }
 
+    @Test func loadMovesTheOldCleanMacOSFolderToTheNewLibraryFolder() async throws {
+        defer { try? FileManager.default.removeItem(at: base) }
+        let legacy = base.appendingPathComponent("Clean macOS", isDirectory: true)
+        let album = legacy.appendingPathComponent("Band/Live", isDirectory: true)
+        try FileManager.default.createDirectory(at: album, withIntermediateDirectories: true)
+        try AudioFixture.write(album.appendingPathComponent("one.wav"), format: kAudioFormatLinearPCM, rate: 48000)
+
+        let library = MusicLibrary(root: root, legacyRoot: legacy, store: MusicLibraryStore(fileURL: base.appendingPathComponent("index.json")),
+                                   trash: { try FileManager.default.removeItem(at: $0) })
+        await library.load()
+        #expect(library.tracks.map(\.id) == ["Band/Live/one.wav"])
+        #expect(FileManager.default.fileExists(atPath: root.appendingPathComponent("Band/Live/one.wav").path))
+        #expect(!FileManager.default.fileExists(atPath: legacy.path))
+    }
+
     @Test func destinationNamesAreSafeForTheFileSystem() {
         let url = MusicImporter.destination(root: URL(fileURLWithPath: "/m"), artist: "AC/DC", album: ".Live: 1991 ", fileName: "x.flac")
         #expect(url.path == "/m/AC-DC/Live- 1991/x.flac")

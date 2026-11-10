@@ -146,7 +146,7 @@ struct GoogleIdentityClient {
 final class LoopbackRedirect: @unchecked Sendable {
     static let page = """
     <html><body style="font-family:-apple-system,sans-serif;text-align:center;padding-top:90px">\
-    <h2>You're signed in to Clean macOS</h2><p>You can close this tab and go back to the app.</p></body></html>
+    <h2>You're signed in to MacKit</h2><p>You can close this tab and go back to the app.</p></body></html>
     """
 
     private let listener: NWListener

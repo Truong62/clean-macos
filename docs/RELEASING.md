@@ -1,4 +1,4 @@
-# Releasing Clean macOS
+# Releasing MacKit
 
 Auto-update works for **v1.0.2 and later**. The already-shipped **v1.0.1 has no
 feed URL and no public key**, so it cannot update itself.
@@ -44,17 +44,17 @@ automatically — no more reinstalls.
    cd CleanMacOS
    ./scripts/package.sh 1.0.3
    ```
-   This produces `dist/CleanMacOS-1.0.3.dmg` and prints an `<item>` block with a
+   This produces `dist/MacKit-1.0.3.dmg` and prints an `<item>` block with a
    real `sparkle:edSignature` and `length`.
 3. **Edit the release notes** inside the printed `<item>`, then paste it at the
    **top** of the item list in `docs/appcast.xml` (newest first).
 4. **Publish the DMG:**
    ```bash
-   gh release create v1.0.3 CleanMacOS/dist/CleanMacOS-1.0.3.dmg --title "v1.0.3"
+   gh release create v1.0.3 CleanMacOS/dist/MacKit-1.0.3.dmg --title "v1.0.3"
    ```
    (or upload the DMG via the GitHub Releases web UI). The download URL must
    match the `url` in the appcast item:
-   `https://github.com/Truong62/clean-macos/releases/download/v1.0.3/CleanMacOS-1.0.3.dmg`
+   `https://github.com/Truong62/clean-macos/releases/download/v1.0.3/MacKit-1.0.3.dmg`
 5. **Push the feed:**
    ```bash
    git add CleanMacOS/project.yml docs/appcast.xml && git commit -m "release v1.0.3" && git push

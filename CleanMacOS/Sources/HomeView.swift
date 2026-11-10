@@ -13,7 +13,6 @@ struct HomeView: View {
     @State private var portCount: Int?
     @State private var jobCount: Int?
     @State private var startupMissing: Int?
-    @AppStorage(SettingsTab.storageKey) private var settingsTab = SettingsTab.general
 
     private static let historyLength = 40
     private static let sampleInterval: TimeInterval = 2
@@ -223,32 +222,35 @@ struct HomeView: View {
     // MARK: - Tools
 
     private var toolsGrid: some View {
-        LazyVGrid(columns: [GridItem(.adaptive(minimum: 220), spacing: 12)], spacing: 12) {
-            ToolTile(icon: "doc.text.magnifyingglass", title: "Large Files", stat: "Find space hogs",
-                     colors: [.orange, .red]) { navigate(.largeFiles) }
-            ToolTile(icon: "trash.fill", title: "Uninstall Apps", stat: "Remove apps and leftovers",
-                     colors: [.pink, .red]) { navigate(.uninstall) }
-            ToolTile(icon: "doc.on.clipboard.fill", title: "Clipboard", stat: "\(clipboard.items.count) items saved · ⌘⇧V",
-                     colors: [.indigo, .purple]) { navigate(.clipboard) }
-            ToolTile(icon: "network", title: "Ports & Jobs",
-                     stat: [portCount.map { "\($0) ports" }, jobCount.map { "\($0) jobs" }].compactMap { $0 }.joined(separator: " · "),
-                     colors: [.cyan, .blue]) { navigate(.portsJobs) }
-            ToolTile(icon: "memorychip", title: "RAM", stat: "\(Int(monitor.memPercent.rounded()))% used",
-                     colors: [.mint, .teal]) { navigate(.ram) }
-            ToolTile(icon: "display.2", title: "Displays", stat: "\(NSScreen.screens.count) connected",
-                     colors: [.purple, .blue]) { navigate(.displays) }
-            ToolTile(icon: "record.circle", title: "Screen Record", stat: "Screen, sound and mic",
-                     colors: [.red, .pink]) { navigate(.screenRecord) }
-            ToolTile(icon: "music.note", title: "Music",
-                     stat: library.isLoaded ? "\(library.tracks.count) songs · Hi-Res and DSD" : "Hi-res and DSD player",
-                     colors: [.pink, .purple]) { navigate(.music) }
-            ToolTile(icon: "bolt.fill", title: "Power Recovery",
-                     stat: startupMissing.map { $0 == 0 ? "Ready after a power cut" : "\($0) \($0 == 1 ? "step needs" : "steps need") you" } ?? "",
-                     colors: [.yellow, .orange]) {
-                settingsTab = .startup
-                navigate(.settings)
+        VStack(alignment: .leading, spacing: 16) {
+            ForEach(ToolGroup.allCases) { group in
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(group.title.uppercased())
+                        .font(.caption2.weight(.bold))
+                        .tracking(1)
+                        .foregroundStyle(.secondary)
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 220), spacing: 12)], spacing: 12) {
+                        ForEach(group.tools) { tool in
+                            ToolTile(icon: tool.icon, title: tool.title, stat: stat(for: tool), colors: tool.colors) { navigate(tool.page) }
+                        }
+                    }
+                }
             }
         }
+    }
+
+    private func stat(for tool: AppTool) -> String {
+        let value: String? = switch tool.page {
+        case .cleanDisk: hasResults ? "\(formatBytes(vm.totalCleanableSize)) ready to clean" : nil
+        case .clipboard: "\(clipboard.items.count) items saved · ⌘⇧V"
+        case .portsJobs: [portCount.map { "\($0) ports" }, jobCount.map { "\($0) jobs" }].compactMap { $0 }.joined(separator: " · ")
+        case .ram: "\(Int(monitor.memPercent.rounded()))% used"
+        case .displays: "\(NSScreen.screens.count) connected"
+        case .music: library.isLoaded ? "\(library.tracks.count) songs · Hi-Res and DSD" : nil
+        case .powerRecovery: startupMissing.map { $0 == 0 ? "Ready after a power cut" : "\($0) \($0 == 1 ? "step needs" : "steps need") you" }
+        default: nil
+        }
+        return value.flatMap { $0.isEmpty ? nil : $0 } ?? tool.summary
     }
 
     // MARK: - Footer

@@ -21,7 +21,6 @@ struct SettingsView: View {
 
                 switch tab {
                 case .general: generalTab
-                case .startup: section(icon: "bolt.fill", iconColor: .orange, title: "Startup") { StartupSettingsView() }
                 case .cleaning: cleaningTab
                 case .clipboard: clipboardTab
                 case .updates: updatesTab
@@ -316,7 +315,7 @@ struct SettingsView: View {
 }
 
 enum SettingsTab: String, CaseIterable, Identifiable {
-    case general, startup, cleaning, clipboard, updates
+    case general, cleaning, clipboard, updates
 
     static let storageKey = "settings.tab"
 
@@ -326,7 +325,6 @@ enum SettingsTab: String, CaseIterable, Identifiable {
     var icon: String {
         switch self {
         case .general: "gearshape.fill"
-        case .startup: "bolt.fill"
         case .cleaning: "sparkles"
         case .clipboard: "doc.on.clipboard"
         case .updates: "arrow.triangle.2.circlepath"
@@ -336,7 +334,6 @@ enum SettingsTab: String, CaseIterable, Identifiable {
     var color: Color {
         switch self {
         case .general: .gray
-        case .startup: .orange
         case .cleaning: .green
         case .clipboard: .indigo
         case .updates: .purple
@@ -346,7 +343,6 @@ enum SettingsTab: String, CaseIterable, Identifiable {
     var subtitle: String {
         switch self {
         case .general: "Menu bar and open at login"
-        case .startup: "Start up on its own after a power cut"
         case .cleaning: "Scan scope and safety checks"
         case .clipboard: "History, shortcut and privacy"
         case .updates: "Automatic checks and installs"

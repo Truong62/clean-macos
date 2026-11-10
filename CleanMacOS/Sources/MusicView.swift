@@ -146,7 +146,7 @@ struct MusicView: View {
                 .buttonStyle(.plain)
                 .pointerCursor()
                 .disabled(library.importProgress != nil)
-                .help("Copy lossless music into ~/Music/Clean macOS")
+                .help("Copy lossless music into ~/Music/MacKit")
             }
             HStack(spacing: 12) {
                 searchField
@@ -207,7 +207,7 @@ struct MusicView: View {
                 .overlay(Image(systemName: "hifispeaker.2.fill").font(.system(size: 34)).foregroundStyle(.white))
                 .shadow(color: .pink.opacity(0.3), radius: 12, y: 6)
             Text("Your hi-res library is empty").font(.title3).fontWeight(.semibold)
-            Text("Drop FLAC, ALAC, WAV, AIFF, DSF or DFF files here, or click Import.\nThey are copied into ~/Music/Clean macOS and play at their native resolution.")
+            Text("Drop FLAC, ALAC, WAV, AIFF, DSF or DFF files here, or click Import.\nThey are copied into ~/Music/MacKit and play at their native resolution.")
                 .font(.callout).foregroundStyle(.secondary).multilineTextAlignment(.center)
             Button(action: showImportPanel) { Label("Import Music", systemImage: "plus") }
                 .buttonStyle(.borderedProminent)
@@ -250,7 +250,7 @@ struct MusicView: View {
         panel.canChooseDirectories = true
         panel.allowsMultipleSelection = true
         panel.prompt = "Import"
-        panel.message = "Choose lossless music files or folders. They are copied into ~/Music/Clean macOS."
+        panel.message = "Choose lossless music files or folders. They are copied into ~/Music/MacKit."
         let library = library
         panel.begin { response in
             guard response == .OK else { return }

@@ -6,18 +6,6 @@ struct AboutView: View {
     @State private var downloads: Int?
 
     private static let repoURL = URL(string: "https://github.com/Truong62/clean-macos")!
-    private static let tools: [(SidebarPage, String, String, String, [Color])] = [
-        (.cleanDisk, "internaldrive.fill", "Clean Disk", "Junk, caches and build output", [.teal, .blue]),
-        (.largeFiles, "doc.text.magnifyingglass", "Large Files", "Biggest files anywhere", [.orange, .pink]),
-        (.uninstall, "trash.fill", "Uninstall Apps", "Apps and their leftovers", [.red, .orange]),
-        (.clipboard, "doc.on.clipboard.fill", "Clipboard", "Copy history on ⌘⇧V", [.indigo, .purple]),
-        (.screenRecord, "record.circle", "Screen Record", "Screen, sound and mic", [.red, .pink]),
-        (.music, "music.note", "Music", "Hi-res and DSD player", [.pink, .purple]),
-        (.displays, "display.2", "Displays", "Monitors and wallpapers", [.purple, .pink]),
-        (.ram, "memorychip", "RAM", "Memory and heavy apps", [.mint, .teal]),
-        (.portsJobs, "network", "Ports & Jobs", "Ports, cron jobs, login items", [.cyan, .blue]),
-        (.devTools, "terminal.fill", "Dev Tools", "Runtimes and packages", [.green, .teal]),
-    ]
 
     var body: some View {
         ScrollView {
@@ -41,7 +29,7 @@ struct AboutView: View {
                 .frame(width: 112, height: 112)
                 .shadow(color: Color(red: 0.55, green: 0.40, blue: 0.95).opacity(0.45), radius: 28, y: 12)
             VStack(spacing: 6) {
-                Text("Clean macOS")
+                Text("MacKit")
                     .font(.system(size: 34, weight: .bold, design: .rounded))
                 Text("Version \(appVersion) · Build \(buildNumber)")
                     .font(.callout)
@@ -56,7 +44,7 @@ struct AboutView: View {
             }
             .animation(.easeOut(duration: 0.3), value: downloads)
             .task { downloads = await DownloadStats.fetch() }
-            Text("A calm, native toolkit that keeps your Mac clean and your dev setup in check. Nothing leaves your Mac — no account, no tracking.")
+            Text("Everything your Mac needs in one calm, native app: clean up space, keep an eye on the system, record the screen, reuse what you copied and play hi-res music.")
                 .font(.body)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -102,8 +90,8 @@ struct AboutView: View {
         VStack(alignment: .leading, spacing: 12) {
             sectionTitle("EVERYTHING IN ONE APP")
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 240), spacing: 12)], spacing: 12) {
-                ForEach(Self.tools, id: \.2) { page, icon, title, detail, colors in
-                    ToolTile(icon: icon, title: title, stat: detail, colors: colors) { navigate(page) }
+                ForEach(ToolGroup.allTools) { tool in
+                    ToolTile(icon: tool.icon, title: tool.title, stat: tool.summary, colors: tool.colors) { navigate(tool.page) }
                 }
             }
         }

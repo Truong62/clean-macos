@@ -6,7 +6,7 @@ enum RecordingMCPTools {
     static let needsRecording = onCamera.subtracting(["wait", "clear_annotations"])
 
     static let instructions = """
-    Clean macOS records real MP4 demo videos without disturbing the person using this Mac. Nothing of theirs is moved, focused or covered.
+    MacKit records real MP4 demo videos without disturbing the person using this Mac. Nothing of theirs is moved, focused or covered.
     Web apps: start_recording with a url. A hidden browser (no window, separate profile) loads it; captions, annotations, the cursor and \
     click ripples are drawn inside the page and clicks, typing and scrolling go straight into that browser. Coordinates are page CSS pixels, \
     and elements can be targeted by visible text, label or CSS selector. Use navigate to change pages.
@@ -56,7 +56,7 @@ enum RecordingMCPTools {
         ],
         [
             "name": "start_recording",
-            "description": "Start recording a real MP4 video without disturbing the person: give a url to record a web app in a hidden browser, or a window or app to record a native app in place. With background: false it records a real display, or a window brought to the front, using the real mouse. Defaults come from the Clean macOS Screen Record settings.",
+            "description": "Start recording a real MP4 video without disturbing the person: give a url to record a web app in a hidden browser, or a window or app to record a native app in place. With background: false it records a real display, or a window brought to the front, using the real mouse. Defaults come from the MacKit Screen Record settings.",
             "inputSchema": schema([
                 "url": ["type": "string", "description": "Web page to record in a hidden browser, for example http://localhost:3000. It uses its own profile, so log in during the demo if needed. No sound is recorded."],
                 "browser": ["type": "string", "enum": ["chrome", "edge", "brave", "chromium"], "description": "Installed browser engine to run hidden. Default chrome."],

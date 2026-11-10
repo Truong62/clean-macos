@@ -277,7 +277,7 @@ struct PortsJobsView: View {
             case .jobs:
                 if let job = vm.selectedJob { jobDetail(job) } else { hint("Select a job to see its command, schedule and log. Right-click a row for actions.") }
             case .loginItems:
-                if let item = vm.selectedLoginItem { loginItemDetail(item) } else { hint("These apps open automatically when you log in. Turn one off and it stays in this list so you can turn it back on later. Background helpers live under Scheduled Jobs; Clean macOS itself is in Settings › General.") }
+                if let item = vm.selectedLoginItem { loginItemDetail(item) } else { hint("These apps open automatically when you log in. Turn one off and it stays in this list so you can turn it back on later. Background helpers live under Scheduled Jobs; MacKit itself is in Settings › General.") }
             }
         }
         .padding(14)

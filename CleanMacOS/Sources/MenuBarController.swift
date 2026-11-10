@@ -2,7 +2,7 @@ import AppKit
 
 @MainActor
 enum MainWindowController {
-    static let title = "Clean macOS"
+    static let title = "MacKit"
 
     static func show() {
         show(NSApp)

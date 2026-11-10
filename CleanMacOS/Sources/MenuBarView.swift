@@ -41,10 +41,10 @@ struct MenuBarView: View {
 
     private var header: some View {
         HStack(spacing: 6) {
-            Image(systemName: "sparkles").foregroundStyle(.orange.gradient)
-            Text("Clean macOS").font(.system(size: 13, weight: .semibold))
+            Image(systemName: "square.grid.2x2.fill").foregroundStyle(LinearGradient(colors: [.pink, .purple], startPoint: .topLeading, endPoint: .bottomTrailing))
+            Text("MacKit").font(.system(size: 13, weight: .semibold))
             Spacer()
-            MenuIconButton(systemImage: "macwindow", help: "Open Clean macOS") { openMain() }
+            MenuIconButton(systemImage: "macwindow", help: "Open MacKit") { openMain() }
             MenuIconButton(systemImage: "power", help: "Quit") { NSApp.terminate(nil) }
         }
         .padding(.horizontal, 14)
