@@ -16,6 +16,8 @@ struct BrightnessSection: View {
                 Toggle("Brightness keys change external displays", isOn: $brightness.settings.handlesKeys)
                 Toggle("Brightness keys follow the pointer", isOn: $brightness.settings.keysFollowPointer)
                     .disabled(!brightness.settings.handlesKeys)
+                Toggle("Use F14 and F15 as brightness keys", isOn: $brightness.settings.usesFunctionKeys)
+                    .disabled(!brightness.settings.handlesKeys)
                 Picker("Key step", selection: $brightness.settings.step) {
                     ForEach(LevelStep.allCases) { Text($0.title).tag($0) }
                 }

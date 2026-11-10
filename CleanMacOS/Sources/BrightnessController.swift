@@ -26,6 +26,26 @@ struct BrightnessSettings: Codable, Equatable {
     var extraDimming: Set<String> = []
     var xdrEnabled = false
     var xdrLevel = 1.0
+    var usesFunctionKeys = false
+}
+
+extension BrightnessSettings {
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let defaults = BrightnessSettings()
+        isEnabled = try container.decodeIfPresent(Bool.self, forKey: .isEnabled) ?? defaults.isEnabled
+        handlesKeys = try container.decodeIfPresent(Bool.self, forKey: .handlesKeys) ?? defaults.handlesKeys
+        keysFollowPointer = try container.decodeIfPresent(Bool.self, forKey: .keysFollowPointer) ?? defaults.keysFollowPointer
+        step = try container.decodeIfPresent(LevelStep.self, forKey: .step) ?? defaults.step
+        showsPercentage = try container.decodeIfPresent(Bool.self, forKey: .showsPercentage) ?? defaults.showsPercentage
+        shortcutsEnabled = try container.decodeIfPresent(Bool.self, forKey: .shortcutsEnabled) ?? defaults.shortcutsEnabled
+        keyboardShortcutsEnabled = try container.decodeIfPresent(Bool.self, forKey: .keyboardShortcutsEnabled) ?? defaults.keyboardShortcutsEnabled
+        picturePreferred = try container.decodeIfPresent(Set<String>.self, forKey: .picturePreferred) ?? defaults.picturePreferred
+        extraDimming = try container.decodeIfPresent(Set<String>.self, forKey: .extraDimming) ?? defaults.extraDimming
+        xdrEnabled = try container.decodeIfPresent(Bool.self, forKey: .xdrEnabled) ?? defaults.xdrEnabled
+        xdrLevel = try container.decodeIfPresent(Double.self, forKey: .xdrLevel) ?? defaults.xdrLevel
+        usesFunctionKeys = try container.decodeIfPresent(Bool.self, forKey: .usesFunctionKeys) ?? defaults.usesFunctionKeys
+    }
 }
 
 @MainActor
@@ -152,6 +172,7 @@ final class BrightnessController: ObservableObject {
         } else if previous?.extraDimming != settings.extraDimming {
             displays.forEach { setLevel($0.level, for: $0.id) }
         }
+        if previous?.usesFunctionKeys != settings.usesFunctionKeys, tap != nil { stopTap() }
         applyTap()
     }
 
@@ -266,7 +287,8 @@ final class BrightnessController: ObservableObject {
     }
 
     private func startTap() {
-        let mask = CGEventMask(1) << Self.systemDefinedEvent
+        var mask = CGEventMask(1) << Self.systemDefinedEvent
+        if settings.usesFunctionKeys { mask |= CGEventMask(1) << CGEventType.keyDown.rawValue | CGEventMask(1) << CGEventType.keyUp.rawValue }
         let callback: CGEventTapCallBack = { _, type, event, refcon in
             guard let refcon else { return Unmanaged.passUnretained(event) }
             let controller = Unmanaged<BrightnessController>.fromOpaque(refcon).takeUnretainedValue()
@@ -298,6 +320,7 @@ final class BrightnessController: ObservableObject {
             if let tap { CGEvent.tapEnable(tap: tap, enable: true) }
             return pass
         }
+        if type == .keyDown || type == .keyUp { return handleFunctionKey(type, event) }
         guard type.rawValue == Self.systemDefinedEvent, let system = NSEvent(cgEvent: event), system.subtype.rawValue == MediaKey.subtype,
               let key = MediaKey(data1: system.data1), key.code == MediaKey.brightnessUp || key.code == MediaKey.brightnessDown else { return pass }
         guard key.isDown else { return consumedKeys.remove(key.code) == nil ? pass : nil }
@@ -305,6 +328,18 @@ final class BrightnessController: ObservableObject {
               BrightnessKeys.handles(route: target.route, isBuiltIn: target.isBuiltIn) else { return pass }
         consumedKeys.insert(key.code)
         adjust(target, step: step, up: key.code == MediaKey.brightnessUp)
+        return nil
+    }
+
+    private func handleFunctionKey(_ type: CGEventType, _ event: CGEvent) -> Unmanaged<CGEvent>? {
+        let pass = Unmanaged.passUnretained(event)
+        let keyCode = Int(event.getIntegerValueField(.keyboardEventKeycode))
+        guard settings.usesFunctionKeys, let up = BrightnessKeys.functionKeyDirection(keyCode: UInt16(keyCode)) else { return pass }
+        guard type == .keyDown else { return consumedKeys.remove(keyCode) == nil ? pass : nil }
+        guard let step = BrightnessKeys.step(for: event.flags, default: settings.step), let target = keyTarget(),
+              BrightnessKeys.handles(route: target.route, isBuiltIn: target.isBuiltIn) else { return pass }
+        consumedKeys.insert(keyCode)
+        adjust(target, step: step, up: up)
         return nil
     }
 

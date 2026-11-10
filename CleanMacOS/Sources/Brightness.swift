@@ -198,6 +198,17 @@ enum BrightnessRoute: String, Codable, Equatable {
 }
 
 enum BrightnessKeys {
+    static let f14Key: UInt16 = 107
+    static let f15Key: UInt16 = 113
+
+    static func functionKeyDirection(keyCode: UInt16) -> Bool? {
+        switch keyCode {
+        case f14Key: false
+        case f15Key: true
+        default: nil
+        }
+    }
+
     static func handles(route: BrightnessRoute, isBuiltIn: Bool) -> Bool {
         !(route == .system && isBuiltIn)
     }
