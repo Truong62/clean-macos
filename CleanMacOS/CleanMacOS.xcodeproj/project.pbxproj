@@ -29,6 +29,7 @@
 		1EE966A52AFF2B4DD9D741C0 /* SnippetExpander.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC9A012FFB9EE4F155FEB7DF /* SnippetExpander.swift */; };
 		216C011D736EB3C976E28957 /* ClipboardMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA3CBD4C77F83A3FBD2A5741 /* ClipboardMonitor.swift */; };
 		23D50491F3450FCA148381C4 /* TokenFileStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76B7603C695D7E900696BC7D /* TokenFileStore.swift */; };
+		271E9417E2B5059BD3F627E3 /* CommandBarExtras.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E00CFBFB403482C522022E0 /* CommandBarExtras.swift */; };
 		2CD6BD854BCDA0E493C97ABC /* LargeFilesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5DCE02A3AFD020C36EFFF76 /* LargeFilesView.swift */; };
 		31B5D338F0B2D2941C130613 /* ProcessModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3E23E9045ECAC8FF3EB37FF /* ProcessModels.swift */; };
 		329D520E30A2E5A62A7BF53A /* MixerEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = E463D1F2B0718613653B0F9C /* MixerEngine.swift */; };
@@ -212,6 +213,7 @@
 		69431B5D088D7921680D8C49 /* DiskImageInstaller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiskImageInstaller.swift; sourceTree = "<group>"; };
 		6961B68D8844C43ABA231FF8 /* UpdaterViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdaterViewModel.swift; sourceTree = "<group>"; };
 		6A3870A8BF23DCEB9D20C11D /* MusicView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicView.swift; sourceTree = "<group>"; };
+		6E00CFBFB403482C522022E0 /* CommandBarExtras.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandBarExtras.swift; sourceTree = "<group>"; };
 		6E5967A4047D750A42B3AC58 /* RAMView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RAMView.swift; sourceTree = "<group>"; };
 		6E6605F78F231FED448C3292 /* SoundHardware.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoundHardware.swift; sourceTree = "<group>"; };
 		6FD43015CA24824A6A7ACEA1 /* Mixer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Mixer.swift; sourceTree = "<group>"; };
@@ -357,6 +359,7 @@
 				4BDB8F98BBA9CA360C581E8E /* ClipboardStore.swift */,
 				8669187F5AE68DE7119775DC /* ClipboardViewModel.swift */,
 				01ABD7E82EC548AB5FCE4A9B /* CommandBarController.swift */,
+				6E00CFBFB403482C522022E0 /* CommandBarExtras.swift */,
 				7A241930C466F283BF523E3A /* CommandBarLogic.swift */,
 				5E65DB83CDE579A348546C93 /* CommandBarSources.swift */,
 				B2BE103969C8404069698816 /* CommandBarView.swift */,
@@ -607,6 +610,7 @@
 				D40AB6773397246222493362 /* ClipboardStore.swift in Sources */,
 				4CF6E5A0E538D5932ADFBD84 /* ClipboardViewModel.swift in Sources */,
 				72019E7AD5ADB7350E6E9D52 /* CommandBarController.swift in Sources */,
+				271E9417E2B5059BD3F627E3 /* CommandBarExtras.swift in Sources */,
 				45072E40F8A976E8EEF7C7A5 /* CommandBarLogic.swift in Sources */,
 				DFE1FA6BC2112EE5E7DEF9E0 /* CommandBarSources.swift in Sources */,
 				089CDC6EAD763157D4C09817 /* CommandBarView.swift in Sources */,

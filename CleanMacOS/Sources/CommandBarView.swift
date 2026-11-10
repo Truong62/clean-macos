@@ -36,7 +36,7 @@ struct CommandBarView: View {
             Divider()
             list
             Divider()
-            Text("↩ open · ⌘↩ show in Finder · ⌘1–9 · tab completes · ⌘P pins · esc")
+            Text("↩ open · ⌘↩ show in Finder · ⌘K actions · ⌘1–9 · tab completes · ⌘P pins · : emoji · esc")
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
                 .frame(maxWidth: .infinity)
@@ -44,7 +44,28 @@ struct CommandBarView: View {
         }
         .frame(width: CommandBarController.size.width, height: CommandBarController.size.height)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 22))
+        .overlay(alignment: .bottomTrailing) { if !bar.rowActions.isEmpty { rowActionsMenu } }
         .onAppear { DispatchQueue.main.async { isFocused = true } }
+    }
+
+    private var rowActionsMenu: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            ForEach(Array(bar.rowActions.enumerated()), id: \.element.id) { index, action in
+                Label(action.title, systemImage: action.symbol)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(RoundedRectangle(cornerRadius: 7).fill(index == bar.actionSelection ? Color.accentColor.opacity(0.25) : .clear))
+                    .contentShape(Rectangle())
+                    .onTapGesture { bar.runRowAction(action) }
+            }
+        }
+        .padding(6)
+        .frame(width: 210)
+        .background(.thickMaterial, in: RoundedRectangle(cornerRadius: 12))
+        .shadow(radius: 10)
+        .padding(.trailing, 14)
+        .padding(.bottom, 34)
     }
 
     private var list: some View {
@@ -152,6 +173,7 @@ private struct CommandRowView: View {
             switch item.icon {
             case .symbol(let name): Image(systemName: name).font(.system(size: 17)).foregroundStyle(.secondary)
             case .file(let path): Image(nsImage: NSWorkspace.shared.icon(forFile: path)).resizable().scaledToFit()
+            case .text(let glyph): Text(glyph).font(.system(size: 20))
             }
         }
     }
@@ -206,6 +228,20 @@ struct CommandBarSettingsView: View {
                         Label("Add Link", systemImage: "plus")
                     }
                 }
+                CardSection(title: "Files", icon: "doc.text.magnifyingglass") {
+                    Text("Find files by name with Spotlight, only inside the folders you add here. Hidden files, app bundles and build folders are skipped.")
+                        .font(.caption).foregroundStyle(.secondary)
+                    ForEach(bar.settings.fileFolders, id: \.self) { folder in
+                        HStack {
+                            Image(nsImage: NSWorkspace.shared.icon(forFile: folder)).resizable().frame(width: 18, height: 18)
+                            Text((folder as NSString).abbreviatingWithTildeInPath).lineLimit(1).truncationMode(.middle)
+                            Spacer()
+                            Button { bar.settings.fileFolders.removeAll { $0 == folder } } label: { Image(systemName: "minus.circle") }
+                                .buttonStyle(.borderless)
+                        }
+                    }
+                    Button { addFileFolder() } label: { Label("Add Folder…", systemImage: "plus") }
+                }
                 LauncherSettingsCards()
                 CardSection(title: "Ranking", icon: "chart.bar") {
                     HStack {
@@ -219,5 +255,16 @@ struct CommandBarSettingsView: View {
             .padding(20)
         }
         .background(Color(nsColor: .windowBackgroundColor))
+    }
+
+    private func addFileFolder() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = true
+        panel.prompt = "Add"
+        guard panel.runModal() == .OK else { return }
+        let added = panel.urls.map(\.path).filter { !bar.settings.fileFolders.contains($0) }
+        bar.settings.fileFolders += added
     }
 }

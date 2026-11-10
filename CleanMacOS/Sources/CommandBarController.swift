@@ -9,10 +9,25 @@ struct CommandBarSettings: Codable, Equatable {
     var searchesSnippets = true
     var searchesClipboard = true
     var links: [CommandLink] = []
+    var fileFolders: [String] = []
+}
+
+extension CommandBarSettings {
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let defaults = CommandBarSettings()
+        isEnabled = try container.decodeIfPresent(Bool.self, forKey: .isEnabled) ?? defaults.isEnabled
+        searchesWindows = try container.decodeIfPresent(Bool.self, forKey: .searchesWindows) ?? defaults.searchesWindows
+        searchesMenus = try container.decodeIfPresent(Bool.self, forKey: .searchesMenus) ?? defaults.searchesMenus
+        searchesSnippets = try container.decodeIfPresent(Bool.self, forKey: .searchesSnippets) ?? defaults.searchesSnippets
+        searchesClipboard = try container.decodeIfPresent(Bool.self, forKey: .searchesClipboard) ?? defaults.searchesClipboard
+        links = try container.decodeIfPresent([CommandLink].self, forKey: .links) ?? defaults.links
+        fileFolders = try container.decodeIfPresent([String].self, forKey: .fileFolders) ?? defaults.fileFolders
+    }
 }
 
 enum CommandCategory: String, CaseIterable, Identifiable {
-    case all, actions, apps, windows, menus, macSettings, snippets, clipboard, folders
+    case all, actions, apps, windows, menus, macSettings, snippets, clipboard, emoji, folders
 
     var id: String { rawValue }
 
@@ -26,6 +41,7 @@ enum CommandCategory: String, CaseIterable, Identifiable {
         case .macSettings: "Mac Settings"
         case .snippets: "Snippets"
         case .clipboard: "Clipboard"
+        case .emoji: "Emoji"
         case .folders: "Folders"
         }
     }
@@ -40,6 +56,7 @@ enum CommandCategory: String, CaseIterable, Identifiable {
         case .macSettings: [.macSetting]
         case .snippets: [.snippet]
         case .clipboard: [.clipboard]
+        case .emoji: [.emoji]
         case .folders: [.folder]
         }
     }
@@ -72,6 +89,8 @@ final class CommandBarController: NSObject, ObservableObject, NSWindowDelegate {
     static let activeBonus = 20
     static let pinnedBonus = 60
     static let menuMinimum = 2
+    static let previewLength = 40
+    static let messageTime: TimeInterval = 1.4
     static let curated = ["clipboardHistory", "keepAwake", "darkMode", "snippetLibrary", "lock", "micMute", "cycleOutput"]
 
     @Published var settings: CommandBarSettings {
@@ -87,7 +106,9 @@ final class CommandBarController: NSObject, ObservableObject, NSWindowDelegate {
             guard query != oldValue else { return }
             selection = 0
             confirming = nil
+            rowActions = []
             rebuild()
+            scheduleFileSearch()
         }
     }
     @Published var category = CommandCategory.all {
@@ -100,10 +121,17 @@ final class CommandBarController: NSObject, ObservableObject, NSWindowDelegate {
     @Published var selection = 0
     @Published private(set) var confirming: String?
     @Published private(set) var isOpen = false
+    @Published private(set) var rowActions: [CommandRowActionKind] = []
+    @Published var actionSelection = 0
 
     private(set) var memory: CommandMemory
     private var items: [CommandItem] = []
     private var liveItems: [CommandItem] = []
+    private var fileItems: [CommandItem] = []
+    private var selectedText: String?
+    private lazy var emojiItems = CommandSources.emoji(context.clipboard)
+    private var fileSearch: DispatchWorkItem?
+    private var fileToken = 0
     private var openToken = 0
     private var panel: NSPanel?
     private var keyMonitor: Any?
@@ -131,20 +159,27 @@ final class CommandBarController: NSObject, ObservableObject, NSWindowDelegate {
         items = CommandSources.actions(context) + CommandSources.apps() + CommandSources.macSettings() + CommandSources.folders()
             + (settings.searchesSnippets ? CommandSources.snippets(context) : []) + (settings.searchesClipboard ? CommandSources.clipboard(context) : [])
         liveItems = []
+        fileItems = []
+        selectedText = nil
+        rowActions = []
         query = ""
         category = .all
         confirming = nil
         rebuild()
         showPanel()
         let wantsWindows = settings.searchesWindows
-        let wantsMenus = settings.searchesMenus && front?.processIdentifier != getpid()
+        let isOtherAppInFront = front?.processIdentifier != getpid()
+        let wantsMenus = settings.searchesMenus && isOtherAppInFront
+        let wantsSelection = isOtherAppInFront && AXIsProcessTrusted()
         DispatchQueue.global(qos: .userInitiated).async {
             let windows = wantsWindows ? CommandSources.windows() : []
             let menus = wantsMenus ? front.map(CommandSources.menus) ?? [] : []
+            let selected = wantsSelection ? front.flatMap(TextInsertion.selectedText) : nil
             DispatchQueue.main.async {
                 MainActor.assumeIsolated {
                     guard token == self.openToken, self.isOpen else { return }
                     self.liveItems = windows + menus
+                    self.selectedText = selected
                     let selected = self.selection
                     self.rebuild()
                     self.selection = min(selected, max(self.rows.count - 1, 0))
@@ -206,12 +241,68 @@ final class CommandBarController: NSObject, ObservableObject, NSWindowDelegate {
             }
             memory.recordRun(item.id, query: query, at: Date())
             saveMemory()
+            if item.keepsBarOpen { return item.run(argument) }
             close()
             DispatchQueue.main.async { item.run(argument) }
         }
     }
 
+    func runRowAction(_ kind: CommandRowActionKind) {
+        rowActions = []
+        guard rows.indices.contains(selection) else { return }
+        let row = rows[selection]
+        guard case .item(let item, _) = row else { return run(selection) }
+        switch kind {
+        case .run:
+            run(selection)
+        case .reveal:
+            run(selection, reveal: true)
+        case .copyPath:
+            copy(item.revealURL?.path ?? item.title)
+        case .copyTitle:
+            copy(item.title)
+        case .quit:
+            close()
+            CommandRowActions.runningApp(at: item.revealURL)?.terminate()
+        case .pin, .unpin:
+            memory.togglePin(item.id)
+            saveMemory()
+            objectWillChange.send()
+        }
+    }
+
+    private func copy(_ text: String) {
+        close()
+        ScreenTools.copy(text)
+        hud.show("Copied \(text.prefix(Self.previewLength))", for: Self.messageTime)
+    }
+
+    private func showRowActions() {
+        guard rows.indices.contains(selection) else { return NSSound.beep() }
+        let row = rows[selection]
+        var url: URL?
+        if case .item(let item, _) = row { url = item.revealURL }
+        rowActions = CommandRowActions.kinds(for: row, isPinned: isPinned(row), isRunning: CommandRowActions.runningApp(at: url) != nil)
+        actionSelection = 0
+    }
+
+    private func performInActions(_ command: CommandBarCommand) {
+        switch command {
+        case .move(let delta):
+            actionSelection = (actionSelection + delta + rowActions.count) % rowActions.count
+        case .run:
+            runRowAction(rowActions[actionSelection])
+        case .escape, .actions:
+            rowActions = []
+        case .blocked:
+            NSSound.beep()
+        default:
+            break
+        }
+    }
+
     private func perform(_ command: CommandBarCommand) {
+        guard rowActions.isEmpty else { return performInActions(command) }
         switch command {
         case .move(let delta):
             guard !rows.isEmpty else { return }
@@ -234,6 +325,8 @@ final class CommandBarController: NSObject, ObservableObject, NSWindowDelegate {
             memory.togglePin(item.id)
             saveMemory()
             objectWillChange.send()
+        case .actions:
+            showRowActions()
         case .escape:
             if !query.isEmpty { query = "" } else if category != .all { category = .all } else { close() }
         case .category(let step):
@@ -246,9 +339,13 @@ final class CommandBarController: NSObject, ObservableObject, NSWindowDelegate {
     }
 
     private func rebuild() {
-        let all = items + liveItems + CommandSources.quitRows(query) + CommandSources.facts(query)
-        let pool = category == .all ? all : all.filter { category.kinds.contains($0.kind) }
         let text = query.trimmingCharacters(in: .whitespaces)
+        if let emoji = EmojiCatalog.query(text) ?? (category == .emoji ? text : nil) {
+            rows = emojiRows(emoji)
+            return
+        }
+        let all = items + liveItems + fileItems + CommandSources.quitRows(query) + CommandSources.facts(query)
+        let pool = category == .all ? all : all.filter { category.kinds.contains($0.kind) }
         guard !text.isEmpty else {
             rows = home(pool)
             return
@@ -279,8 +376,51 @@ final class CommandBarController: NSObject, ObservableObject, NSWindowDelegate {
         rows = result + kept.map { .item($0, argument: nil) }
     }
 
+    private func emojiRows(_ text: String) -> [CommandRow] {
+        let limit = category == .emoji ? Self.categoryLimit : CommandRanking.totalLimit
+        guard !text.isEmpty else { return emojiItems.prefix(limit).map { .item($0, argument: nil) } }
+        let ranked = RustCore.rank(text, emojiItems.map { RankRow(title: $0.title, keywords: $0.keywords) })
+        return ranked.prefix(limit).map { .item(emojiItems[$0.index], argument: nil) }
+    }
+
+    private func scheduleFileSearch() {
+        fileSearch?.cancel()
+        let text = query.trimmingCharacters(in: .whitespaces)
+        let folders = settings.fileFolders
+        guard !folders.isEmpty, EmojiCatalog.query(text) == nil, FileSearch.spotlightQuery(text) != nil else {
+            fileItems = []
+            return
+        }
+        fileToken += 1
+        let token = fileToken
+        let work = DispatchWorkItem { [weak self] in
+            DispatchQueue.global(qos: .userInitiated).async {
+                let paths = FileSearch.search(text, in: folders)
+                DispatchQueue.main.async {
+                    MainActor.assumeIsolated {
+                        guard let self, token == self.fileToken, self.isOpen else { return }
+                        self.fileItems = paths.map(CommandSources.file)
+                        let selected = self.selection
+                        self.rebuild()
+                        self.selection = min(selected, max(self.rows.count - 1, 0))
+                    }
+                }
+            }
+        }
+        fileSearch = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + FileSearch.pause, execute: work)
+    }
+
     private func home(_ pool: [CommandItem]) -> [CommandRow] {
         let now = Date()
+        if category == .all, let selectedText {
+            let actions = CommandSources.selection(selectedText, context: context) { [weak self] text in self?.query = text }
+            return actions.map { .item($0, argument: nil) } + homeRows(pool, now: now)
+        }
+        return homeRows(pool, now: now)
+    }
+
+    private func homeRows(_ pool: [CommandItem], now: Date) -> [CommandRow] {
         guard category == .all else {
             return pool.sorted { memory.usageBoost(for: $0.id, now: now) > memory.usageBoost(for: $1.id, now: now) }
                 .prefix(Self.categoryLimit).map { .item($0, argument: nil) }

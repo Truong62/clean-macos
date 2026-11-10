@@ -3,12 +3,13 @@ import CryptoKit
 import Foundation
 
 enum CommandKind: String, Codable, CaseIterable {
-    case answer, action, toggle, app, window, menu, quit, setting, macSetting, folder, snippet, clipboard, link, fact
+    case answer, action, toggle, app, window, menu, quit, setting, macSetting, folder, snippet, clipboard, link, fact, emoji, file
 
     var cap: Int? {
         switch self {
+        case .emoji: 6
         case .app, .menu, .toggle: 5
-        case .window, .setting, .macSetting, .clipboard, .snippet, .folder: 4
+        case .window, .setting, .macSetting, .clipboard, .snippet, .folder, .file: 4
         case .quit: 3
         default: nil
         }
@@ -18,7 +19,7 @@ enum CommandKind: String, Codable, CaseIterable {
         switch self {
         case .app: 80
         case .menu: -80
-        case .setting, .folder: -40
+        case .setting, .folder, .file: -40
         default: 0
         }
     }
@@ -299,7 +300,7 @@ enum ColorFormats {
 }
 
 enum CommandBarCommand: Equatable {
-    case move(Int), run, reveal, runNumber(Int), complete, pin, escape, category(Int), blocked
+    case move(Int), run, reveal, runNumber(Int), complete, pin, actions, escape, category(Int), blocked
 }
 
 enum CommandBarKeys {
@@ -313,6 +314,7 @@ enum CommandBarKeys {
     static let escapeKey: UInt16 = 53
     static let pKey: UInt16 = 35
     static let nKey: UInt16 = 45
+    static let kKey: UInt16 = 40
     static let blockedKeys: Set<UInt16> = [12, 13, 46, 4]
     static let relevant: NSEvent.ModifierFlags = [.command, .option, .control, .shift]
 
@@ -325,6 +327,7 @@ enum CommandBarKeys {
         case (returnKey, .command), (enterKey, .command): return .reveal
         case (tabKey, []): return .complete
         case (pKey, .command): return .pin
+        case (kKey, .command): return .actions
         case (escapeKey, _): return .escape
         case (leftKey, []) where queryIsEmpty: return .category(-1)
         case (rightKey, []) where queryIsEmpty: return .category(1)

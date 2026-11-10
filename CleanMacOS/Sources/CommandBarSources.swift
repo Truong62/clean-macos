@@ -6,6 +6,7 @@ struct CommandItem: Identifiable {
     enum Icon {
         case symbol(String)
         case file(String)
+        case text(String)
     }
 
     let id: String
@@ -19,6 +20,7 @@ struct CommandItem: Identifiable {
     var numberRange: ClosedRange<Int>?
     var needsConfirmation = false
     var revealURL: URL?
+    var keepsBarOpen = false
     let run: @MainActor (Int?) -> Void
 }
 
@@ -241,6 +243,51 @@ enum CommandSources {
             CommandItem(id: "folder.\(name)", kind: .folder, title: name, subtitle: url.path.replacingOccurrences(of: home.path, with: "~"),
                         icon: .file(url.path), revealURL: url) { _ in NSWorkspace.shared.open(url) }
         }
+    }
+
+    static func emoji(_ clipboard: ClipboardViewModel) -> [CommandItem] {
+        EmojiCatalog.entries.map { entry in
+            CommandItem(id: "emoji.\(entry.glyph)", kind: .emoji, title: entry.name.capitalized, subtitle: "Emoji · Return types it", keywords: entry.glyph,
+                        icon: .text(entry.glyph)) { _ in TextInsertion.type(entry.glyph, clipboard: clipboard) }
+        }
+    }
+
+    static func file(_ path: String) -> CommandItem {
+        let url = URL(fileURLWithPath: path)
+        return CommandItem(id: "file.\(path)", kind: .file, title: url.lastPathComponent,
+                           subtitle: (url.deletingLastPathComponent().path as NSString).abbreviatingWithTildeInPath, icon: .file(path), revealURL: url) { _ in
+            NSWorkspace.shared.open(url)
+        }
+    }
+
+    static func selection(_ text: String, context: CommandContext, useAsQuery: @escaping @MainActor (String) -> Void) -> [CommandItem] {
+        let preview = text.count > CommandBarController.previewLength ? String(text.prefix(CommandBarController.previewLength)) + "…" : text
+        var items = [
+            CommandItem(id: "selection.copy", kind: .action, title: "Copy “\(preview)”", subtitle: "Selected text", icon: .symbol("doc.on.doc")) { _ in
+                ScreenTools.copy(text)
+            },
+            CommandItem(id: "selection.search", kind: .action, title: "Search for “\(preview)”", subtitle: "Selected text · use it as the query",
+                        icon: .symbol("magnifyingglass"), keepsBarOpen: true) { _ in useAsQuery(text) },
+        ]
+        if let cleaned = URLCleaner.clean(text.trimmingCharacters(in: .whitespacesAndNewlines)) {
+            items.append(CommandItem(id: "selection.cleanLink", kind: .action, title: "Copy Clean Link", subtitle: cleaned.url, icon: .symbol("link")) { _ in
+                ScreenTools.copy(cleaned.url)
+            })
+        }
+        items += TextTransform.allCases.map { transform in
+            CommandItem(id: "selection.\(transform.rawValue)", kind: .action, title: transform.title, subtitle: "Replace the selected text",
+                        icon: .symbol("textformat")) { _ in TextInsertion.type(transform.apply(text), clipboard: context.clipboard) }
+        }
+        if context.shelf.settings.isEnabled {
+            items.append(CommandItem(id: "selection.shelf", kind: .action, title: "Send to Shelf", subtitle: "Selected text", icon: .symbol("tray.and.arrow.down")) { _ in
+                context.shelf.add([ShelfItem(kind: .text, text: text)])
+            })
+        }
+        let counts = TextCounts(text).summary
+        items.append(CommandItem(id: "selection.counts", kind: .fact, title: counts, subtitle: "Selected text · Return copies", icon: .symbol("number")) { _ in
+            ScreenTools.copy(counts)
+        })
+        return items
     }
 
     static func snippets(_ context: CommandContext) -> [CommandItem] {
