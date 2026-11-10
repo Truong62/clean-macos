@@ -14,6 +14,7 @@ enum SidebarPage: Hashable {
     case ram
     case portsJobs
     case powerRecovery
+    case keepAwake
     case devTools
     case settings
     case about

@@ -50,6 +50,8 @@ struct CleanMacOSApp: App {
     @StateObject private var library: MusicLibrary
     @StateObject private var music: MusicPlayer
     @StateObject private var keyboard: VietnameseKeyboard
+    @StateObject private var keepAwake: KeepAwake
+    @StateObject private var bluetooth = BluetoothSleepGuard()
     @AppStorage("showMenuBar") private var showMenuBar = true
     @State private var panelController: ClipboardPanelController?
 
@@ -59,6 +61,11 @@ struct CleanMacOSApp: App {
         _music = StateObject(wrappedValue: MusicPlayer(library: library))
         let keyboard = VietnameseKeyboard()
         _keyboard = StateObject(wrappedValue: keyboard)
+        let keepAwake = KeepAwake()
+        _keepAwake = StateObject(wrappedValue: keepAwake)
+        KeyboardShortcuts.onKeyUp(for: .toggleKeepAwake) {
+            MainActor.assumeIsolated { keepAwake.toggle() }
+        }
         KeyboardShortcuts.onKeyUp(for: .toggleVietnamese) {
             MainActor.assumeIsolated { keyboard.toggleMode() }
         }
@@ -75,6 +82,8 @@ struct CleanMacOSApp: App {
                 .environmentObject(library)
                 .environmentObject(music)
                 .environmentObject(keyboard)
+                .environmentObject(keepAwake)
+                .environmentObject(bluetooth)
                 .frame(minWidth: 900, minHeight: 600)
                 .onAppear {
                     Task { await account.refreshSession() }
@@ -114,9 +123,9 @@ struct CleanMacOSApp: App {
         }
 
         MenuBarExtra(isInserted: $showMenuBar) {
-            MenuBarView(monitor: monitor, recorder: recorder, agentRecording: agentRecording, music: music)
+            MenuBarView(monitor: monitor, recorder: recorder, agentRecording: agentRecording, music: music, keepAwake: keepAwake)
         } label: {
-            Label(String(format: " %.0f%%", monitor.latestCPU), systemImage: recorder.isRecording || agentRecording.isRecording ? "record.circle.fill" : "square.grid.2x2.fill")
+            Label(String(format: " %.0f%%", monitor.latestCPU), systemImage: recorder.isRecording || agentRecording.isRecording ? "record.circle.fill" : keepAwake.isActive ? "cup.and.saucer.fill" : "square.grid.2x2.fill")
         }
         .menuBarExtraStyle(.window)
 

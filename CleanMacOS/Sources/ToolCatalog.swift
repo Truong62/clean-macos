@@ -29,6 +29,7 @@ enum ToolGroup: String, CaseIterable, Identifiable {
             AppTool(page: .displays, icon: "display.2", title: "Displays", summary: "Monitors and wallpapers", colors: [.purple, .pink]),
             AppTool(page: .portsJobs, icon: "network", title: "Ports & Jobs", summary: "Ports, cron jobs, login items", colors: [.cyan, .blue]),
             AppTool(page: .powerRecovery, icon: "bolt.fill", title: "Power Recovery", summary: "Starts up on its own after a power cut", colors: [.orange, .yellow]),
+            AppTool(page: .keepAwake, icon: "cup.and.saucer.fill", title: "Keep Awake", summary: "Stop your Mac from sleeping", colors: [.orange, .brown]),
         ]
         case .productivity: [
             AppTool(page: .clipboard, icon: "doc.on.clipboard.fill", title: "Clipboard", summary: "Copy history on ⌘⇧V", colors: [.indigo, .purple]),

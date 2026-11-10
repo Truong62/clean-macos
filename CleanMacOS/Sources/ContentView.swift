@@ -60,6 +60,9 @@ struct ContentView: View {
             case .powerRecovery:
                 PowerRecoveryView()
 
+            case .keepAwake:
+                KeepAwakeView()
+
             case .devTools:
                 DevToolsView()
 

@@ -5,7 +5,7 @@ struct ToolCatalogTests {
     @Test func everyToolAppearsOnceInExactlyOneGroup() {
         let pages = ToolGroup.allTools.map(\.page)
         #expect(Set(pages).count == pages.count)
-        #expect(Set(pages) == [.cleanDisk, .largeFiles, .uninstall, .ram, .displays, .portsJobs, .powerRecovery,
+        #expect(Set(pages) == [.cleanDisk, .largeFiles, .uninstall, .ram, .displays, .portsJobs, .powerRecovery, .keepAwake,
                                .clipboard, .screenRecord, .typing, .music, .devTools])
         #expect(ToolGroup.allCases.allSatisfy { !$0.tools.isEmpty })
     }

@@ -5,6 +5,7 @@ struct MenuBarView: View {
     @ObservedObject var recorder: ScreenRecorder
     @ObservedObject var agentRecording: AgentRecordingIndicator
     @ObservedObject var music: MusicPlayer
+    @ObservedObject var keepAwake: KeepAwake
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
@@ -17,6 +18,10 @@ struct MenuBarView: View {
             }
             if agentRecording.isRecording {
                 agentRecordingRow
+                Divider()
+            }
+            if let session = keepAwake.session {
+                keepAwakeRow(session)
                 Divider()
             }
             if let track = music.current {
@@ -72,6 +77,21 @@ struct MenuBarView: View {
             Circle().fill(.red).frame(width: 8, height: 8)
             Text("An AI agent is recording the screen").font(.system(size: 12, weight: .semibold))
             Spacer()
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+    }
+
+    private func keepAwakeRow(_ session: KeepAwakeSession) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "cup.and.saucer.fill").foregroundStyle(.orange)
+            TimelineView(.periodic(from: .now, by: 1)) { context in
+                Text(session.remaining(now: context.date).map { "Awake · \(KeepAwakeSession.countdown($0)) left" } ?? "Awake until you stop it")
+                    .font(.system(size: 12, weight: .semibold).monospacedDigit())
+            }
+            Spacer()
+            Button("Stop") { keepAwake.stop() }
+                .controlSize(.small)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 8)
