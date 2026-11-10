@@ -12,6 +12,7 @@
 		0790C89D2760BC1EFB8982F4 /* BrightnessController.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF0818EF6E3C3834EB3A3AFE /* BrightnessController.swift */; };
 		08324B4AB10F82B68C232912 /* Scratchpad.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AE7F69F7DED39030D441CBB /* Scratchpad.swift */; };
 		089CDC6EAD763157D4C09817 /* CommandBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2BE103969C8404069698816 /* CommandBarView.swift */; };
+		0AAD63D0A686B77FA4CEC7B8 /* LauncherSettingsCards.swift in Sources */ = {isa = PBXBuildFile; fileRef = 317CDDEC44E0133E80435AB4 /* LauncherSettingsCards.swift */; };
 		0CCF383FB4D817BE97B5E184 /* Shelf.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9369B89FD38E6521F9B366AA /* Shelf.swift */; };
 		10BB5BA2697E75F5C92A0868 /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A1479088579DC6E2A293A68 /* SidebarView.swift */; };
 		130C564B933EFF04813CAAD3 /* PortsJobsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9ECF14E8605AC58E4B9C07A2 /* PortsJobsViewModel.swift */; };
@@ -181,6 +182,7 @@
 		30AE1414B4AC514340366221 /* LargeFilesService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LargeFilesService.swift; sourceTree = "<group>"; };
 		30C79480AF1069BF87B637AA /* WindowsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowsView.swift; sourceTree = "<group>"; };
 		30D585B3710EAB1FA5FBF8DE /* PortsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortsService.swift; sourceTree = "<group>"; };
+		317CDDEC44E0133E80435AB4 /* LauncherSettingsCards.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LauncherSettingsCards.swift; sourceTree = "<group>"; };
 		31AF67BD118549BEBA8736D7 /* FrameWriter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FrameWriter.swift; sourceTree = "<group>"; };
 		32689F128B9A23B9FE888D4E /* DemoInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoInput.swift; sourceTree = "<group>"; };
 		3554E40130351545D52C837D /* SnapshotSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnapshotSection.swift; sourceTree = "<group>"; };
@@ -395,6 +397,7 @@
 				394AC257CBEAA477FA20E821 /* KeepAwakeView.swift */,
 				30AE1414B4AC514340366221 /* LargeFilesService.swift */,
 				D5DCE02A3AFD020C36EFFF76 /* LargeFilesView.swift */,
+				317CDDEC44E0133E80435AB4 /* LauncherSettingsCards.swift */,
 				C7BB01766B10D3D2EBD0F908 /* LegacyDataCleanup.swift */,
 				ECCB83BBD398F1435903FE3A /* LevelHUD.swift */,
 				8EB2810848FCC205C4339083 /* LoginItemsService.swift */,
@@ -646,6 +649,7 @@
 				353CBF5E2C37D2031FDC821F /* KeepAwakeView.swift in Sources */,
 				91D5705DF41581EA40B80285 /* LargeFilesService.swift in Sources */,
 				2CD6BD854BCDA0E493C97ABC /* LargeFilesView.swift in Sources */,
+				0AAD63D0A686B77FA4CEC7B8 /* LauncherSettingsCards.swift in Sources */,
 				1DDF4FC60A98F74AB5220D88 /* LegacyDataCleanup.swift in Sources */,
 				5B6C62D95B0CE6EBEFE09C33 /* LevelHUD.swift in Sources */,
 				412F63C52B2EDDC8940FEEC1 /* LoginItemsService.swift in Sources */,

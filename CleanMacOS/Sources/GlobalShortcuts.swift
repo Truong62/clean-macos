@@ -1,6 +1,11 @@
+import Foundation
 import KeyboardShortcuts
 
 extension KeyboardShortcuts.Name {
+    static func radialWheel(_ id: UUID) -> Self {
+        id == RadialWheel.originalID ? .radialMenu : Self("radial.wheel.\(id.uuidString)")
+    }
+
     static let showClipboardHistory = Self(
         "showClipboardHistory",
         default: .init(.v, modifiers: [.command, .shift])

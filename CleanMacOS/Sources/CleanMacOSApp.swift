@@ -55,7 +55,7 @@ struct CleanMacOSApp: App {
     @StateObject private var keyboard: VietnameseKeyboard
     @StateObject private var keepAwake: KeepAwake
     @StateObject private var bluetooth = BluetoothSleepGuard()
-    @StateObject private var windows = WindowManager()
+    @StateObject private var windows: WindowManager
     @StateObject private var input = InputController()
     @StateObject private var finder = FinderTools()
     @StateObject private var diskImages = DiskImageWatcher()
@@ -100,13 +100,15 @@ struct CleanMacOSApp: App {
         _camera = StateObject(wrappedValue: camera)
         let quitApps = QuitAppsController()
         _quitApps = StateObject(wrappedValue: quitApps)
+        let windows = WindowManager()
+        _windows = StateObject(wrappedValue: windows)
         let context = CommandContext(keepAwake: keepAwake, sound: sound, brightness: brightness, clipboard: clipboard, snippets: snippets, shelf: shelf,
                                      screenTools: screenTools, scratchpad: scratchpad, camera: camera, quitApps: quitApps) { page in
             MainWindowController.show()
             NotificationCenter.default.post(name: .openSidebarPage, object: page)
         }
         _commandBar = StateObject(wrappedValue: CommandBarController(context: context))
-        _radial = StateObject(wrappedValue: RadialMenuController(context: context))
+        _radial = StateObject(wrappedValue: RadialMenuController(context: context, windows: windows))
         _quickPanel = StateObject(wrappedValue: QuickPanelController(context: context))
         KeyboardShortcuts.onKeyUp(for: .toggleKeepAwake) {
             MainActor.assumeIsolated { keepAwake.toggle() }

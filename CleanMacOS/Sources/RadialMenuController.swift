@@ -36,7 +36,11 @@ final class RadialMenuController: NSObject, ObservableObject, NSWindowDelegate {
         }
     }
     @Published var highlighted: Int?
-    @Published private(set) var isOpen = false
+    @Published private(set) var navigation = RadialNavigation()
+    @Published private(set) var activeWheel: RadialWheel?
+    @Published private(set) var conflicts: [RadialTriggerConflict] = []
+    var isOpen: Bool { navigation.isOpen }
+    var slices: [RadialSlice] { navigation.slices }
 
     private var tracker: RadialTracker?
     private var center = CGPoint.zero
@@ -44,38 +48,44 @@ final class RadialMenuController: NSObject, ObservableObject, NSWindowDelegate {
     private var panel: NSPanel?
     private var timer: Timer?
     private var keyMonitor: Any?
+    private var outsideMonitor: Any?
     private var tap: CFMachPort?
     private var source: CFRunLoopSource?
+    private var registered = Set<UUID>()
+    private var pressedKeys = Set<UUID>()
+    private var mousePresses = RadialMousePresses()
+    private var targetWindow: AXUIElement?
     private let context: CommandContext
+    private let windows: WindowManager
 
-    init(context: CommandContext) {
+    init(context: CommandContext, windows: WindowManager) {
         self.context = context
+        self.windows = windows
         settings = UserDefaults.standard.data(forKey: Self.settingsKey).flatMap { try? JSONDecoder().decode(RadialSettings.self, from: $0) } ?? RadialSettings()
         super.init()
-        KeyboardShortcuts.onKeyDown(for: .radialMenu) { [weak self] in
-            MainActor.assumeIsolated {
-                guard let self else { return }
-                if self.isOpen { self.close() } else { self.open() }
-            }
-        }
-        KeyboardShortcuts.onKeyUp(for: .radialMenu) { [weak self] in MainActor.assumeIsolated { self?.release() } }
         NotificationCenter.default.addObserver(forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.applyTap() }
         }
         apply(previous: nil)
     }
 
-    func open() {
-        guard settings.isEnabled, !settings.slices.isEmpty else { return NSSound.beep() }
+    func open(wheelID: UUID? = nil) {
+        guard settings.isEnabled, let wheel = settings.wheels.first(where: { wheelID == nil || $0.id == wheelID }) else { return }
+        close()
+        targetWindow = AXIsProcessTrusted() ? AXWindow.focused() : nil
+        let available = actions()
+        let visible = RadialAvailability.visible(wheel.slices) { canRun($0, available: available) }
+        guard !visible.isEmpty else { return NSSound.beep() }
         let mouse = NSEvent.mouseLocation
         guard let screen = NSScreen.screens.first(where: { $0.frame.contains(mouse) }) ?? NSScreen.main else { return }
-        let visible = screen.visibleFrame
+        activeWheel = wheel
+        navigation.open(visible)
+        let visibleFrame = screen.visibleFrame
         let half = Self.panelSize / 2
-        let wanted = settings.opensAtPointer ? mouse : CGPoint(x: visible.midX, y: visible.midY)
-        center = CGPoint(x: min(max(wanted.x, visible.minX + half), visible.maxX - half), y: min(max(wanted.y, visible.minY + half), visible.maxY - half))
-        tracker = RadialTracker(origin: mouse)
-        lastMouse = mouse
-        highlighted = nil
+        let wanted = settings.opensAtPointer ? mouse : CGPoint(x: visibleFrame.midX, y: visibleFrame.midY)
+        center = CGPoint(x: min(max(wanted.x, visibleFrame.minX + half), visibleFrame.maxX - half),
+                         y: min(max(wanted.y, visibleFrame.minY + half), visibleFrame.maxY - half))
+        resetTracking()
         let panel = self.panel ?? KeyablePanel(contentRect: NSRect(x: 0, y: 0, width: Self.panelSize, height: Self.panelSize),
                                                styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         panel.level = .popUpMenu
@@ -92,30 +102,39 @@ final class RadialMenuController: NSObject, ObservableObject, NSWindowDelegate {
         panel.setFrame(NSRect(x: center.x - half, y: center.y - half, width: Self.panelSize, height: Self.panelSize), display: true)
         panel.delegate = self
         self.panel = panel
-        isOpen = true
         panel.makeKeyAndOrderFront(nil)
         panel.orderFrontRegardless()
         timer = Timer.scheduledTimer(withTimeInterval: Self.trackInterval, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.track() }
         }
         installKeyMonitor()
+        outsideMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
+            MainActor.assumeIsolated { self?.close() }
+        }
     }
 
     func close() {
         timer?.invalidate()
         timer = nil
         if let keyMonitor { NSEvent.removeMonitor(keyMonitor) }
+        if let outsideMonitor { NSEvent.removeMonitor(outsideMonitor) }
         keyMonitor = nil
-        panel?.orderOut(nil)
-        isOpen = false
+        outsideMonitor = nil
+        navigation.close()
+        targetWindow = nil
         highlighted = nil
+        panel?.orderOut(nil)
+    }
+
+    func back() {
+        navigation.back()
+        if !isOpen { close() } else { resetTracking() }
     }
 
     func release() {
         guard isOpen else { return }
         switch settings.mode {
-        case .press:
-            return
+        case .press: return
         case .pressOrHold:
             if let highlighted { run(highlighted) }
         case .hold:
@@ -124,60 +143,123 @@ final class RadialMenuController: NSObject, ObservableObject, NSWindowDelegate {
     }
 
     func run(_ index: Int) {
-        guard settings.slices.indices.contains(index) else { return }
-        let action = settings.slices[index].action
+        guard slices.indices.contains(index) else { return }
+        let slice = slices[index]
+        if case .submenu = slice.action {
+            _ = navigation.select(index)
+            resetTracking()
+            return
+        }
+        guard canRun(slice.action, available: actions()) else {
+            close()
+            NSSound.beep()
+            return
+        }
+        let window = targetWindow
+        guard let action = navigation.select(index) else { return }
         close()
-        DispatchQueue.main.asyncAfter(deadline: .now() + Self.actionDelay) { [weak self] in self?.perform(action) }
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.actionDelay) { [weak self] in self?.perform(action, window: window) }
     }
 
-    func windowDidResignKey(_ notification: Notification) {
-        close()
+    func windowDidResignKey(_ notification: Notification) { close() }
+
+    func actions() -> [CommandItem] { CommandSources.actions(context) }
+
+    func refreshTriggers() {
+        let triggers = settings.wheels.map { wheel in
+            let shortcut = wheel.keyboardEnabled ? KeyboardShortcuts.getShortcut(for: .radialWheel(wheel.id)) : nil
+            return RadialTrigger(wheelID: wheel.id, shortcut: shortcut.map {
+                RadialKeystroke(keyCode: UInt16($0.carbonKeyCode), modifiers: UInt64($0.modifiers.rawValue))
+            }, mouseButton: wheel.mouseButton)
+        }
+        conflicts = RadialTriggers.conflicts(triggers)
+        KeyboardShortcuts.disable(registered.map { .radialWheel($0) })
+        let enabled = RadialTriggers.enabledKeyboardWheels(triggers, isEnabled: settings.isEnabled)
+        KeyboardShortcuts.enable(enabled.map { .radialWheel($0) })
+        applyTap()
     }
 
-    func actions() -> [CommandItem] {
-        CommandSources.actions(context).filter { $0.kind == .action || $0.kind == .toggle }
+    private func canRun(_ action: RadialSlice.Action, available: [CommandItem]) -> Bool {
+        RadialAvailability.canRun(action, commandIDs: Set(available.map(\.id)),
+                                  toggleIDs: Set(available.filter { $0.kind == .toggle }.map(\.id)),
+                                  hasWindow: targetWindow != nil || !AXIsProcessTrusted() || AXWindow.focused() != nil,
+                                  pathExists: { FileManager.default.fileExists(atPath: ($0 as NSString).expandingTildeInPath) })
     }
 
-    private func perform(_ action: RadialSlice.Action) {
+    private func perform(_ action: RadialSlice.Action, window: AXUIElement?) {
         switch action {
-        case .command(let id):
-            CommandSources.actions(context).first { $0.id == id }?.run(nil)
+        case .command(let id), .toggle(let id):
+            actions().first { $0.id == id }?.run(nil)
         case .app(let path):
-            NSWorkspace.shared.openApplication(at: URL(fileURLWithPath: path), configuration: NSWorkspace.OpenConfiguration())
+            let url = URL(fileURLWithPath: (path as NSString).expandingTildeInPath)
+            if let app = NSWorkspace.shared.runningApplications.first(where: { $0.bundleURL == url }) {
+                app.activate()
+            } else {
+                NSWorkspace.shared.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration())
+            }
         case .folder(let path):
             NSWorkspace.shared.open(URL(fileURLWithPath: (path as NSString).expandingTildeInPath))
         case .link(let text):
             if let url = URL(string: text) { NSWorkspace.shared.open(url) }
-        case .media(let code):
-            MediaKeys.post(code)
+        case .media(let code): MediaKeys.post(code)
+        case .window(let action):
+            guard Self.requestAccessibility() else { return }
+            windows.perform(action, window: window)
+        case .keystroke(let stroke):
+            guard Self.requestAccessibility() else { return }
+            Task { @MainActor in
+                for _ in 0..<500 {
+                    if RadialKeystroke.canPost(heldModifiers: CGEventSource.flagsState(.combinedSessionState).rawValue) {
+                        RadialKeyPoster.post(stroke)
+                        return
+                    }
+                    try? await Task.sleep(for: .milliseconds(10))
+                }
+            }
+        case .submenu: break
         }
+    }
+
+    private static func requestAccessibility() -> Bool {
+        if AXIsProcessTrusted() { return true }
+        return AXIsProcessTrustedWithOptions([kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary)
+    }
+
+    private func resetTracking() {
+        lastMouse = NSEvent.mouseLocation
+        tracker = RadialTracker(origin: lastMouse)
+        highlighted = nil
     }
 
     private func track() {
         let mouse = NSEvent.mouseLocation
         guard mouse != lastMouse, var tracker else { return }
         lastMouse = mouse
-        let next = tracker.highlight(at: mouse, center: center, count: settings.slices.count)
+        let next = tracker.highlight(at: mouse, center: center, count: slices.count)
         self.tracker = tracker
         if tracker.hasMoved && next != highlighted { highlighted = next }
     }
 
     private func installKeyMonitor() {
-        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            let keyCode = event.keyCode
-            let digit = PanelKeys.digitKeys[keyCode]
-            let windowNumber = event.windowNumber
+        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .leftMouseDown, .rightMouseDown]) { [weak self] event in
             let isHandled = MainActor.assumeIsolated { () -> Bool in
-                guard let self, self.isOpen, self.panel?.windowNumber == windowNumber else { return false }
-                let count = self.settings.slices.count
-                switch keyCode {
-                case PanelKeys.escapeKey: self.close()
-                case PanelKeys.returnKey, PanelKeys.enterKey: if let highlighted = self.highlighted { self.run(highlighted) }
-                case CommandBarKeys.leftKey, PanelKeys.upKey: self.highlighted = ((self.highlighted ?? 0) - 1 + count) % count
-                case CommandBarKeys.rightKey, PanelKeys.downKey: self.highlighted = ((self.highlighted ?? -1) + 1) % count
+                guard let self, self.isOpen else { return false }
+                if event.type != .keyDown {
+                    if self.panel?.frame.contains(NSEvent.mouseLocation) != true { self.close() }
+                    return false
+                }
+                guard self.panel?.windowNumber == event.windowNumber else { return false }
+                switch event.keyCode {
+                case PanelKeys.escapeKey: self.back()
+                case PanelKeys.returnKey, PanelKeys.enterKey:
+                    if let highlighted = self.highlighted { self.run(highlighted) }
+                case CommandBarKeys.leftKey, PanelKeys.upKey:
+                    self.highlighted = RadialSelection.rotate(self.highlighted, by: -1, count: self.slices.count)
+                case CommandBarKeys.rightKey, PanelKeys.downKey:
+                    self.highlighted = RadialSelection.rotate(self.highlighted, by: 1, count: self.slices.count)
                 default:
-                    guard let digit, digit <= count else { return false }
-                    self.run(digit - 1)
+                    guard let digit = PanelKeys.digitKeys[event.keyCode], let index = RadialSelection.digit(digit, count: self.slices.count) else { return false }
+                    self.run(index)
                 }
                 return true
             }
@@ -186,15 +268,42 @@ final class RadialMenuController: NSObject, ObservableObject, NSWindowDelegate {
     }
 
     private func apply(previous: RadialSettings?) {
-        if previous?.isEnabled != settings.isEnabled {
-            if settings.isEnabled { KeyboardShortcuts.enable([.radialMenu]) } else { KeyboardShortcuts.disable([.radialMenu]) }
-            if !settings.isEnabled { close() }
+        if previous != nil {
+            pressedKeys = []
+            if isOpen { close() }
         }
-        applyTap()
+        let ids = Set(settings.wheels.map(\.id))
+        for id in registered.subtracting(ids) { KeyboardShortcuts.disable([.radialWheel(id)]) }
+        KeyboardShortcuts.disable([.radialMenu])
+        for wheel in settings.wheels where registered.insert(wheel.id).inserted {
+            let id = wheel.id
+            KeyboardShortcuts.disable([.radialWheel(id)])
+            KeyboardShortcuts.onKeyDown(for: .radialWheel(id)) { [weak self] in
+                MainActor.assumeIsolated {
+                    guard let self, self.settings.isEnabled,
+                          self.settings.wheels.contains(where: { $0.id == id && $0.keyboardEnabled }),
+                          !self.conflicts.contains(where: { $0.keyboard && ($0.first == id || $0.second == id) }),
+                          self.pressedKeys.insert(id).inserted else { return }
+                    if self.isOpen && self.activeWheel?.id == id { self.close() } else { self.open(wheelID: id) }
+                }
+            }
+            KeyboardShortcuts.onKeyUp(for: .radialWheel(id)) { [weak self] in
+                MainActor.assumeIsolated {
+                    guard let self else { return }
+                    guard self.pressedKeys.remove(id) != nil else { return }
+                    if self.activeWheel?.id == id { self.release() }
+                }
+            }
+        }
+        if let previous, settings.isEnabled,
+           settings.wheels.contains(where: { wheel in
+               wheel.mouseButton != nil && (!previous.isEnabled || previous.wheels.first(where: { $0.id == wheel.id })?.mouseButton != wheel.mouseButton)
+           }) { _ = Self.requestAccessibility() }
+        refreshTriggers()
     }
 
     private func applyTap() {
-        let needsTap = settings.isEnabled && settings.mouseButton != nil && AXIsProcessTrusted()
+        let needsTap = mousePresses.hasPendingRelease || (settings.isEnabled && settings.wheels.contains { $0.mouseButton != nil } && AXIsProcessTrusted())
         guard needsTap != (tap != nil) else { return }
         if needsTap { startTap() } else { stopTap() }
     }
@@ -232,13 +341,49 @@ final class RadialMenuController: NSObject, ObservableObject, NSWindowDelegate {
             if let tap { CGEvent.tapEnable(tap: tap, enable: true) }
             return pass
         }
-        guard let button = settings.mouseButton, Int(event.getIntegerValueField(.mouseEventButtonNumber)) == button - 1 else { return pass }
-        if type == .otherMouseDown {
-            if isOpen { close() } else { open() }
-        } else {
-            release()
+        guard type == .otherMouseDown || type == .otherMouseUp else { return pass }
+        let button = Int(event.getIntegerValueField(.mouseEventButtonNumber)) + 1
+        let triggers = settings.wheels.map { RadialTrigger(wheelID: $0.id, mouseButton: $0.mouseButton) }
+        switch mousePresses.handle(button: button, isDown: type == .otherMouseDown, triggers: triggers, isEnabled: settings.isEnabled) {
+        case .pass: return pass
+        case .swallow: return nil
+        case .press(let id):
+            if isOpen && activeWheel?.id == id { close() } else { open(wheelID: id) }
+        case .release(let id):
+            if activeWheel?.id == id { release() }
+            applyTap()
         }
         return nil
+    }
+}
+
+enum RadialKeyPoster {
+    static func post(_ stroke: RadialKeystroke) {
+        let source = CGEventSource(stateID: .privateState)
+        for down in [true, false] {
+            let event = CGEvent(keyboardEventSource: source, virtualKey: stroke.keyCode, keyDown: down)
+            event?.flags = CGEventFlags(rawValue: stroke.modifiers)
+            event?.post(tap: .cghidEventTap)
+        }
+    }
+}
+
+extension RadialAccent {
+    var color: Color {
+        switch self {
+        case .blue: .blue
+        case .indigo: .indigo
+        case .purple: .purple
+        case .pink: .pink
+        case .red: .red
+        case .orange: .orange
+        case .yellow: .yellow
+        case .green: .green
+        case .mint: .mint
+        case .teal: .teal
+        case .cyan: .cyan
+        case .gray: .gray
+        }
     }
 }
 
@@ -260,19 +405,27 @@ struct RadialWedge: Shape {
 
 struct RadialMenuView: View {
     @ObservedObject var controller: RadialMenuController
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        let slices = controller.settings.slices
+        let slices = controller.slices
+        let accent = controller.activeWheel?.accent.color ?? .accentColor
         ZStack {
             Color.clear.contentShape(Rectangle()).onTapGesture { controller.close() }
             Circle()
                 .fill(.regularMaterial)
                 .frame(width: RadialMenuController.discSize, height: RadialMenuController.discSize)
                 .shadow(color: .black.opacity(0.25), radius: 18, y: 6)
-                .onTapGesture { if let highlighted = controller.highlighted { controller.run(highlighted) } }
+                .onTapGesture { location in
+                    let size = RadialMenuController.discSize
+                    if let index = RadialGeometry.slice(at: CGPoint(x: location.x, y: size - location.y),
+                                                        center: CGPoint(x: size / 2, y: size / 2), count: slices.count) {
+                        controller.run(index)
+                    }
+                }
             if let highlighted = controller.highlighted {
                 RadialWedge(index: highlighted, count: slices.count)
-                    .fill(LinearGradient(colors: [Color.accentColor.opacity(0.45), Color.accentColor.opacity(0.1)], startPoint: .center, endPoint: .top))
+                    .fill(LinearGradient(colors: [accent.opacity(0.45), accent.opacity(0.1)], startPoint: .center, endPoint: .top))
                     .frame(width: RadialMenuController.discSize, height: RadialMenuController.discSize)
                     .allowsHitTesting(false)
             }
@@ -284,18 +437,20 @@ struct RadialMenuView: View {
                     Text(slice.title).font(.system(size: 9, weight: .medium)).lineLimit(1)
                 }
                 .frame(width: RadialMenuController.chipSize + 18, height: RadialMenuController.chipSize)
-                .foregroundStyle(isHighlighted ? Color.accentColor : .primary)
+                .foregroundStyle(isHighlighted ? accent : .primary)
                 .scaleEffect(isHighlighted ? 1.14 : 1)
                 .offset(x: offset.x, y: -offset.y)
                 .onTapGesture { controller.run(index) }
+                .transition(.scale(scale: 0.6).combined(with: .opacity))
             }
             Circle()
                 .fill(.thinMaterial)
                 .frame(width: RadialMenuController.hubSize, height: RadialMenuController.hubSize)
-                .overlay(Image(systemName: "xmark").foregroundStyle(.secondary))
-                .onTapGesture { controller.close() }
+                .overlay(Image(systemName: controller.navigation.submenu == nil ? "xmark" : "chevron.left").foregroundStyle(.secondary))
+                .onTapGesture { controller.back() }
         }
         .frame(width: RadialMenuController.panelSize, height: RadialMenuController.panelSize)
-        .animation(.easeOut(duration: 0.12), value: controller.highlighted)
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: controller.highlighted)
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.17), value: controller.navigation.submenu?.id)
     }
 }
