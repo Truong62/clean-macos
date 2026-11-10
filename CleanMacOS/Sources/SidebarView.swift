@@ -9,6 +9,7 @@ enum SidebarPage: Hashable {
     case appUpdates
     case clipboard
     case displays
+    case screenshot
     case screenRecord
     case typing
     case snippets

@@ -8,6 +8,7 @@ struct MenuBarView: View {
     @ObservedObject var keepAwake: KeepAwake
     @ObservedObject var clipboard: ClipboardViewModel
     @ObservedObject var shelf: ShelfController
+    @ObservedObject var screenshot: ScreenshotController
     @ObservedObject var brightness: BrightnessController
     @EnvironmentObject private var island: IslandController
     @Environment(\.openWindow) private var openWindow
@@ -16,6 +17,17 @@ struct MenuBarView: View {
         VStack(spacing: 0) {
             header
             Divider()
+            if screenshot.settings.menuTile {
+                HStack {
+                    Button("Capture screenshot") {
+                        NSApp.keyWindow?.orderOut(nil)
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { screenshot.start() }
+                    }
+                    Spacer()
+                    Button("Recents") { screenshot.showHistory() }
+                }.padding(14)
+                Divider()
+            }
             ControlsStrip()
             Divider()
             if case .recording(let since) = recorder.phase {
