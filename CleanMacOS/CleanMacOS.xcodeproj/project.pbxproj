@@ -40,6 +40,7 @@
 		3869FF6969D2F5E7A44FDD87 /* ArtifactTableView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44805A604CACFED574E48F5C /* ArtifactTableView.swift */; };
 		395E0E34B6F653070228E303 /* UninstallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 184DA560673D572637A24E64 /* UninstallView.swift */; };
 		3B284AE875B4DCD9015E6694 /* ClipboardPanelLogic.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3181B8414DFFD0E75649B74 /* ClipboardPanelLogic.swift */; };
+		3D3A760A783A0659B4FE814C /* ScreenshotBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9E181608418B9E458F48C55 /* ScreenshotBridge.swift */; };
 		412F63C52B2EDDC8940FEEC1 /* LoginItemsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EB2810848FCC205C4339083 /* LoginItemsService.swift */; };
 		41AA7E6D8BDB4A6438B2776C /* ClipboardHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCA21C6DF18A5F4914577A05 /* ClipboardHistoryView.swift */; };
 		4394A03F9FAB627AC78FF08C /* DevToolsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7335EA96D5BFB7CA1CAAAD51 /* DevToolsView.swift */; };
@@ -289,6 +290,7 @@
 		E463D1F2B0718613653B0F9C /* MixerEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MixerEngine.swift; sourceTree = "<group>"; };
 		E7CB583C51545CB2D5649473 /* CleanMacOSApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CleanMacOSApp.swift; sourceTree = "<group>"; };
 		E810B56BE583F31CA5034A3D /* KeepAwake.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeepAwake.swift; sourceTree = "<group>"; };
+		E9E181608418B9E458F48C55 /* ScreenshotBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenshotBridge.swift; sourceTree = "<group>"; };
 		EBE48F3D0C5F9069CE856FC8 /* WindowLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowLayout.swift; sourceTree = "<group>"; };
 		ECCB83BBD398F1435903FE3A /* LevelHUD.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LevelHUD.swift; sourceTree = "<group>"; };
 		ED308EBDE68AC23F9837A5B5 /* DisplaysView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DisplaysView.swift; sourceTree = "<group>"; };
@@ -439,6 +441,7 @@
 				7AE7F69F7DED39030D441CBB /* Scratchpad.swift */,
 				C0341956B1B2E6DC78E634B4 /* ScreenRecorder.swift */,
 				483AD0BC51C436C61A365E34 /* ScreenRecordView.swift */,
+				E9E181608418B9E458F48C55 /* ScreenshotBridge.swift */,
 				2A07398D4722FDF78A4EF281 /* ScreenTools.swift */,
 				185CCDDE3D43CD6FEF6FDA72 /* SettingsView.swift */,
 				9369B89FD38E6521F9B366AA /* Shelf.swift */,
@@ -692,6 +695,7 @@
 				8F84EA87D991663E4071FDBF /* ScreenRecordView.swift in Sources */,
 				979846E85F8729D827D4C189 /* ScreenRecorder.swift in Sources */,
 				5D033997E1AF32273DCE64EB /* ScreenTools.swift in Sources */,
+				3D3A760A783A0659B4FE814C /* ScreenshotBridge.swift in Sources */,
 				F25497E5A5FCBDEB50858F3C /* SettingsView.swift in Sources */,
 				0CCF383FB4D817BE97B5E184 /* Shelf.swift in Sources */,
 				AB180853B09F48F15F6768C6 /* ShelfController.swift in Sources */,
