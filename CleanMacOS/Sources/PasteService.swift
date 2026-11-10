@@ -35,4 +35,22 @@ enum PasteService {
         up.post(tap: .cgAnnotatedSessionEventTap)
         return true
     }
+
+    static let heldModifiers: CGEventFlags = [.maskCommand, .maskAlternate, .maskShift, .maskControl]
+    static let modifierPoll: TimeInterval = 0.02
+
+    @MainActor
+    static func pasteWhenModifiersReleased(timeout: TimeInterval, then completion: @escaping () -> Void) {
+        let deadline = Date().addingTimeInterval(timeout)
+        func attempt() {
+            let isHeld = !CGEventSource.flagsState(.combinedSessionState).intersection(heldModifiers).isEmpty
+            guard !isHeld || Date() >= deadline else {
+                DispatchQueue.main.asyncAfter(deadline: .now() + modifierPoll) { attempt() }
+                return
+            }
+            pasteToFrontmostApp()
+            completion()
+        }
+        attempt()
+    }
 }

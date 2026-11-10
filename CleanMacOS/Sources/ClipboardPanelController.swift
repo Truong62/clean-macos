@@ -79,7 +79,7 @@ final class ClipboardPanelController: NSObject, NSWindowDelegate {
     }
 
     private func select(_ item: ClipboardItem) {
-        clipboard.copy(item)   // writes to NSPasteboard
+        guard clipboard.copy(item) else { return }
         close()
         guard let app = previousApp else { return }
         app.activate()

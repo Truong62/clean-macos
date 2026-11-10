@@ -155,19 +155,17 @@ struct SettingsView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Maximum items")
                         .fontWeight(.medium)
-                    Text("Oldest items are dropped beyond this count")
+                    Text("Oldest unpinned items are dropped beyond this count")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
                 Picker("", selection: $clipboardMaxItems) {
-                    Text("50").tag(50)
-                    Text("100").tag(100)
-                    Text("200").tag(200)
-                    Text("500").tag(500)
+                    ForEach([50, 100, 200, 500, 1000, 10000], id: \.self) { Text("\($0)").tag($0) }
+                    Text("Unlimited").tag(Int.max)
                 }
-                .pickerStyle(.segmented)
-                .frame(width: 240)
+                .pickerStyle(.menu)
+                .frame(width: 140)
             }
 
             HStack {
@@ -217,6 +215,7 @@ struct SettingsView: View {
             }
         }
 
+        ClipboardOptionsView()
     }
 
     @ViewBuilder private var updatesTab: some View {

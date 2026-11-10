@@ -1,30 +1,85 @@
 import Foundation
 
-/// A single captured clipboard entry. Text-only for now.
 struct ClipboardItem: Identifiable, Codable, Hashable {
-    let id: UUID
-    let text: String
-    let createdAt: Date
+    enum Kind: String, Codable {
+        case text, image, files
+    }
 
-    init(id: UUID = UUID(), text: String, createdAt: Date = Date()) {
+    struct ImageInfo: Codable, Hashable {
+        let fileName: String
+        let hash: String
+        let width: Int
+        let height: Int
+    }
+
+    static let previewLength = 120
+
+    let id: UUID
+    var text: String
+    var createdAt: Date
+    var kind: Kind
+    var isPinned: Bool
+    var sourceApp: String?
+    var image: ImageInfo?
+    var files: [String]
+
+    init(id: UUID = UUID(), text: String, createdAt: Date = Date(), kind: Kind = .text, isPinned: Bool = false,
+         sourceApp: String? = nil, image: ImageInfo? = nil, files: [String] = []) {
         self.id = id
         self.text = text
         self.createdAt = createdAt
+        self.kind = kind
+        self.isPinned = isPinned
+        self.sourceApp = sourceApp
+        self.image = image
+        self.files = files
     }
 
-    /// Single-line, length-capped preview for the table's Name column.
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        text = try container.decode(String.self, forKey: .text)
+        createdAt = try container.decode(Date.self, forKey: .createdAt)
+        kind = try container.decodeIfPresent(Kind.self, forKey: .kind) ?? .text
+        isPinned = try container.decodeIfPresent(Bool.self, forKey: .isPinned) ?? false
+        sourceApp = try container.decodeIfPresent(String.self, forKey: .sourceApp)
+        image = try container.decodeIfPresent(ImageInfo.self, forKey: .image)
+        files = try container.decodeIfPresent([String].self, forKey: .files) ?? []
+    }
+
     var preview: String {
-        let collapsed = text
-            .replacingOccurrences(of: "\n", with: " ")
-            .replacingOccurrences(of: "\t", with: " ")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        let maxLen = 120
-        guard collapsed.count > maxLen else { return collapsed }
-        return String(collapsed.prefix(maxLen)) + "…"
+        switch kind {
+        case .image:
+            return "Image · \(image?.width ?? 0)×\(image?.height ?? 0)"
+        case .files:
+            return files.count == 1 ? URL(fileURLWithPath: files[0]).lastPathComponent : "\(files.count) files"
+        case .text:
+            let collapsed = text
+                .replacingOccurrences(of: "\n", with: " ")
+                .replacingOccurrences(of: "\t", with: " ")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            guard collapsed.count > Self.previewLength else { return collapsed }
+            return String(collapsed.prefix(Self.previewLength)) + "…"
+        }
+    }
+
+    var searchText: String {
+        switch kind {
+        case .text: text
+        case .image: preview
+        case .files: files.joined(separator: " ")
+        }
+    }
+
+    var dedupKey: String {
+        switch kind {
+        case .text: "text:" + text.trimmingCharacters(in: .whitespacesAndNewlines)
+        case .image: "image:" + (image?.hash ?? id.uuidString)
+        case .files: "files:" + files.joined(separator: "\n")
+        }
     }
 }
 
-/// Pure, UI-free history transformations — easy to unit test.
 struct ClipboardHistory: Equatable {
     private(set) var items: [ClipboardItem]
 
@@ -32,21 +87,56 @@ struct ClipboardHistory: Equatable {
         self.items = items
     }
 
-    /// Insert `text` at the top. If an item with identical text already exists,
-    /// move it to the top instead of duplicating. Trim oldest beyond `maxItems`.
     mutating func add(_ text: String, maxItems: Int) {
-        items.removeAll { $0.text == text }
-        items.insert(ClipboardItem(text: text), at: 0)
-        if items.count > maxItems {
-            items = Array(items.prefix(maxItems))
+        insert(ClipboardItem(text: text), maxItems: maxItems)
+    }
+
+    mutating func insert(_ item: ClipboardItem, maxItems: Int) {
+        var entry = item
+        if let index = items.firstIndex(where: { $0.dedupKey == item.dedupKey }) {
+            entry = items.remove(at: index)
+            entry.createdAt = item.createdAt
+            entry.sourceApp = item.sourceApp ?? entry.sourceApp
         }
+        items.insert(entry, at: 0)
+        trim(to: maxItems)
+    }
+
+    mutating func togglePin(id: ClipboardItem.ID, at date: Date) {
+        guard let index = items.firstIndex(where: { $0.id == id }) else { return }
+        var item = items.remove(at: index)
+        item.isPinned.toggle()
+        if !item.isPinned { item.createdAt = date }
+        items.insert(item, at: 0)
+    }
+
+    mutating func update(id: ClipboardItem.ID, text: String) {
+        guard let index = items.firstIndex(where: { $0.id == id }), items[index].kind == .text else { return }
+        items[index].text = text
+    }
+
+    mutating func prune(before cutoff: Date) {
+        items.removeAll { !$0.isPinned && $0.createdAt < cutoff }
     }
 
     mutating func remove(id: ClipboardItem.ID) {
         items.removeAll { $0.id == id }
     }
 
+    mutating func remove(ids: Set<ClipboardItem.ID>) {
+        items.removeAll { ids.contains($0.id) }
+    }
+
     mutating func clear() {
-        items.removeAll()
+        items.removeAll { !$0.isPinned }
+    }
+
+    private mutating func trim(to maxItems: Int) {
+        var unpinned = 0
+        items = items.filter { item in
+            guard !item.isPinned else { return true }
+            unpinned += 1
+            return unpinned <= maxItems
+        }
     }
 }
