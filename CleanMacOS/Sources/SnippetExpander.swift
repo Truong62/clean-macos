@@ -300,11 +300,15 @@ final class SnippetLibraryController: NSObject, NSWindowDelegate {
         panel.makeKeyAndOrderFront(nil)
         panel.orderFrontRegardless()
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            MainActor.assumeIsolated {
-                guard let self, let panel = self.panel, event.window === panel else { return event }
-                if let editor = panel.firstResponder as? NSTextView, editor.hasMarkedText() { return event }
-                return self.model.handle(keyCode: event.keyCode, modifiers: event.modifierFlags) ? nil : event
+            let keyCode = event.keyCode
+            let modifiers = event.modifierFlags
+            let windowNumber = event.windowNumber
+            let isHandled = MainActor.assumeIsolated {
+                guard let self, let panel = self.panel, panel.windowNumber == windowNumber else { return false }
+                if let editor = panel.firstResponder as? NSTextView, editor.hasMarkedText() { return false }
+                return self.model.handle(keyCode: keyCode, modifiers: modifiers)
             }
+            return isHandled ? nil : event
         }
     }
 

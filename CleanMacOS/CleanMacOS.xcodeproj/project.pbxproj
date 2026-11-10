@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		04A378A64E626DFC7ECF463D /* DevToolsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D27CDD72FF571A78353AF20C /* DevToolsViewModel.swift */; };
 		05736665F706D52D5E2B59F5 /* AudioTags.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4900504D4CC6B68BDA304884 /* AudioTags.swift */; };
+		0CCF383FB4D817BE97B5E184 /* Shelf.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9369B89FD38E6521F9B366AA /* Shelf.swift */; };
 		10BB5BA2697E75F5C92A0868 /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A1479088579DC6E2A293A68 /* SidebarView.swift */; };
 		130C564B933EFF04813CAAD3 /* PortsJobsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9ECF14E8605AC58E4B9C07A2 /* PortsJobsViewModel.swift */; };
 		15251D9BC4DF543DCD8A403E /* PermissionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC661B5A58FE8B57EF1C939C /* PermissionView.swift */; };
@@ -70,6 +71,7 @@
 		91D5705DF41581EA40B80285 /* LargeFilesService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30AE1414B4AC514340366221 /* LargeFilesService.swift */; };
 		96742BBF577C2662A06127C9 /* AppViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0CE374CA5CC2E8CA8FE9BB73 /* AppViewModel.swift */; };
 		979846E85F8729D827D4C189 /* ScreenRecorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0341956B1B2E6DC78E634B4 /* ScreenRecorder.swift */; };
+		98EB9BC82A3523700918D3D7 /* ShelfView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2F7AB572F62240ABCB55F64 /* ShelfView.swift */; };
 		994771F081C96F3D19D7CA55 /* AudioSources.swift in Sources */ = {isa = PBXBuildFile; fileRef = D20E392BB743BFA407C03E53 /* AudioSources.swift */; };
 		997224C7A3D07647C2EBC8C5 /* SnapshotSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3554E40130351545D52C837D /* SnapshotSection.swift */; };
 		998294AE9C7B07B0DD299914 /* DSD.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E1AFCF54748CE37CC3E0517 /* DSD.swift */; };
@@ -80,6 +82,7 @@
 		9E0AD96F4412E279DC603FCA /* ToolCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FD309CF3EA6462034C2FE83 /* ToolCatalog.swift */; };
 		9FB7AC07F1831FD94F649E30 /* CleanMacOSApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7CB583C51545CB2D5649473 /* CleanMacOSApp.swift */; };
 		A7FD38BC30A09373541D4ED4 /* PortsJobsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A006AC3D753EA22E7DAE17A9 /* PortsJobsView.swift */; };
+		AB180853B09F48F15F6768C6 /* ShelfController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95BBED4D723D663890BC37DC /* ShelfController.swift */; };
 		AD997E71E12F6326F17AE7D0 /* AudioHardware.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63D9647A4B610BC04F302D7F /* AudioHardware.swift */; };
 		ADB833098DB19DD1D86A7454 /* DockerService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90B7181574359261F04305FF /* DockerService.swift */; };
 		AE189FC9057C8B25BD24C2B9 /* WindowLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBE48F3D0C5F9069CE856FC8 /* WindowLayout.swift */; };
@@ -194,7 +197,9 @@
 		905A24394C7E6C4E7AE06DF2 /* FileThumbnail.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileThumbnail.swift; sourceTree = "<group>"; };
 		90B7181574359261F04305FF /* DockerService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DockerService.swift; sourceTree = "<group>"; };
 		91D568FBA80611EBDAC852E3 /* PlaybackQueue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackQueue.swift; sourceTree = "<group>"; };
+		9369B89FD38E6521F9B366AA /* Shelf.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shelf.swift; sourceTree = "<group>"; };
 		938603F095D5C03621C2C879 /* PasteService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasteService.swift; sourceTree = "<group>"; };
+		95BBED4D723D663890BC37DC /* ShelfController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShelfController.swift; sourceTree = "<group>"; };
 		96729759AE651E2D44FDF7F8 /* ClipboardOptionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardOptionsView.swift; sourceTree = "<group>"; };
 		9832301F93D2207402FD0D3F /* DisplayService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DisplayService.swift; sourceTree = "<group>"; };
 		9ECF14E8605AC58E4B9C07A2 /* PortsJobsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortsJobsViewModel.swift; sourceTree = "<group>"; };
@@ -223,6 +228,7 @@
 		CD598018014E402B175A0AE0 /* MusicPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicPlayer.swift; sourceTree = "<group>"; };
 		D20E392BB743BFA407C03E53 /* AudioSources.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioSources.swift; sourceTree = "<group>"; };
 		D27CDD72FF571A78353AF20C /* DevToolsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevToolsViewModel.swift; sourceTree = "<group>"; };
+		D2F7AB572F62240ABCB55F64 /* ShelfView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShelfView.swift; sourceTree = "<group>"; };
 		D5DCE02A3AFD020C36EFFF76 /* LargeFilesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LargeFilesView.swift; sourceTree = "<group>"; };
 		D72D63FF88D0AB5B6A31B698 /* PlaybackEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackEngine.swift; sourceTree = "<group>"; };
 		DA627A7F08BAF177E20286D7 /* DevToolsModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevToolsModels.swift; sourceTree = "<group>"; };
@@ -361,6 +367,9 @@
 				C0341956B1B2E6DC78E634B4 /* ScreenRecorder.swift */,
 				483AD0BC51C436C61A365E34 /* ScreenRecordView.swift */,
 				185CCDDE3D43CD6FEF6FDA72 /* SettingsView.swift */,
+				9369B89FD38E6521F9B366AA /* Shelf.swift */,
+				95BBED4D723D663890BC37DC /* ShelfController.swift */,
+				D2F7AB572F62240ABCB55F64 /* ShelfView.swift */,
 				3A1479088579DC6E2A293A68 /* SidebarView.swift */,
 				0C40085496E249DBD9406989 /* SignInBrowser.swift */,
 				3554E40130351545D52C837D /* SnapshotSection.swift */,
@@ -583,6 +592,9 @@
 				8F84EA87D991663E4071FDBF /* ScreenRecordView.swift in Sources */,
 				979846E85F8729D827D4C189 /* ScreenRecorder.swift in Sources */,
 				F25497E5A5FCBDEB50858F3C /* SettingsView.swift in Sources */,
+				0CCF383FB4D817BE97B5E184 /* Shelf.swift in Sources */,
+				AB180853B09F48F15F6768C6 /* ShelfController.swift in Sources */,
+				98EB9BC82A3523700918D3D7 /* ShelfView.swift in Sources */,
 				10BB5BA2697E75F5C92A0868 /* SidebarView.swift in Sources */,
 				86C8FDE8038BD67754946BFC /* SignInBrowser.swift in Sources */,
 				997224C7A3D07647C2EBC8C5 /* SnapshotSection.swift in Sources */,

@@ -58,6 +58,7 @@ struct CleanMacOSApp: App {
     @StateObject private var input = InputController()
     @StateObject private var finder = FinderTools()
     @StateObject private var diskImages = DiskImageWatcher()
+    @StateObject private var shelf = ShelfController()
     @AppStorage("showMenuBar") private var showMenuBar = true
     @State private var panelController: ClipboardPanelController?
 
@@ -98,6 +99,7 @@ struct CleanMacOSApp: App {
                 .environmentObject(snippets)
                 .environmentObject(finder)
                 .environmentObject(diskImages)
+                .environmentObject(shelf)
                 .frame(minWidth: 900, minHeight: 600)
                 .onAppear {
                     Task { await account.refreshSession() }
@@ -137,7 +139,7 @@ struct CleanMacOSApp: App {
         }
 
         MenuBarExtra(isInserted: $showMenuBar) {
-            MenuBarView(monitor: monitor, recorder: recorder, agentRecording: agentRecording, music: music, keepAwake: keepAwake, clipboard: clipboard)
+            MenuBarView(monitor: monitor, recorder: recorder, agentRecording: agentRecording, music: music, keepAwake: keepAwake, clipboard: clipboard, shelf: shelf)
         } label: {
             Label(String(format: " %.0f%%", monitor.latestCPU), systemImage: recorder.isRecording || agentRecording.isRecording ? "record.circle.fill" : keepAwake.isActive ? "cup.and.saucer.fill" : "square.grid.2x2.fill")
         }

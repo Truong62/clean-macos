@@ -1,14 +1,17 @@
+import KeyboardShortcuts
 import SwiftUI
 
 struct FilesView: View {
     @EnvironmentObject var finder: FinderTools
     @EnvironmentObject var diskImages: DiskImageWatcher
+    @EnvironmentObject var shelf: ShelfController
 
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
                 PageHeader(icon: "folder.fill.badge.gearshape", title: "Finder Tools",
-                           subtitle: "Cut and paste files, rename with one key and paste images as files.", colors: [.cyan, .blue])
+                           subtitle: "Cut and paste files, rename with one key, keep things on a Shelf and install apps from disk images.",
+                           colors: [.cyan, .blue])
                 if !AXIsProcessTrusted() {
                     Label("These tools need Accessibility access for \(AppIdentity.installedName).", systemImage: "lock.shield")
                         .foregroundStyle(.orange)
@@ -38,6 +41,29 @@ struct FilesView: View {
                         KeyCaptureButton(key: $finder.settings.renameKey, defaultKey: .f2)
                     }
                     .disabled(!finder.settings.renames)
+                }
+                CardSection(title: "Shelf", icon: "tray.full") {
+                    Toggle("Turn on the Shelf, a place to park files, images, links and text", isOn: $shelf.settings.isEnabled)
+                    Group {
+                        HStack {
+                            Text("Shortcut")
+                            Spacer()
+                            KeyboardShortcuts.Recorder(for: .toggleShelf)
+                        }
+                        Toggle("The shortcut also adds what is selected in Finder", isOn: $shelf.settings.addsFinderSelection)
+                        Toggle("Shake while dragging to open it", isOn: $shelf.settings.opensOnShake)
+                        Toggle("Show a drop zone at the top of the screen while dragging", isOn: $shelf.settings.showsDropZone)
+                        Toggle("Close the Shelf after dropping onto it", isOn: $shelf.settings.closesAfterDrop)
+                        Toggle("Remove items once you drag them out", isOn: $shelf.settings.removesAfterDragOut)
+                        Toggle("Empty the Shelf when you close it", isOn: $shelf.settings.clearsOnClose)
+                        AppListEditor(title: "Don't open it automatically while using", bundleIDs: $shelf.settings.excludedApps)
+                        HStack {
+                            Text("\(shelf.items.count) \(shelf.items.count == 1 ? "item" : "items") on the Shelf").foregroundStyle(.secondary)
+                            Spacer()
+                            Button("Open the Shelf") { shelf.open() }
+                        }
+                    }
+                    .disabled(!shelf.settings.isEnabled)
                 }
                 CardSection(title: "Install from disk images", icon: "externaldrive.badge.plus") {
                     Toggle("Offer to install the app when you open a disk image", isOn: $diskImages.settings.offersInstall)

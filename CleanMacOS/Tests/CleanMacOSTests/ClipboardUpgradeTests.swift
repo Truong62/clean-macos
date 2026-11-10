@@ -265,7 +265,7 @@ struct ClipboardMonitorReadTests {
         let bitmap = try #require(NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: 4, pixelsHigh: 3, bitsPerSample: 8, samplesPerPixel: 4,
                                                   hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0))
         pasteboard.clearContents()
-        pasteboard.setData(try #require(bitmap.tiffRepresentation), forType: .tiff)
+        pasteboard.setData(bitmap.tiffRepresentation, forType: .tiff)
         monitor.poll()
         let png = try #require(snapshots.last?.image)
         #expect(NSBitmapImageRep(data: png)?.pixelsWide == 4)

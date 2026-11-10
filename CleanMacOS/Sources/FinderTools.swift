@@ -100,12 +100,12 @@ enum FileMover {
 enum PastedImage {
     static let maxBytes = 64 * 1_048_576
 
-    static func fileName(at date: Date, timeZone: TimeZone = .current) -> String {
+    static func fileName(at date: Date, prefix: String = "Pasted_Image", timeZone: TimeZone = .current) -> String {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.timeZone = timeZone
         formatter.dateFormat = "yyyyMMdd_HHmmss"
-        return "Pasted_Image_\(formatter.string(from: date)).png"
+        return "\(prefix)_\(formatter.string(from: date)).png"
     }
 
     static func isOffered(by pasteboard: NSPasteboard) -> Bool {

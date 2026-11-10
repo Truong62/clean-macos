@@ -7,6 +7,7 @@ struct MenuBarView: View {
     @ObservedObject var music: MusicPlayer
     @ObservedObject var keepAwake: KeepAwake
     @ObservedObject var clipboard: ClipboardViewModel
+    @ObservedObject var shelf: ShelfController
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
@@ -29,6 +30,17 @@ struct MenuBarView: View {
             }
             if let track = music.current {
                 nowPlayingRow(track)
+                Divider()
+            }
+            if shelf.settings.isEnabled {
+                HStack(spacing: 8) {
+                    Image(systemName: "tray.full.fill").foregroundStyle(.cyan)
+                    Text("Shelf · \(shelf.items.count) \(shelf.items.count == 1 ? "item" : "items")").font(.system(size: 12, weight: .semibold))
+                    Spacer()
+                    Button(shelf.isOpen ? "Close" : "Open") { shelf.toggle() }.controlSize(.small)
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
                 Divider()
             }
             if clipboard.options.showsInMenuPanel && !clipboard.items.isEmpty {
