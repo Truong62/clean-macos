@@ -174,30 +174,33 @@ final class IslandController: NSObject, ObservableObject {
         guard usage.requests > 0, usage.isPriced else { return "Cost unavailable" }
         return String(format: "$%.2f est.", usage.cost)
     }
-    var song: IslandSong? {
-        if let track = music.current { return IslandSong(title: track.title, artist: track.artist, album: track.album, duration: track.duration) }
-        return media.sample.map { IslandSong(title: $0.title, artist: $0.artist, album: $0.album, duration: $0.duration) }
-    }
-    var musicSample: IslandMediaSample? {
+    var usesLocalMusic: Bool { selectedMusic?.source == .local }
+    private var selectedMusic: IslandMusicReading? {
+        var readings: [IslandMusicReading] = []
         if let track = music.current {
-            return IslandMediaSample(title: track.title, artist: track.artist, duration: track.duration, elapsed: music.currentTime, sampled: Date(), rate: 1, playing: music.isPlaying, album: track.album)
+            readings.append(IslandMusicReading(source: .local, sample: IslandMediaSample(title: track.title, artist: track.artist, duration: track.duration, elapsed: music.currentTime, sampled: Date(), rate: music.isPlaying ? 1 : 0, playing: music.isPlaying, album: track.album), pid: getpid()))
         }
-        return media.sample
+        if let sample = media.sample { readings.append(IslandMusicReading(source: media.source, sample: sample, pid: media.playerPID)) }
+        return IslandMusicParsing.select(readings)
     }
+    var song: IslandSong? {
+        musicSample.map { IslandSong(title: $0.title, artist: $0.artist, album: $0.album, duration: $0.duration) }
+    }
+    var musicSample: IslandMediaSample? { selectedMusic?.sample }
     private func updateLyrics() {
         lyrics.update(song: song, sample: musicSample, visible: settings.isEnabled && settings.lyrics && isOpen && section == .music && musicPanel == .lyrics && !state.suspended, online: settings.onlineLyrics)
     }
     func skipMusic(next: Bool) {
-        if music.current != nil { if next { music.next() } else { music.previous() } }
+        if usesLocalMusic { if next { music.next() } else { music.previous() } }
         else { media.command(next ? 4 : 5) }
         musicNudge = next ? -8 : 8
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in self?.musicNudge = 0 }
     }
     func seekMusic(_ position: Double) {
-        if music.current != nil { music.seek(to: position) } else { media.seek(position) }
+        if usesLocalMusic { music.seek(to: position) } else { media.seek(position) }
     }
     func toggleMusic() {
-        if music.current != nil { music.togglePlayPause() } else { media.command(2) }
+        if usesLocalMusic { music.togglePlayPause() } else { media.command(2) }
     }
     var isOpen: Bool { state.phase == .open }
     var clock: Double {
@@ -225,7 +228,7 @@ final class IslandController: NSObject, ObservableObject {
         switch state.currentActivity {
         case .watch: return watch.headline
         case .timer: return timer.finished ? "Timer done" : timerText
-        case .music: return music.current?.title ?? media.sample?.title ?? "Now Playing"
+        case .music: return musicSample?.title ?? "Now Playing"
         case .downloads: return downloads.items.first(where: { !$0.finished })?.name ?? "Downloads"
         case .calendar: return IslandCalendarLogic.countdown(calendar.events, now: Date())?.title ?? "Calendar"
         case .agents:
@@ -642,7 +645,7 @@ final class IslandController: NSObject, ObservableObject {
         let visible = IslandLockPolicy.visible(enabled: settings.isEnabled && settings.lockScreen, reasons: suspension, supported: IslandSpace.supportsAbsoluteLevel)
         if visible {
             now = clock
-            media.refresh()
+            if settings.sections.contains(.music) { media.refresh() }
         }
         lockScene.update(self, visible: visible)
     }
@@ -673,10 +676,10 @@ final class IslandController: NSObject, ObservableObject {
             NSSound(named: "Glass")?.play()
             lastAlarm = now
         }
-        if settings.sections.contains(.music), !(fullScreen && settings.hideInFullScreen) { media.refresh() }
+        if settings.sections.contains(.music), !(fullScreen && settings.hideInFullScreen) { media.refresh() } else { media.stop() }
         updateLyrics()
         watch.tick(pageOpen: isOpen && section == .watch)
-        bars.update(enabled: settings.liveBars && settings.sections.contains(.music) && !(fullScreen && settings.hideInFullScreen), playing: musicSample?.playing == true, song: song, pid: music.current != nil ? getpid() : media.playerPID)
+        bars.update(enabled: settings.liveBars && settings.sections.contains(.music) && !(fullScreen && settings.hideInFullScreen), playing: musicSample?.playing == true, song: song, pid: selectedMusic?.pid)
         if settings.sections.contains(.agents), agents.settings.isEnabled {
             if settings.agentFinishedNotices {
                 for turn in agentNotices.finished(enabledTurns, now: Date(), minimum: Double(settings.agentMinimumSeconds)) {

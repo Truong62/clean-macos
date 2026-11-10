@@ -14,8 +14,13 @@ struct IslandMusicView: View {
     var body: some View {
         VStack(spacing: 12) {
             VStack(spacing: 8) {
-                Text(player.current?.title ?? remote.sample?.title ?? "Nothing playing").font(.headline).lineLimit(2)
-                Text(player.current?.artist ?? remote.sample?.artist ?? "Play music in MacKit or another player").foregroundStyle(.secondary).lineLimit(1)
+                if let data = controller.musicSample?.artwork, let image = NSImage(data: data) {
+                    Image(nsImage: image).resizable().scaledToFit().frame(height: 64)
+                } else if let url = controller.musicSample?.artworkURL {
+                    AsyncImage(url: url) { image in image.resizable().scaledToFit() } placeholder: { Color.clear }.frame(height: 64)
+                }
+                Text(controller.musicSample?.title ?? "Nothing playing").font(.headline).lineLimit(2)
+                Text(controller.musicSample?.artist ?? "Play music in MacKit or another player").foregroundStyle(.secondary).lineLimit(1)
                 HStack(spacing: 28) {
                     Button { controller.skipMusic(next: false) } label: { Image(systemName: "backward.end.fill") }
                     Button { controller.toggleMusic() } label: { Image(systemName: controller.musicSample?.playing == true ? "pause.fill" : "play.fill") }
@@ -25,9 +30,7 @@ struct IslandMusicView: View {
                     TimelineView(.periodic(from: .now, by: 1)) { timeline in
                         HStack {
                             Text(IslandTimer.clock(sample.position(at: timeline.date), countdown: false)).monospacedDigit()
-                            if player.current != nil {
-                                Slider(value: Binding(get: { player.currentTime }, set: { player.seek(to: $0) }), in: 0...sample.duration)
-                            } else { ProgressView(value: sample.position(at: timeline.date), total: sample.duration) }
+                            Slider(value: Binding(get: { sample.position(at: timeline.date) }, set: { controller.seekMusic($0) }), in: 0...sample.duration)
                             Text(IslandTimer.clock(sample.duration, countdown: false)).monospacedDigit()
                         }.font(.caption)
                     }
@@ -41,7 +44,7 @@ struct IslandMusicView: View {
                     Button { controller.musicPanel = controller.musicPanel == .queue ? nil : .queue } label: { Label("Up Next", systemImage: "list.bullet") }
                 }
                 Spacer()
-                if player.current != nil {
+                if controller.usesLocalMusic {
                     Button { player.toggleShuffle() } label: { Image(systemName: "shuffle").foregroundStyle(player.queue.isShuffled ? .orange : .white) }.help("Shuffle MacKit queue")
                     Menu {
                         Button("System Default") { player.selectOutput(nil) }
@@ -82,7 +85,7 @@ struct IslandMusicView: View {
     }
 
     @ViewBuilder private var queue: some View {
-        if player.current != nil {
+        if controller.usesLocalMusic {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 8) {
                     if let track = player.current { queueRow(track, current: true) }

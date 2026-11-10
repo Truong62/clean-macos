@@ -113,6 +113,7 @@
 		7CFE01464671AAB4F8E46BE8 /* BrowserOverlayScript.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE253A9F760DE8F5041C096A /* BrowserOverlayScript.swift */; };
 		7E893929047D6767AAD177F5 /* DemoOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 485DC44ED86D7BB2B5803378 /* DemoOverlay.swift */; };
 		7FBC71E381847F1D47CECC8C /* IslandWatch.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB963E17F3233E50E971449F /* IslandWatch.swift */; };
+		801B8E7CFE132D6A05F737DF /* IslandMusicSources.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B3C54084944C965FC1C70DC /* IslandMusicSources.swift */; };
 		8261125933A50008A2E302C7 /* Style.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BCCBE4E7BC381BBBE85076E /* Style.swift */; };
 		82E93883DEBED57BE062E2C0 /* Scanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BB4842D79D5443DE4383C38 /* Scanner.swift */; };
 		84E215FE7E7C4FC147B9ECE9 /* KeepAwake.swift in Sources */ = {isa = PBXBuildFile; fileRef = E810B56BE583F31CA5034A3D /* KeepAwake.swift */; };
@@ -316,6 +317,7 @@
 		3A1479088579DC6E2A293A68 /* SidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarView.swift; sourceTree = "<group>"; };
 		3A3F25002FA4794F142BC7C1 /* AccountViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountViewModel.swift; sourceTree = "<group>"; };
 		3B1D90396AFBE5DA2964E0ED /* CameraPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraPreview.swift; sourceTree = "<group>"; };
+		3B3C54084944C965FC1C70DC /* IslandMusicSources.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IslandMusicSources.swift; sourceTree = "<group>"; };
 		3F7FB64029A8968F4822C64E /* TrackInspector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackInspector.swift; sourceTree = "<group>"; };
 		4163574082E3EDC884307681 /* ScreenshotModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenshotModels.swift; sourceTree = "<group>"; };
 		44805A604CACFED574E48F5C /* ArtifactTableView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtifactTableView.swift; sourceTree = "<group>"; };
@@ -612,6 +614,7 @@
 				6243FDFBA9E58F05E9F58A02 /* IslandMenuRoom.swift */,
 				65C83256E5C51FF0AA8EBB75 /* IslandModels.swift */,
 				2969A58402B3C412EE3ED085 /* IslandMusicExtensions.swift */,
+				3B3C54084944C965FC1C70DC /* IslandMusicSources.swift */,
 				D4241957BD7C16E3EF4695CC /* IslandServices.swift */,
 				D817C880CFCAB7FC66770415 /* IslandSpace.swift */,
 				213C788683DD0994A25CFCF3 /* IslandView.swift */,
@@ -977,6 +980,7 @@
 				020BFC0019E3C7A94494E7D1 /* IslandMenuRoom.swift in Sources */,
 				A84B44B827ABF4040D555EB2 /* IslandModels.swift in Sources */,
 				EA5AD0E992051668AEA6DB44 /* IslandMusicExtensions.swift in Sources */,
+				801B8E7CFE132D6A05F737DF /* IslandMusicSources.swift in Sources */,
 				62EA0948FA7AF55C0ABC4CB3 /* IslandServices.swift in Sources */,
 				0896B1E4A23CBC25E22414DB /* IslandSpace.swift in Sources */,
 				6C0357482FE74879B0DD0438 /* IslandView.swift in Sources */,

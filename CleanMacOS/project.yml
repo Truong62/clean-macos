@@ -52,7 +52,7 @@ targets:
         NSBluetoothAlwaysUsageDescription: MacKit shows Bluetooth connection alerts only when you enable them in Island.
         NSCalendarsFullAccessUsageDescription: MacKit shows your upcoming events in Island only when you enable Calendar and allow access.
         NSCameraUsageDescription: MacKit shows your camera in a small mirror window when you open Camera Preview. Nothing is recorded or saved.
-        NSAppleEventsUsageDescription: MacKit asks Finder for the files you selected and the folder you are in, and changes system settings you turn on.
+        NSAppleEventsUsageDescription: MacKit reads and controls Music and Spotify when Island Now Playing is enabled, asks Finder for selected files, and changes system settings you turn on.
         LSApplicationCategoryType: public.app-category.utilities
         SUFeedURL: https://truong62.github.io/clean-macos/appcast.xml
         SUPublicEDKey: aSo25KstkpaOi/z97B2XUDWXSv/R7TxPpHbLJ0RpOa8=

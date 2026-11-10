@@ -246,6 +246,19 @@ final class IslandDownloads: ObservableObject {
 final class IslandMediaRemote: ObservableObject {
     @Published private(set) var playerPID: pid_t?
     @Published private(set) var sample: IslandMediaSample?
+    private(set) var source = IslandMusicSource.remote
+    private let fallbacks = IslandMusicFallbacks()
+    private var direct: IslandMusicReading?
+    private var directReceived = Date.distantPast
+
+    private func selectSource() {
+        if Date().timeIntervalSince(directReceived) > 4 { direct = nil }
+        let readings = [direct] + [IslandMusicSource.music, .spotify, .helper].map { fallbacks.readings[$0] }
+        let best = IslandMusicParsing.select(readings.compactMap { $0 })
+        sample = best?.sample
+        playerPID = best?.pid
+        source = best?.source ?? .remote
+    }
     private var library: UnsafeMutableRawPointer?
     private var generation = 0
     private var pending = false
@@ -255,10 +268,15 @@ final class IslandMediaRemote: ObservableObject {
         library = dlopen("/System/Library/PrivateFrameworks/MediaRemote.framework/MediaRemote", RTLD_LAZY | RTLD_LOCAL)
     }
 
-    func stop() { generation += 1; sample = nil; playerPID = nil; pending = false }
+    func stop() { generation += 1; sample = nil; playerPID = nil; pending = false; direct = nil; fallbacks.stop(); lastRequest = .distantPast }
 
     func seek(_ position: Double) {
-        guard position.isFinite, position >= 0, let library, let symbol = dlsym(library, "MRMediaRemoteSetElapsedTime") else { return }
+        guard position.isFinite, position >= 0 else { return }
+        if source.bundleID != nil {
+            fallbacks.command("set player position to \(position)", source: source)
+            return
+        }
+        guard let library, let symbol = dlsym(library, "MRMediaRemoteSetElapsedTime") else { return }
         typealias Seek = @convention(c) (Double) -> Void
         unsafeBitCast(symbol, to: Seek.self)(position)
         lastRequest = .distantPast
@@ -266,6 +284,11 @@ final class IslandMediaRemote: ObservableObject {
     }
 
     func command(_ command: Int32) {
+        if source.bundleID != nil {
+            let commands: [Int32: String] = [2: "playpause", 4: "next track", 5: "previous track"]
+            if let text = commands[command] { fallbacks.command(text, source: source) }
+            return
+        }
         guard let library, let symbol = dlsym(library, "MRMediaRemoteSendCommand") else { return }
         typealias Send = @convention(c) (Int32, CFDictionary?) -> Bool
         _ = unsafeBitCast(symbol, to: Send.self)(command, nil)
@@ -274,8 +297,10 @@ final class IslandMediaRemote: ObservableObject {
     }
 
     func refresh() {
+        fallbacks.refresh()
+        selectSource()
         guard !pending || Date().timeIntervalSince(lastRequest) > 2 else { return }
-        guard Date().timeIntervalSince(lastRequest) >= 2 else { return }
+        guard Date().timeIntervalSince(lastRequest) >= 1 else { return }
         guard let library, let symbol = dlsym(library, "MRMediaRemoteGetNowPlayingInfo") else { return }
         typealias Read = @convention(c) (DispatchQueue, @escaping @convention(block) (CFDictionary?) -> Void) -> Void
         let read = unsafeBitCast(symbol, to: Read.self)
@@ -288,8 +313,8 @@ final class IslandMediaRemote: ObservableObject {
                 guard let self, token == self.generation, requested == self.lastRequest else { return }
                 self.pending = false
                 guard let values = dictionary as? [String: Any], let title = values["kMRMediaRemoteNowPlayingInfoTitle"] as? String else {
-                    self.sample = nil
-                    self.playerPID = nil
+                    self.direct = nil
+                    self.selectSource()
                     return
                 }
                 let rate = (values["kMRMediaRemoteNowPlayingInfoPlaybackRate"] as? NSNumber)?.doubleValue ?? 0
@@ -298,19 +323,22 @@ final class IslandMediaRemote: ObservableObject {
                                                duration: (values["kMRMediaRemoteNowPlayingInfoDuration"] as? NSNumber)?.doubleValue ?? 0,
                                                elapsed: (values["kMRMediaRemoteNowPlayingInfoElapsedTime"] as? NSNumber)?.doubleValue ?? 0,
                                                sampled: values["kMRMediaRemoteNowPlayingInfoTimestamp"] as? Date ?? Date(), rate: rate, playing: rate > 0,
-                                               album: String((values["kMRMediaRemoteNowPlayingInfoAlbum"] as? String ?? "").prefix(300)))
+                                               album: String((values["kMRMediaRemoteNowPlayingInfoAlbum"] as? String ?? "").prefix(300)),
+                                               artwork: values["kMRMediaRemoteNowPlayingInfoArtworkData"] as? Data)
                 if let library = self.library, let symbol = dlsym(library, "MRMediaRemoteGetNowPlayingApplicationPID") {
                     typealias ReadPID = @convention(c) (DispatchQueue, @escaping @convention(block) (pid_t) -> Void) -> Void
                     unsafeBitCast(symbol, to: ReadPID.self)(.main) { [weak self] pid in
                         Task { @MainActor in
                             guard let self, self.generation == token, self.lastRequest == requested else { return }
-                            self.playerPID = pid > 0 ? pid : nil
-                            self.sample = sample
+                            self.direct = IslandMusicReading(source: .remote, sample: sample, pid: pid > 0 ? pid : nil)
+                            self.directReceived = Date()
+                            self.selectSource()
                         }
                     }
                 } else {
-                    self.playerPID = nil
-                    self.sample = sample
+                    self.direct = IslandMusicReading(source: .remote, sample: sample)
+                    self.directReceived = Date()
+                    self.selectSource()
                 }
             }
         }
