@@ -259,9 +259,15 @@ final class InputHUD {
     private var label: NSTextField?
     private var hideWork: DispatchWorkItem?
 
-    func show(_ text: String, for seconds: TimeInterval = 1.2) {
+    func show(_ text: String, for seconds: TimeInterval = 1.2, color: NSColor? = nil) {
         let panel = panel ?? makePanel()
-        label?.stringValue = text
+        if let color, let font = label?.font {
+            let swatch = NSMutableAttributedString(string: "● ", attributes: [.foregroundColor: color, .font: font])
+            swatch.append(NSAttributedString(string: text, attributes: [.foregroundColor: NSColor.labelColor, .font: font]))
+            label?.attributedStringValue = swatch
+        } else {
+            label?.stringValue = text
+        }
         guard let screen = NSScreen.main else { return }
         let size = NSSize(width: max(220, CGFloat(text.count) * 8 + 40), height: 44)
         panel.setFrame(NSRect(x: screen.frame.midX - size.width / 2, y: screen.frame.minY + 140, width: size.width, height: size.height), display: true)

@@ -1,0 +1,57 @@
+import KeyboardShortcuts
+import SwiftUI
+
+struct ToolsView: View {
+    @EnvironmentObject var screenTools: ScreenTools
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 16) {
+                PageHeader(icon: "wrench.and.screwdriver.fill", title: "Tools", subtitle: "Pick colors and grab text from anywhere on the screen.",
+                           colors: [.teal, .green])
+                CardSection(title: "Color picker", icon: "eyedropper") {
+                    HStack {
+                        Button { screenTools.pickColor() } label: { Label("Pick a Color", systemImage: "eyedropper.halffull") }
+                            .buttonStyle(.borderedProminent)
+                        if let last = screenTools.lastColor { Text(last).font(.body.monospaced()).textSelection(.enabled) }
+                        Spacer()
+                    }
+                    Picker("Copy as", selection: $screenTools.settings.colorFormat) {
+                        ForEach(PickedColorFormat.allCases) { Text($0.title).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(maxWidth: 360)
+                    Toggle("Leave out the # in HEX", isOn: $screenTools.settings.dropsHash).disabled(screenTools.settings.colorFormat != .hex)
+                    shortcutRow("Pick a color with a shortcut", isOn: $screenTools.settings.colorShortcut, name: .pickColor)
+                }
+                CardSection(title: "Grab text", icon: "text.viewfinder") {
+                    HStack {
+                        Button { screenTools.grabText() } label: { Label("Grab Text from the Screen", systemImage: "text.viewfinder") }
+                            .buttonStyle(.borderedProminent)
+                        Spacer()
+                    }
+                    Text("Drag over any part of the screen. The text is copied, and QR codes are read first.").font(.caption).foregroundStyle(.secondary)
+                    Toggle("Read QR and other codes first", isOn: $screenTools.settings.detectsCodes)
+                    Toggle("Join lines into one paragraph", isOn: $screenTools.settings.removesLineBreaks)
+                    shortcutRow("Grab text with a shortcut", isOn: $screenTools.settings.textShortcut, name: .grabText)
+                    Text("Needs Screen Recording access for \(AppIdentity.installedName) to see other apps' windows.").font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            .padding(20)
+        }
+        .background(Color(nsColor: .windowBackgroundColor))
+    }
+
+    private func shortcutRow(_ title: String, isOn: Binding<Bool>, name: KeyboardShortcuts.Name) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Toggle(title, isOn: isOn)
+            if isOn.wrappedValue {
+                HStack {
+                    Text("Shortcut")
+                    Spacer()
+                    KeyboardShortcuts.Recorder(for: name)
+                }
+            }
+        }
+    }
+}

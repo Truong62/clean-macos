@@ -62,6 +62,7 @@ struct CleanMacOSApp: App {
     @StateObject private var shelf: ShelfController
     @StateObject private var brightness: BrightnessController
     @StateObject private var commandBar: CommandBarController
+    @StateObject private var screenTools: ScreenTools
     @StateObject private var radial: RadialMenuController
     @StateObject private var quickPanel: QuickPanelController
     @StateObject private var sound: SoundController
@@ -88,7 +89,10 @@ struct CleanMacOSApp: App {
         _shelf = StateObject(wrappedValue: shelf)
         let brightness = BrightnessController()
         _brightness = StateObject(wrappedValue: brightness)
-        let context = CommandContext(keepAwake: keepAwake, sound: sound, brightness: brightness, clipboard: clipboard, snippets: snippets, shelf: shelf) { page in
+        let screenTools = ScreenTools()
+        _screenTools = StateObject(wrappedValue: screenTools)
+        let context = CommandContext(keepAwake: keepAwake, sound: sound, brightness: brightness, clipboard: clipboard, snippets: snippets, shelf: shelf,
+                                     screenTools: screenTools) { page in
             MainWindowController.show()
             NotificationCenter.default.post(name: .openSidebarPage, object: page)
         }
@@ -128,6 +132,7 @@ struct CleanMacOSApp: App {
                 .environmentObject(commandBar)
                 .environmentObject(radial)
                 .environmentObject(quickPanel)
+                .environmentObject(screenTools)
                 .frame(minWidth: 900, minHeight: 600)
                 .onAppear {
                     Task { await account.refreshSession() }

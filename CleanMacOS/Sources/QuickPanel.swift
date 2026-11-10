@@ -3,7 +3,7 @@ import KeyboardShortcuts
 import SwiftUI
 
 struct QuickPanelSettings: Codable, Equatable {
-    static let defaultTiles = ["keepAwake", "clipboardHistory", "snippetLibrary", "micMute", "cycleOutput", "darkMode", "plainPaste", "lock",
+    static let defaultTiles = ["keepAwake", "pickColor", "grabText", "clipboardHistory", "snippetLibrary", "micMute", "cycleOutput", "darkMode", "plainPaste", "lock",
                                "displaySleep", "screenSaver", "hiddenFiles", "desktopIcons", "shelf"]
 
     var isEnabled = false

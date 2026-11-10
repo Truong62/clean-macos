@@ -30,6 +30,7 @@ struct CommandContext {
     let clipboard: ClipboardViewModel
     let snippets: SnippetExpander
     let shelf: ShelfController
+    let screenTools: ScreenTools
     let openPage: (SidebarPage) -> Void
 }
 
@@ -89,6 +90,10 @@ enum CommandSources {
                         icon: .symbol("doc.on.clipboard")) { _ in NotificationCenter.default.post(name: .toggleClipboardPanel, object: nil) },
             CommandItem(id: "plainPaste", kind: .action, title: "Paste as Plain Text", subtitle: "Clipboard", keywords: "unformatted",
                         icon: .symbol("textformat")) { _ in context.clipboard.pastePlainText() },
+            CommandItem(id: "pickColor", kind: .action, title: "Pick a Color", subtitle: "Tools · copies HEX, RGB, HSL or SwiftUI",
+                        keywords: "eyedropper color picker sample", icon: .symbol("eyedropper")) { _ in context.screenTools.pickColor() },
+            CommandItem(id: "grabText", kind: .action, title: "Grab Text from the Screen", subtitle: "Tools · OCR and QR codes",
+                        keywords: "ocr recognize scan qr", icon: .symbol("text.viewfinder")) { _ in context.screenTools.grabText() },
             CommandItem(id: "snippetLibrary", kind: .action, title: "Snippet Library", subtitle: "Snippets", keywords: "text expansion",
                         icon: .symbol("text.badge.plus")) { _ in context.snippets.openLibrary() },
         ]

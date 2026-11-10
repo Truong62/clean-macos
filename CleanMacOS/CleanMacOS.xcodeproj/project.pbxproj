@@ -52,6 +52,7 @@
 		5B7456DF848FC407E1B1C316 /* ClipboardPanelController.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEBFF35EE02467C83ED9553C /* ClipboardPanelController.swift */; };
 		5B8ECCFB5679914BE826349C /* GoogleSignIn.swift in Sources */ = {isa = PBXBuildFile; fileRef = B812B3AB61307A3EEE428398 /* GoogleSignIn.swift */; };
 		5BFE3184C5EBC13851AF4053 /* StartupSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C14516723EBF48D1B1FD224A /* StartupSettingsView.swift */; };
+		5D033997E1AF32273DCE64EB /* ScreenTools.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A07398D4722FDF78A4EF281 /* ScreenTools.swift */; };
 		5DF8AD876142B74059E46536 /* PasteService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 938603F095D5C03621C2C879 /* PasteService.swift */; };
 		5F089B2C121295BCF555782B /* ControlsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 568625540BB09DFC3B23AF38 /* ControlsView.swift */; };
 		629F8B98ECF1850CAF10B28F /* AboutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F50E79083A48396AD0651E87 /* AboutView.swift */; };
@@ -102,6 +103,7 @@
 		AE189FC9057C8B25BD24C2B9 /* WindowLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBE48F3D0C5F9069CE856FC8 /* WindowLayout.swift */; };
 		B078D1AAB8135A124C168355 /* HeadlessBrowser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DAB977EDC7157992917E243 /* HeadlessBrowser.swift */; };
 		B10E97CB352C07091C8C5EEA /* DisplaysView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED308EBDE68AC23F9837A5B5 /* DisplaysView.swift */; };
+		B2AF31AEBB22D2C49C2EEEC8 /* ToolsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1DA44AC22EBA14C479EDE6F /* ToolsView.swift */; };
 		B32FB53D2CE18EE19E845C6C /* FilesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A67F5D88CF4AC4F063716EBE /* FilesView.swift */; };
 		B4E95F91196C01394ABE2BA0 /* TypingEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = C27F72AB64B35E37E0101DA2 /* TypingEngine.swift */; };
 		B8B567AEC135583DD0A7F5CC /* DisplayArrangement.swift in Sources */ = {isa = PBXBuildFile; fileRef = 610BB2E5437843457F99F69F /* DisplayArrangement.swift */; };
@@ -166,6 +168,7 @@
 		185CCDDE3D43CD6FEF6FDA72 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		1EE38D9AFCBEB688FF06776D /* Snippets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Snippets.swift; sourceTree = "<group>"; };
 		20E490D7A7075208BF5FA10F /* SnippetsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnippetsView.swift; sourceTree = "<group>"; };
+		2A07398D4722FDF78A4EF281 /* ScreenTools.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenTools.swift; sourceTree = "<group>"; };
 		2C488AF8DD919FDDA4069180 /* ClipboardRules.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardRules.swift; sourceTree = "<group>"; };
 		2E1AFCF54748CE37CC3E0517 /* DSD.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DSD.swift; sourceTree = "<group>"; };
 		2F684E06E50675208E64E76B /* QuickPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickPanel.swift; sourceTree = "<group>"; };
@@ -279,6 +282,7 @@
 		ED308EBDE68AC23F9837A5B5 /* DisplaysView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DisplaysView.swift; sourceTree = "<group>"; };
 		EE253A9F760DE8F5041C096A /* BrowserOverlayScript.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserOverlayScript.swift; sourceTree = "<group>"; };
 		EF0818EF6E3C3834EB3A3AFE /* BrightnessController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrightnessController.swift; sourceTree = "<group>"; };
+		F1DA44AC22EBA14C479EDE6F /* ToolsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolsView.swift; sourceTree = "<group>"; };
 		F3744B2045F435E67C8C39B9 /* CleanDiskView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CleanDiskView.swift; sourceTree = "<group>"; };
 		F50E79083A48396AD0651E87 /* AboutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutView.swift; sourceTree = "<group>"; };
 		FA3CBD4C77F83A3FBD2A5741 /* ClipboardMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardMonitor.swift; sourceTree = "<group>"; };
@@ -418,6 +422,7 @@
 				FECF4839A71B43575E966ED9 /* ScheduledJobsService.swift */,
 				C0341956B1B2E6DC78E634B4 /* ScreenRecorder.swift */,
 				483AD0BC51C436C61A365E34 /* ScreenRecordView.swift */,
+				2A07398D4722FDF78A4EF281 /* ScreenTools.swift */,
 				185CCDDE3D43CD6FEF6FDA72 /* SettingsView.swift */,
 				9369B89FD38E6521F9B366AA /* Shelf.swift */,
 				95BBED4D723D663890BC37DC /* ShelfController.swift */,
@@ -438,6 +443,7 @@
 				146D7CD67B5D337110ABE8C9 /* SystemMonitor.swift */,
 				76B7603C695D7E900696BC7D /* TokenFileStore.swift */,
 				2FD309CF3EA6462034C2FE83 /* ToolCatalog.swift */,
+				F1DA44AC22EBA14C479EDE6F /* ToolsView.swift */,
 				3F7FB64029A8968F4822C64E /* TrackInspector.swift */,
 				C27F72AB64B35E37E0101DA2 /* TypingEngine.swift */,
 				7D2F6FF03B4509227FDB99B0 /* TypingView.swift */,
@@ -662,6 +668,7 @@
 				7BFE59FDA07DEEFDFB771804 /* ScheduledJobsService.swift in Sources */,
 				8F84EA87D991663E4071FDBF /* ScreenRecordView.swift in Sources */,
 				979846E85F8729D827D4C189 /* ScreenRecorder.swift in Sources */,
+				5D033997E1AF32273DCE64EB /* ScreenTools.swift in Sources */,
 				F25497E5A5FCBDEB50858F3C /* SettingsView.swift in Sources */,
 				0CCF383FB4D817BE97B5E184 /* Shelf.swift in Sources */,
 				AB180853B09F48F15F6768C6 /* ShelfController.swift in Sources */,
@@ -682,6 +689,7 @@
 				EB2804A3FF935E9CF1A4AE3F /* SystemMonitor.swift in Sources */,
 				23D50491F3450FCA148381C4 /* TokenFileStore.swift in Sources */,
 				9E0AD96F4412E279DC603FCA /* ToolCatalog.swift in Sources */,
+				B2AF31AEBB22D2C49C2EEEC8 /* ToolsView.swift in Sources */,
 				53D9A24ADD84071106A6BCD9 /* TrackInspector.swift in Sources */,
 				B4E95F91196C01394ABE2BA0 /* TypingEngine.swift in Sources */,
 				8B3D07C9A5E4DAEDA7C1EE52 /* TypingView.swift in Sources */,
