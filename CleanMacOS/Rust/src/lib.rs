@@ -1,5 +1,8 @@
 pub mod fswalk;
+pub mod typing;
+pub mod vietnamese;
 
+use std::collections::HashMap;
 use std::ffi::{c_char, CStr, CString};
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
@@ -80,9 +83,116 @@ pub extern "C" fn mk_string_free(text: *mut c_char) {
     }
 }
 
+fn typing_output(output: typing::Output, out_backspaces: *mut u32) -> *mut c_char {
+    match output {
+        typing::Output::Pass => std::ptr::null_mut(),
+        typing::Output::Replace { backspaces, text } => {
+            if !out_backspaces.is_null() {
+                unsafe { *out_backspaces = backspaces as u32 };
+            }
+            into_c_string(text)
+        }
+    }
+}
+
+fn engine<'a>(raw: *mut typing::Engine) -> Option<&'a mut typing::Engine> {
+    unsafe { raw.as_mut() }
+}
+
+#[no_mangle]
+pub extern "C" fn mk_typing_new() -> *mut typing::Engine {
+    Box::into_raw(Box::new(typing::Engine::new(typing::Options::default())))
+}
+
+#[no_mangle]
+pub extern "C" fn mk_typing_free(raw: *mut typing::Engine) {
+    if !raw.is_null() {
+        drop(unsafe { Box::from_raw(raw) });
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mk_typing_configure(raw: *mut typing::Engine, vni: bool, modern_tone: bool, auto_restore: bool, w_as_u: bool) {
+    let Some(engine) = engine(raw) else { return };
+    engine.options = typing::Options {
+        method: if vni { typing::Method::Vni } else { typing::Method::Telex },
+        modern_tone,
+        auto_restore,
+        w_as_u,
+    };
+    engine.reset();
+}
+
+#[no_mangle]
+pub extern "C" fn mk_typing_set_macros(raw: *mut typing::Engine, lines: *const c_char) {
+    let Some(engine) = engine(raw) else { return };
+    let text = if lines.is_null() { "" } else { unsafe { CStr::from_ptr(lines) }.to_str().unwrap_or("") };
+    let macros: HashMap<String, String> = text
+        .lines()
+        .filter_map(|line| line.split_once('\t'))
+        .filter(|(key, value)| !key.is_empty() && !value.is_empty())
+        .map(|(key, value)| (key.to_string(), value.to_string()))
+        .collect();
+    engine.set_macros(macros);
+}
+
+#[no_mangle]
+pub extern "C" fn mk_typing_key(raw: *mut typing::Engine, ch: u32, out_backspaces: *mut u32) -> *mut c_char {
+    let (Some(engine), Some(ch)) = (engine(raw), char::from_u32(ch)) else { return std::ptr::null_mut() };
+    typing_output(engine.key(ch), out_backspaces)
+}
+
+#[no_mangle]
+pub extern "C" fn mk_typing_finish(raw: *mut typing::Engine, separator: u32, out_backspaces: *mut u32) -> *mut c_char {
+    let Some(engine) = engine(raw) else { return std::ptr::null_mut() };
+    typing_output(engine.finish(char::from_u32(separator).filter(|ch| *ch != '\0')), out_backspaces)
+}
+
+#[no_mangle]
+pub extern "C" fn mk_typing_backspace(raw: *mut typing::Engine) {
+    if let Some(engine) = engine(raw) {
+        engine.backspace();
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mk_typing_reset(raw: *mut typing::Engine) {
+    if let Some(engine) = engine(raw) {
+        engine.reset();
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn typing_engine_round_trips_through_the_c_interface() {
+        let engine = mk_typing_new();
+        mk_typing_set_macros(engine, CString::new("ko\tkhông\n\tbad\n").unwrap().as_ptr());
+        let mut backspaces = 0u32;
+        let mut screen = String::new();
+        for ch in "tieengs ko ".chars() {
+            let text = mk_typing_key(engine, ch as u32, &mut backspaces);
+            if text.is_null() {
+                screen.push(ch);
+            } else {
+                for _ in 0..backspaces {
+                    screen.pop();
+                }
+                screen.push_str(unsafe { CStr::from_ptr(text) }.to_str().unwrap());
+                mk_string_free(text);
+            }
+        }
+        assert_eq!(screen, "tiếng không ");
+        mk_typing_configure(engine, true, true, true, true);
+        assert!(mk_typing_key(engine, 'a' as u32, &mut backspaces).is_null());
+        let toned = mk_typing_key(engine, '1' as u32, &mut backspaces);
+        assert_eq!(unsafe { CStr::from_ptr(toned) }.to_str().unwrap(), "á");
+        assert_eq!(backspaces, 1);
+        mk_string_free(toned);
+        mk_typing_free(engine);
+    }
 
     #[test]
     fn escapes_paths_for_json() {
