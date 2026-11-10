@@ -306,6 +306,10 @@ final class SnippetLibraryController: NSObject, NSWindowDelegate {
             let isHandled = MainActor.assumeIsolated {
                 guard let self, let panel = self.panel, panel.windowNumber == windowNumber else { return false }
                 if let editor = panel.firstResponder as? NSTextView, editor.hasMarkedText() { return false }
+                if PanelKeys.isAppCommand(keyCode: keyCode, modifiers: modifiers) {
+                    if keyCode == PanelKeys.closeKey { self.close() } else { NSSound.beep() }
+                    return true
+                }
                 return self.model.handle(keyCode: keyCode, modifiers: modifiers)
             }
             return isHandled ? nil : event

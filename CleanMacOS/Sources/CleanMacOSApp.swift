@@ -62,6 +62,8 @@ struct CleanMacOSApp: App {
     @StateObject private var shelf: ShelfController
     @StateObject private var brightness: BrightnessController
     @StateObject private var commandBar: CommandBarController
+    @StateObject private var radial: RadialMenuController
+    @StateObject private var quickPanel: QuickPanelController
     @StateObject private var sound: SoundController
     @StateObject private var mixer: MixerController
     @AppStorage("showMenuBar") private var showMenuBar = true
@@ -91,6 +93,8 @@ struct CleanMacOSApp: App {
             NotificationCenter.default.post(name: .openSidebarPage, object: page)
         }
         _commandBar = StateObject(wrappedValue: CommandBarController(context: context))
+        _radial = StateObject(wrappedValue: RadialMenuController(context: context))
+        _quickPanel = StateObject(wrappedValue: QuickPanelController(context: context))
         KeyboardShortcuts.onKeyUp(for: .toggleKeepAwake) {
             MainActor.assumeIsolated { keepAwake.toggle() }
         }
@@ -122,6 +126,8 @@ struct CleanMacOSApp: App {
                 .environmentObject(sound)
                 .environmentObject(mixer)
                 .environmentObject(commandBar)
+                .environmentObject(radial)
+                .environmentObject(quickPanel)
                 .frame(minWidth: 900, minHeight: 600)
                 .onAppear {
                     Task { await account.refreshSession() }

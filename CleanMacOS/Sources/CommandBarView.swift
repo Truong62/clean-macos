@@ -163,7 +163,7 @@ struct CommandBarSettingsView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
-                PageHeader(icon: "command", title: "Command Bar", subtitle: "Open apps, run actions, find settings, calculate and convert from one box.",
+                PageHeader(icon: "command", title: "Command Bar", subtitle: "Open apps, run actions, find settings, calculate and convert. Also a radial menu and a quick panel.",
                            colors: [.indigo, .purple])
                 CardSection(title: "Opening", icon: "keyboard") {
                     Toggle("Open the Command Bar with a shortcut", isOn: $bar.settings.isEnabled)
@@ -206,6 +206,7 @@ struct CommandBarSettingsView: View {
                         Label("Add Link", systemImage: "plus")
                     }
                 }
+                LauncherSettingsCards()
                 CardSection(title: "Ranking", icon: "chart.bar") {
                     HStack {
                         Text("Results you pick often move up, and what you type is remembered only as hashed prefixes.")

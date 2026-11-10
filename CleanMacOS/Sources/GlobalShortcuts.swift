@@ -15,6 +15,8 @@ extension KeyboardShortcuts.Name {
     static let keyboardLightUp = Self("keyboardLightUp", default: .init(.equal, modifiers: [.command, .option]))
     static let keyboardLightDown = Self("keyboardLightDown", default: .init(.minus, modifiers: [.command, .option]))
     static let commandBar = Self("commandBar", default: .init(.space, modifiers: [.option]))
+    static let radialMenu = Self("radialMenu", default: .init(.space, modifiers: [.control, .option, .command]))
+    static let quickPanel = Self("quickPanel", default: .init(.v, modifiers: [.control, .command]))
     static let cycleOutput = Self("cycleOutput", default: .init(.s, modifiers: [.control, .option, .command]))
     static let toggleMicMute = Self("toggleMicMute", default: .init(.m, modifiers: [.control, .option, .command]))
 }

@@ -26,6 +26,12 @@ enum PanelKeys {
     static let cKey: UInt16 = 8
     static let digitKeys: [UInt16: Int] = [18: 1, 19: 2, 20: 3, 21: 4, 23: 5, 22: 6, 26: 7, 28: 8, 25: 9]
     static let relevantModifiers: NSEvent.ModifierFlags = [.command, .option, .control, .shift]
+    static let appCommandKeys: Set<UInt16> = [12, 46, 4]
+    static let closeKey: UInt16 = 13
+
+    static func isAppCommand(keyCode: UInt16, modifiers: NSEvent.ModifierFlags) -> Bool {
+        modifiers.intersection(relevantModifiers) == .command && (appCommandKeys.contains(keyCode) || keyCode == closeKey)
+    }
 
     static func command(keyCode: UInt16, modifiers: NSEvent.ModifierFlags, usedArrows: Bool, hasPile: Bool) -> PanelCommand? {
         let modifiers = modifiers.intersection(relevantModifiers)
