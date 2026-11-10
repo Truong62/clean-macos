@@ -67,6 +67,14 @@ final class IslandController: NSObject, ObservableObject {
     private var monitors: [Any] = []
     private var subscriptions = Set<AnyCancellable>()
     private var hoverWork: DispatchWorkItem?
+    private var layoutWork: DispatchWorkItem?
+    private var layoutCoalescer = IslandLayoutCoalescer()
+    private var pointerTracking = IslandPointerTracking()
+    private var hotZone: IslandHotZone?
+    private var appliedLayout: IslandPanelLayout?
+    private var wantsKeyboard = false
+    private var outsideClosePending = false
+    private var monitorGeneration = 0
     private var displayWork: DispatchWorkItem?
     private var suspension = Set<String>()
     private var normalReadings = 0
@@ -291,7 +299,7 @@ final class IslandController: NSObject, ObservableObject {
         observe(NSWorkspace.activeSpaceDidChangeNotification, center: workspace) { [weak self] in self?.inspectWindows(); self?.rebuild() }
         observe(NSWorkspace.didActivateApplicationNotification, center: workspace) { [weak self] in
             guard let self else { return }
-            self.close(explicit: false)
+            if self.isOpen { self.deferOutsideClose() }
             self.calendar.refresh()
         }
         let distributed = DistributedNotificationCenter.default()
@@ -322,6 +330,7 @@ final class IslandController: NSObject, ObservableObject {
     }
 
     private func stop() {
+        monitorGeneration += 1
         lockScene.hide(immediate: true)
         previewTask?.cancel()
         capturePreview = nil
@@ -329,6 +338,14 @@ final class IslandController: NSObject, ObservableObject {
         heartbeat?.invalidate()
         heartbeat = nil
         hoverWork?.cancel()
+        layoutWork?.cancel()
+        layoutWork = nil
+        layoutCoalescer.cancel()
+        pointerTracking = IslandPointerTracking()
+        hotZone = nil
+        appliedLayout = nil
+        wantsKeyboard = false
+        outsideClosePending = false
         displayWork?.cancel()
         observers.forEach { $0.0.removeObserver($0.1) }
         observers = []
@@ -467,21 +484,27 @@ final class IslandController: NSObject, ObservableObject {
     }
 
     func layout() {
+        guard settings.isEnabled, !state.suspended, panel != nil, display != nil,
+              let delay = layoutCoalescer.request(at: clock) else { return }
+        let work = DispatchWorkItem { [weak self] in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                self.layoutWork = nil
+                self.layoutCoalescer.finish(at: self.clock)
+                self.performLayout()
+            }
+        }
+        layoutWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
+    }
+
+    private func performLayout() {
         guard let panel, let display, settings.isEnabled, !state.suspended else { return }
-        guard clock >= unlockUntil else { panel.orderOut(nil); return }
-        panel.acceptsKeyboard = isOpen && !state.hoverOpened
-        panel.sharingType = settings.includeInCaptures ? .readOnly : .none
+        guard clock >= unlockUntil else { panel.orderOut(nil); appliedLayout = nil; return }
         let resting = state.phase == .closed || state.phase == .compact
         let roomHidden = resting && display.camera == nil && (menuRoom.overlaps || (settings.simulatedNotch && !menuRoom.known))
         let hides = roomHidden || (fullScreen && settings.hideInFullScreen && display.camera == nil && !isOpen) ||
             (settings.opening == .hidden && state.phase == .closed)
-        let point = NSEvent.mouseLocation
-        let local = CGPoint(x: point.x - panel.frame.minX, y: panel.frame.maxY - point.y)
-        let shape = IslandSilhouette(capsule: display.camera == nil && !settings.simulatedNotch,
-                                     neckWidth: display.camera?.width ?? 0, neckHeight: display.menuHeight)
-        panel.ignoresMouseEvents = overview || hides || !shape.path(in: CGRect(origin: .zero, size: panel.frame.size)).contains(local)
-        panel.alphaValue = overview || hides ? 0 : 1
-        panel.level = fullScreen && display.camera == nil ? .floating : NSWindow.Level(rawValue: NSWindow.Level.statusBar.rawValue + 1)
         var frame = IslandGeometry.frame(display, settings: settings, state: state.phase, hasRoom: menuRoom.known && min(menuRoom.left, menuRoom.right) >= 44)
         if isOpen && section == .music && musicPanel != nil {
             let extra = min(216, max(0, display.frame.height - 48 - frame.height))
@@ -498,10 +521,28 @@ final class IslandController: NSObject, ObservableObject {
         if display.camera == nil && !resting && (menuRoom.overlaps || growsIntoMenu || !menuRoom.known) {
             frame.origin.y = display.frame.maxY - display.menuHeight - frame.height - 6
         }
-        let moved = panel.frame.midX != frame.midX || panel.frame.maxY != frame.maxY
-        if moved { panel.orderOut(nil) }
-        panel.setFrame(frame, display: true)
-        panel.orderFrontRegardless()
+        let zone = IslandHotZone(frame: frame, capsule: display.camera == nil && !settings.simulatedNotch,
+                                 neckWidth: display.camera?.width ?? 0, neckHeight: display.menuHeight)
+        hotZone = zone
+        let point = NSEvent.mouseLocation
+        let inside = zone.contains(point)
+        _ = pointerTracking.update(inside: inside, hiddenTrigger: settings.opening == .hidden && frame.contains(point))
+        let next = IslandPanelLayout(frame: frame, keyboard: isOpen && !state.hoverOpened,
+                                     ignoresMouse: overview || hides || !inside, alpha: overview || hides ? 0 : 1,
+                                     level: (fullScreen && display.camera == nil ? NSWindow.Level.floating : NSWindow.Level(rawValue: NSWindow.Level.statusBar.rawValue + 1)).rawValue,
+                                     captures: settings.includeInCaptures)
+        if next != appliedLayout || !panel.isVisible {
+            panel.acceptsKeyboard = next.keyboard
+            panel.sharingType = next.captures ? .readOnly : .none
+            panel.ignoresMouseEvents = next.ignoresMouse
+            panel.alphaValue = next.alpha
+            panel.level = NSWindow.Level(rawValue: next.level)
+            if panel.frame != frame { panel.setFrame(frame, display: true) }
+            if !panel.isVisible { panel.orderFrontRegardless() }
+            appliedLayout = next
+        }
+        if wantsKeyboard && next.keyboard { panel.makeKey() }
+        wantsKeyboard = false
     }
 
     func toggle() {
@@ -520,7 +561,7 @@ final class IslandController: NSObject, ObservableObject {
         guard isOpen else { return }
         NotificationCenter.default.post(name: Notification.Name("MacKit.Island.Opened"), object: nil)
         layout()
-        if !hover { panel?.makeKey() }
+        wantsKeyboard = !hover
         haptic()
     }
 
@@ -653,6 +694,9 @@ final class IslandController: NSObject, ObservableObject {
     private func tick() {
         guard settings.isEnabled else { return }
         if state.suspended { updateLockScene(); return }
+        let previousState = state
+        let previousFullScreen = fullScreen
+        let previousOverview = overview
         now = clock
         tickCount += 1
         if settings.levelNotices && tickCount % 4 == 0, let value = context.brightness.keyboard.brightness {
@@ -713,10 +757,14 @@ final class IslandController: NSObject, ObservableObject {
         inspectWindows()
         if tickCount % 4 == 0, let display {
             let frame = IslandGeometry.frame(display, settings: settings, state: .closed)
-            menuReader.read(display: display, camera: frame) { [weak self] room in self?.menuRoom = room; self?.layout() }
+            menuReader.read(display: display, camera: frame) { [weak self] room in
+                guard let self, self.menuRoom != room else { return }
+                self.menuRoom = room
+                self.layout()
+            }
         }
         followPointer()
-        layout()
+        if state != previousState || fullScreen != previousFullScreen || overview != previousOverview || appliedLayout == nil { layout() }
     }
 
     private func followPointer() {
@@ -774,8 +822,8 @@ final class IslandController: NSObject, ObservableObject {
                                                           open: self.isOpen, music: self.section == .music, momentum: !event.momentumPhase.isEmpty, began: event.phase == .began,
                                                           blocked: self.menuOpen || self.section == .captures || self.state.phase == .drop || self.context.shelf.isDraggingContent)
                         switch action {
-                        case .open: self.open()
-                        case .close: self.close()
+                        case .open: self.afterMonitor { $0.open() }
+                        case .close: self.afterMonitor { $0.close() }
                         case .next: self.skipMusic(next: true)
                         case .previous: self.skipMusic(next: false)
                         case nil: break
@@ -797,10 +845,10 @@ final class IslandController: NSObject, ObservableObject {
         if event.type == .leftMouseDown {
             topPressed = top
             if isOpen, let camera = display.camera, point.y > display.frame.maxY - camera.height,
-               abs(point.x - display.frame.midX) <= camera.width / 2 { close(); return }
+               abs(point.x - display.frame.midX) <= camera.width / 2 { afterMonitor { $0.close() }; return }
         }
         if event.type == .leftMouseUp {
-            if topPressed && top { toggle() }
+            if topPressed && top { afterMonitor { $0.toggle() } }
             topPressed = false
             if state.phase == .drop { state.phase = .closed; layout() }
         }
@@ -815,11 +863,39 @@ final class IslandController: NSObject, ObservableObject {
             }
         }
         if event.type == .mouseMoved {
-            layout()
-            if settings.opening == .hidden, panel.frame.contains(point), hoverWork == nil { hover(true) }
+            let inside = hotZone?.contains(point) ?? false
+            let hiddenTrigger = settings.opening == .hidden && panel.frame.contains(point)
+            let wasHiddenTrigger = pointerTracking.hiddenTrigger
+            if pointerTracking.update(inside: inside, hiddenTrigger: hiddenTrigger) {
+                layout()
+                if hiddenTrigger != wasHiddenTrigger { hover(hiddenTrigger) }
+            }
         }
-        if [.leftMouseDown, .rightMouseDown, .otherMouseDown].contains(event.type), !panel.frame.contains(point),
-           !copies.contains(where: { $0.frame.contains(point) }), point.y < display.frame.maxY - display.menuHeight { close(explicit: false) }
+        if [.leftMouseDown, .rightMouseDown, .otherMouseDown].contains(event.type),
+           IslandDismissal.shouldClose(open: isOpen, insidePanel: panel.frame.contains(point),
+                                       insideCopy: copies.contains(where: { $0.frame.contains(point) }),
+                                       belowMenu: point.y < display.frame.maxY - display.menuHeight) {
+            deferOutsideClose()
+        }
+    }
+
+    private func afterMonitor(_ action: @escaping @MainActor (IslandController) -> Void) {
+        let generation = monitorGeneration
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.monitorGeneration == generation, self.settings.isEnabled, !self.state.suspended else { return }
+            action(self)
+        }
+    }
+
+    private func deferOutsideClose() {
+        guard isOpen, !outsideClosePending else { return }
+        outsideClosePending = true
+        let generation = monitorGeneration
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.monitorGeneration == generation else { return }
+            self.outsideClosePending = false
+            if self.settings.isEnabled && !self.state.suspended && self.isOpen { self.close(explicit: false) }
+        }
     }
 
     private func key(_ event: NSEvent) -> Bool {
@@ -827,11 +903,15 @@ final class IslandController: NSObject, ObservableObject {
         if let input = panel?.firstResponder as? NSTextView, input.hasMarkedText() { return false }
         let modifiers = event.modifierFlags.intersection([.command, .option, .control, .shift])
         if event.keyCode == 53 {
-            if musicPanel != nil { musicPanel = nil } else if exploring { exploring = false } else { close() }
+            afterMonitor { controller in
+                if controller.musicPanel != nil { controller.musicPanel = nil }
+                else if controller.exploring { controller.exploring = false }
+                else { controller.close() }
+            }
             return true
         }
         if modifiers == .command && event.charactersIgnoringModifiers == "k" { exploring.toggle(); return true }
-        if modifiers == .command && event.charactersIgnoringModifiers == "," { showSettings(); return true }
+        if modifiers == .command && event.charactersIgnoringModifiers == "," { afterMonitor { $0.showSettings() }; return true }
         if modifiers == [.command, .option], let target = visibleSections.first(where: { $0.letter == event.charactersIgnoringModifiers }) { select(target); return true }
         if event.keyCode == 48 && modifiers.contains(.control), !visibleSections.isEmpty {
             let current = section.flatMap { visibleSections.firstIndex(of: $0) } ?? 0
