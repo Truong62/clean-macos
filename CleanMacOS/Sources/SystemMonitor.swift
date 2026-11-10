@@ -1,8 +1,12 @@
+import AppKit
 import Foundation
 import Darwin
 
 @MainActor
 final class SystemMonitor: ObservableObject {
+    static let settingsKey = "monitor.settings"
+    static let volumeRefresh: TimeInterval = 10
+
     @Published var cpuUsage: Double = 0
     @Published var memUsed: UInt64 = 0
     @Published var memTotal: UInt64 = 0
@@ -13,36 +17,55 @@ final class SystemMonitor: ObservableObject {
     @Published var diskFree: UInt64 = 0
     @Published var uptime: String = ""
     @Published private(set) var latestCPU: Double = 0
+    @Published var settings: MonitorSettings {
+        didSet {
+            guard settings != oldValue else { return }
+            store?.set(try? JSONEncoder().encode(settings), forKey: Self.settingsKey)
+            if settings.alerts.isAnyOn && !oldValue.alerts.isAnyOn { MonitorNotifier.shared.requestPermission() }
+            reschedule()
+        }
+    }
+    @Published private(set) var snapshot = MonitorSnapshot()
+    @Published private(set) var history = MonitorHistory()
 
     let cpuName: String
     let osVersion: String
 
-    private var prevCPUInfo: host_cpu_load_info?
+    private let store: UserDefaults?
+    private var engine = MonitorEngine()
+    private var alerts = MonitorAlertTracker()
     private var sampleTimer: Timer?
+    private var activeInterval: TimeInterval?
+    private var labelInterval: TimeInterval?
     private var popoverOpen = false
+    private var isPageVisible = false
+    private var isMonitoring = false
+    private var isReading = false
+    private var volumesReadAt: TimeInterval?
 
-    init() {
+    init(store: UserDefaults? = nil) {
+        self.store = store
         cpuName = Self.readCPUName()
         osVersion = ProcessInfo.processInfo.operatingSystemVersionString
+        settings = store?.data(forKey: Self.settingsKey).flatMap { try? JSONDecoder().decode(MonitorSettings.self, from: $0) } ?? MonitorSettings()
         memTotal = ProcessInfo.processInfo.physicalMemory
-        refreshPublishedValues(cpu: readCPUUsage())
+        refreshPublishedValues(cpu: engine.updateCPU(MonitorProbe.cpuTicks(), at: MonitorProbe.uptime()) ?? 0)
+        reschedule()
     }
 
+    var showsReadouts: Bool { !settings.readouts.isEmpty }
+    var showsCPUReadout: Bool { settings.readouts.contains(.cpu) }
+    var readoutImage: NSImage { ReadoutImage.make(MonitorReadouts.cells(snapshot, settings: settings)) }
+
     func startSampling(interval: TimeInterval = 3) {
-        guard sampleTimer == nil else { return }
-        sample()
-        let timer = Timer(timeInterval: interval, repeats: true) { [weak self] _ in
-            Task { @MainActor in
-                self?.sample()
-            }
-        }
-        RunLoop.main.add(timer, forMode: .common)
-        sampleTimer = timer
+        guard labelInterval == nil else { return }
+        labelInterval = interval
+        reschedule()
     }
 
     func stopSampling() {
-        sampleTimer?.invalidate()
-        sampleTimer = nil
+        labelInterval = nil
+        reschedule()
     }
 
     func startPublishing(interval: TimeInterval) {
@@ -60,11 +83,71 @@ final class SystemMonitor: ObservableObject {
         popoverOpen = false
     }
 
+    func setPageVisible(_ isVisible: Bool) {
+        isPageVisible = isVisible
+        reschedule()
+    }
+
+    private func reschedule() {
+        let monitoring = isPageVisible || settings.needsSampling
+        if monitoring && !isMonitoring {
+            engine = MonitorEngine()
+            snapshot = MonitorSnapshot()
+            history = MonitorHistory()
+            volumesReadAt = nil
+        }
+        isMonitoring = monitoring
+        let interval = monitoring ? settings.sampleInterval : labelInterval
+        guard interval != activeInterval else { return }
+        sampleTimer?.invalidate()
+        sampleTimer = nil
+        activeInterval = interval
+        guard let interval else { return }
+        sample()
+        let timer = Timer(timeInterval: interval, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                self?.sample()
+            }
+        }
+        timer.tolerance = interval / 10
+        RunLoop.main.add(timer, forMode: .common)
+        sampleTimer = timer
+    }
+
     private func sample() {
-        latestCPU = readCPUUsage()
+        if isMonitoring {
+            readEverything()
+            return
+        }
+        if let cpu = engine.updateCPU(MonitorProbe.cpuTicks(), at: MonitorProbe.uptime()) { latestCPU = cpu }
         if popoverOpen {
             refreshPublishedValues(cpu: latestCPU)
         }
+    }
+
+    private func readEverything() {
+        guard !isReading else { return }
+        isReading = true
+        let now = MonitorProbe.uptime()
+        let readsVolumes = volumesReadAt.map { now - $0 >= Self.volumeRefresh } ?? true
+        if readsVolumes { volumesReadAt = now }
+        let request = MonitorProbe.Request(processes: isPageVisible, volumes: readsVolumes, sensors: isPageVisible || settings.needsSensors)
+        Task {
+            let raw = await Task.detached(priority: .utility) { MonitorProbe.read(request) }.value
+            isReading = false
+            apply(raw)
+        }
+    }
+
+    private func apply(_ raw: MonitorRaw) {
+        let next = engine.update(raw)
+        snapshot = next
+        history.append(next, memory: settings.memoryMetric)
+        if let cpu = next.cpu { latestCPU = cpu }
+        if popoverOpen {
+            refreshPublishedValues(cpu: latestCPU)
+        }
+        alerts.check(next, settings: settings.alerts, at: raw.time).forEach(MonitorNotifier.shared.post)
     }
 
     private func refreshPublishedValues(cpu: Double) {
@@ -79,38 +162,6 @@ final class SystemMonitor: ObservableObject {
         diskFree = disk.free
         diskPercent = disk.percent
         uptime = Self.readUptime()
-    }
-
-    private func readCPUUsage() -> Double {
-        var loadInfo = host_cpu_load_info()
-        var count = mach_msg_type_number_t(MemoryLayout<host_cpu_load_info>.size / MemoryLayout<integer_t>.size)
-
-        let result = withUnsafeMutablePointer(to: &loadInfo) { ptr in
-            ptr.withMemoryRebound(to: integer_t.self, capacity: Int(count)) { intPtr in
-                host_statistics(mach_host_self(), HOST_CPU_LOAD_INFO, intPtr, &count)
-            }
-        }
-
-        guard result == KERN_SUCCESS else { return 0 }
-
-        let user = Double(loadInfo.cpu_ticks.0)
-        let system = Double(loadInfo.cpu_ticks.1)
-        let idle = Double(loadInfo.cpu_ticks.2)
-        let nice = Double(loadInfo.cpu_ticks.3)
-
-        defer { prevCPUInfo = loadInfo }
-
-        if let prev = prevCPUInfo {
-            let dUser = user - Double(prev.cpu_ticks.0)
-            let dSystem = system - Double(prev.cpu_ticks.1)
-            let dIdle = idle - Double(prev.cpu_ticks.2)
-            let dNice = nice - Double(prev.cpu_ticks.3)
-            let total = dUser + dSystem + dIdle + dNice
-            return total > 0 ? ((dUser + dSystem + dNice) / total) * 100 : 0
-        }
-
-        let total = user + system + idle + nice
-        return total > 0 ? ((user + system + nice) / total) * 100 : 0
     }
 
     private static func readCPUName() -> String {

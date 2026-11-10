@@ -46,7 +46,7 @@ struct CleanMacOSApp: App {
     @StateObject private var updater = UpdaterViewModel()
     @StateObject private var clipboard: ClipboardViewModel
     @StateObject private var snippets: SnippetExpander
-    @StateObject private var monitor = SystemMonitor()
+    @StateObject private var monitor = SystemMonitor(store: .standard)
     @StateObject private var recorder = ScreenRecorder()
     @StateObject private var agentRecording = AgentRecordingIndicator()
     @StateObject private var account = AccountViewModel()
@@ -133,6 +133,7 @@ struct CleanMacOSApp: App {
                 .environmentObject(radial)
                 .environmentObject(quickPanel)
                 .environmentObject(screenTools)
+                .environmentObject(monitor)
                 .frame(minWidth: 900, minHeight: 600)
                 .onAppear {
                     Task { await account.refreshSession() }
@@ -174,9 +175,16 @@ struct CleanMacOSApp: App {
         MenuBarExtra(isInserted: $showMenuBar) {
             MenuBarView(monitor: monitor, recorder: recorder, agentRecording: agentRecording, music: music, keepAwake: keepAwake, clipboard: clipboard, shelf: shelf, brightness: brightness)
         } label: {
-            Label(String(format: " %.0f%%", monitor.latestCPU), systemImage: recorder.isRecording || agentRecording.isRecording ? "record.circle.fill" : keepAwake.isActive ? "cup.and.saucer.fill" : "square.grid.2x2.fill")
+            Label(monitor.showsCPUReadout ? "" : String(format: " %.0f%%", monitor.latestCPU), systemImage: recorder.isRecording || agentRecording.isRecording ? "record.circle.fill" : keepAwake.isActive ? "cup.and.saucer.fill" : "square.grid.2x2.fill")
         }
         .menuBarExtraStyle(.window)
+
+        MenuBarExtra(isInserted: Binding(get: { monitor.showsReadouts }, set: { isInserted in if !isInserted { monitor.settings.readouts = [] } })) {
+            MonitorMenu(monitor: monitor)
+        } label: {
+            Image(nsImage: monitor.readoutImage)
+        }
+        .menuBarExtraStyle(.menu)
 
         MenuBarExtra(isInserted: Binding(get: { keyboard.preferences.isEnabled }, set: { value in keyboard.update { $0.isEnabled = value } })) {
             TypingMenu(keyboard: keyboard)
