@@ -89,7 +89,7 @@ struct ScheduledJobsService: Sendable {
                                 schedule: describeSchedule(plist), plistPath: path,
                                 logPaths: Array(NSOrderedSet(array: [plist["StandardOutPath"], plist["StandardErrorPath"]].compactMap { $0 as? String })) as? [String] ?? [],
                                 isLoaded: status != nil, pid: status?.pid, lastExitStatus: status?.lastExitStatus,
-                                startsAtLogin: startsAtLogin(plist))
+                                startsAtLogin: startsAtLogin(plist), arguments: arguments(of: plist))
         }
     }
 
@@ -134,6 +134,12 @@ struct ScheduledJobsService: Sendable {
     static func command(of plist: [String: Any]) -> String {
         if let args = plist["ProgramArguments"] as? [String], !args.isEmpty { return args.joined(separator: " ") }
         return plist["Program"] as? String ?? ""
+    }
+
+    static func arguments(of plist: [String: Any]) -> [String] {
+        let arguments = plist["ProgramArguments"] as? [String] ?? []
+        guard let program = plist["Program"] as? String ?? arguments.first else { return [] }
+        return [program] + arguments.dropFirst()
     }
 
     static func describeSchedule(_ plist: [String: Any]) -> String {
@@ -186,7 +192,8 @@ struct ScheduledJobsService: Sendable {
             let command = String(fields[fieldCount])
             return ScheduledJob(label: command, source: .cron, command: command,
                                 schedule: fields.prefix(fieldCount).joined(separator: " "),
-                                plistPath: nil, logPaths: [], isLoaded: true, pid: nil, lastExitStatus: nil, cronLine: raw)
+                                plistPath: nil, logPaths: [], isLoaded: true, pid: nil, lastExitStatus: nil, cronLine: raw,
+                                arguments: command.split(whereSeparator: \.isWhitespace).map(String.init))
         }
     }
 }

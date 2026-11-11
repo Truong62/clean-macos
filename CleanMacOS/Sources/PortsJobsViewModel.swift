@@ -5,6 +5,7 @@ enum PortsJobsTab: String, CaseIterable, Identifiable {
     case ports = "Ports"
     case jobs = "Scheduled Jobs"
     case loginItems = "Login Items"
+    case security = "Security"
 
     var id: String { rawValue }
 }
@@ -67,6 +68,9 @@ final class PortsJobsViewModel: ObservableObject {
     @Published var portDetails: ProcessDetails?
     @Published var jobProcess: ProcessDetails?
     @Published var jobLog = ""
+    @Published var security: SecurityReport?
+    @Published var isScanning = false
+    @Published var selectedFindingID: SecurityFinding.ID?
 
     private static let refreshInterval: Duration = .seconds(5)
     private let portsService: PortsService
@@ -95,6 +99,11 @@ final class PortsJobsViewModel: ObservableObject {
         loginItems.filter { matches("\($0.name) \($0.path ?? "")") }
     }
 
+    var filteredFindings: [SecurityFinding] {
+        (security?.findings ?? []).filter { matches("\($0.name) \($0.kind) \($0.path)") }
+    }
+
+    var selectedFinding: SecurityFinding? { security?.findings.first { $0.id == selectedFindingID } }
     var selectedPort: ListeningPort? { ports.first { $0.id == selectedPortID } }
     var selectedJob: ScheduledJob? { jobs.first { $0.id == selectedJobID } }
     var selectedLoginItem: LoginItem? { loginItems.first { $0.id == selectedLoginItemID } }
@@ -128,6 +137,16 @@ final class PortsJobsViewModel: ObservableObject {
         loginItems = loginItemsService.list()
         isRefreshing = false
         await loadDetails()
+    }
+
+    func scanSecurity() async {
+        guard !isScanning else { return }
+        isScanning = true
+        async let listedPorts = portsService.list()
+        async let listedJobs = jobsService.list()
+        let (ports, jobs) = await (listedPorts, listedJobs)
+        security = await SecurityScan.run(jobs: jobs, loginItems: loginItemsService.list(), ports: ports)
+        isScanning = false
     }
 
     func loadDetails() async {

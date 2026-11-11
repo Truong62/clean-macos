@@ -33,7 +33,7 @@ enum ToolGroup: String, CaseIterable, Identifiable {
             AppTool(page: .monitor, icon: "gauge.with.dots.needle.67percent", title: "Monitor", summary: "CPU, GPU, network, power and sensors",
                     colors: [.green, .mint]),
             AppTool(page: .displays, icon: "display.2", title: "Displays", summary: "Monitors and wallpapers", colors: [.purple, .pink]),
-            AppTool(page: .portsJobs, icon: "network", title: "Ports & Jobs", summary: "Ports, cron jobs, login items", colors: [.cyan, .blue]),
+            AppTool(page: .portsJobs, icon: "network", title: "Ports & Jobs", summary: "Ports, jobs, login items, security check", colors: [.cyan, .blue]),
             AppTool(page: .powerRecovery, icon: "bolt.fill", title: "Power Recovery", summary: "Starts up on its own after a power cut", colors: [.orange, .yellow]),
             AppTool(page: .keepAwake, icon: "cup.and.saucer.fill", title: "Keep Awake", summary: "Stop your Mac from sleeping", colors: [.orange, .brown]),
             AppTool(page: .controls, icon: "switch.2", title: "Quick Controls", summary: "Dark mode, hidden files, lock, eject", colors: [.teal, .blue]),

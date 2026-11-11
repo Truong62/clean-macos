@@ -165,6 +165,7 @@
 		BA677043A457E4296F2EACBF /* MusicPlayerBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4863E8A5D48D219ECA7EB47 /* MusicPlayerBar.swift */; };
 		BA8BC6A55C021EC8F823B96A /* ToolPanels.swift in Sources */ = {isa = PBXBuildFile; fileRef = D364D314D5CC93F9E542B5E3 /* ToolPanels.swift */; };
 		BB8A6290F697E18188D7346C /* MusicPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD598018014E402B175A0AE0 /* MusicPlayer.swift */; };
+		BC232C2342277B06C32C20DE /* SecurityScan.swift in Sources */ = {isa = PBXBuildFile; fileRef = F392DF29BD73BD6871AB42EB /* SecurityScan.swift */; };
 		BC3CC10E02C22920507972BB /* UpdaterViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6961B68D8844C43ABA231FF8 /* UpdaterViewModel.swift */; };
 		C0C09283201CAAB4F21010B6 /* CleanResultsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB05C0D7D13AC0BE49A2C584 /* CleanResultsView.swift */; };
 		C3B93D8227C8F449125003FD /* WindowMouse.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A3324309DBB6892F661784C /* WindowMouse.swift */; };
@@ -445,6 +446,7 @@
 		EF0818EF6E3C3834EB3A3AFE /* BrightnessController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrightnessController.swift; sourceTree = "<group>"; };
 		F1DA44AC22EBA14C479EDE6F /* ToolsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolsView.swift; sourceTree = "<group>"; };
 		F3744B2045F435E67C8C39B9 /* CleanDiskView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CleanDiskView.swift; sourceTree = "<group>"; };
+		F392DF29BD73BD6871AB42EB /* SecurityScan.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecurityScan.swift; sourceTree = "<group>"; };
 		F4C2D7B9732C45D22BD6267E /* SwitcherEvents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwitcherEvents.swift; sourceTree = "<group>"; };
 		F4D78F4175AADF65AC9F6558 /* RecordingStudio.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingStudio.swift; sourceTree = "<group>"; };
 		F50E79083A48396AD0651E87 /* AboutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutView.swift; sourceTree = "<group>"; };
@@ -646,6 +648,7 @@
 				2A950106EA67112CD80B6931 /* ScreenshotView.swift */,
 				2A07398D4722FDF78A4EF281 /* ScreenTools.swift */,
 				621CB99B3A441455F8AD7227 /* SecureInputStatus.swift */,
+				F392DF29BD73BD6871AB42EB /* SecurityScan.swift */,
 				185CCDDE3D43CD6FEF6FDA72 /* SettingsView.swift */,
 				9369B89FD38E6521F9B366AA /* Shelf.swift */,
 				95BBED4D723D663890BC37DC /* ShelfController.swift */,
@@ -996,6 +999,7 @@
 				B96372B3213D6B5944B9A6B9 /* ScreenshotRenderer.swift in Sources */,
 				DE45096DE88C5F0CAD79A949 /* ScreenshotView.swift in Sources */,
 				3D6E0555586833F892D80B46 /* SecureInputStatus.swift in Sources */,
+				BC232C2342277B06C32C20DE /* SecurityScan.swift in Sources */,
 				F25497E5A5FCBDEB50858F3C /* SettingsView.swift in Sources */,
 				0CCF383FB4D817BE97B5E184 /* Shelf.swift in Sources */,
 				AB180853B09F48F15F6768C6 /* ShelfController.swift in Sources */,

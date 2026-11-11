@@ -12,6 +12,7 @@ struct PortsJobsView: View {
                 case .ports: portsTable
                 case .jobs: jobsTable
                 case .loginItems: loginItemsTable
+                case .security: securityTable
                 }
             }
             .frame(minHeight: 200, maxHeight: .infinity)
@@ -30,6 +31,9 @@ struct PortsJobsView: View {
         .onDisappear { vm.stopRefreshing() }
         .onChange(of: vm.selectedPortID) { _, _ in Task { await vm.loadDetails() } }
         .onChange(of: vm.selectedJobID) { _, _ in Task { await vm.loadDetails() } }
+        .onChange(of: vm.tab) { _, tab in
+            if tab == .security && vm.security == nil { Task { await vm.scanSecurity() } }
+        }
         .alert(vm.confirmation?.title ?? "", isPresented: vm.isConfirming, presenting: vm.confirmation) { pending in
             Button("Cancel", role: .cancel) { }
             Button(pending.actionLabel, role: .destructive) { Task { await vm.confirm(pending) } }
@@ -48,9 +52,9 @@ struct PortsJobsView: View {
                 .fontDesign(.rounded)
                 .fontWeight(.semibold)
                 .foregroundStyle(.secondary)
-            if vm.isRefreshing || vm.isWorking { ProgressView().controlSize(.small) }
+            if vm.isRefreshing || vm.isWorking || vm.isScanning { ProgressView().controlSize(.small) }
             Button {
-                Task { await vm.refresh() }
+                Task { if vm.tab == .security { await vm.scanSecurity() } else { await vm.refresh() } }
             } label: {
                 Image(systemName: "arrow.clockwise")
                     .font(.system(size: 13, weight: .semibold))
@@ -59,7 +63,7 @@ struct PortsJobsView: View {
             }
             .buttonStyle(.plain)
             .pointerCursor()
-            .help("Refresh")
+            .help(vm.tab == .security ? "Scan again" : "Refresh")
         }
     }
 
@@ -68,6 +72,7 @@ struct PortsJobsView: View {
         case .ports: "\(vm.ports.count) listening"
         case .jobs: "\(vm.filteredJobs.count) jobs"
         case .loginItems: "\(vm.loginItems.filter { $0.isEnabled && !$0.isMissing }.count) open at login"
+        case .security: vm.security.map { "\($0.issueCount) to review" } ?? "Scanning…"
         }
     }
 
@@ -76,6 +81,7 @@ struct PortsJobsView: View {
         case .ports: "Search port, process or PID"
         case .jobs: "Search name or command"
         case .loginItems: "Search app"
+        case .security: "Search item or path"
         }
     }
 
@@ -86,7 +92,7 @@ struct PortsJobsView: View {
             }
             .labelsHidden()
             .pickerStyle(.segmented)
-            .frame(width: 360)
+            .frame(width: 460)
             .pointerCursor()
 
             HStack(spacing: 8) {
@@ -226,6 +232,89 @@ struct PortsJobsView: View {
         }
     }
 
+    private var securityTable: some View {
+        Table(vm.filteredFindings, selection: $vm.selectedFindingID) {
+            TableColumn("Item") { finding in
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(finding.name).fontWeight(.medium).lineLimit(1)
+                    Text(finding.path)
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+                .help(finding.path)
+            }
+            .width(min: 220, ideal: 340)
+            TableColumn("Problem") { finding in
+                Text(problemText(finding))
+                    .foregroundStyle(problemColor(finding))
+                    .fontWeight(.medium)
+                    .lineLimit(2)
+            }
+            .width(min: 160, ideal: 260)
+            TableColumn("Source") { finding in
+                badge(finding.kind, color: .blue)
+            }
+            .width(min: 90, ideal: 130)
+        }
+        .scrollContentBackground(.hidden)
+        .contextMenu(forSelectionType: SecurityFinding.ID.self) { ids in
+            if let finding = vm.filteredFindings.first(where: { ids.contains($0.id) }), !finding.problems.contains(.missing) {
+                Button("Reveal in Finder") { vm.reveal(finding.path) }
+            }
+        }
+        .overlay {
+            if vm.security?.findings.isEmpty == true {
+                ContentUnavailableView("Nothing to review", systemImage: "checkmark.shield",
+                                       description: Text("No unsigned, tampered or out-of-place startup items or network listeners."))
+            }
+        }
+    }
+
+    @ViewBuilder private func findingDetail(_ finding: SecurityFinding) -> some View {
+        HStack(spacing: 10) {
+            Text(finding.name).font(.headline).lineLimit(1)
+            Spacer()
+            if !finding.problems.contains(.missing) { Button("Reveal") { vm.reveal(finding.path) }.pointerCursor() }
+        }
+        detailRow("Problem", problemText(finding))
+        detailRow("Source", finding.kind)
+        detailRow("Path", finding.path, monospaced: true)
+        hint(finding.problems == [.missing]
+             ? "It points to a file that no longer exists, so it does nothing. Delete it under Scheduled Jobs or Login Items."
+             : "Fine if you installed it yourself. If you don't recognize it, turn it off under Scheduled Jobs or Login Items, or quit it under Ports.")
+    }
+
+    @ViewBuilder private var protectionsDetail: some View {
+        if let report = vm.security {
+            ForEach(report.protections) { protection in
+                HStack(alignment: .firstTextBaseline, spacing: 12) {
+                    Text(protection.name).font(.callout).frame(width: 200, alignment: .leading)
+                    badge(protection.stateLabel, color: protection.isOn == true ? .green : protection.isOn == false ? .orange : .gray)
+                    if protection.isOn == false {
+                        Text(protection.fix).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
+                    }
+                }
+            }
+            hint("Checks what starts with your Mac and what listens on the network for unsigned or tampered code. It is not an antivirus: macOS looks for known malware itself with XProtect.")
+        } else {
+            hint("Checking macOS protections, startup items and open ports…")
+        }
+    }
+
+    private func problemText(_ finding: SecurityFinding) -> String {
+        finding.problems.map(\.rawValue).joined(separator: " · ")
+    }
+
+    private func problemColor(_ finding: SecurityFinding) -> Color {
+        switch finding.problems.first {
+        case .invalidSignature, .sharedFolder: .red
+        case .missing: .gray
+        default: .orange
+        }
+    }
+
     private func loginToggle(_ item: LoginItem) -> some View {
         Toggle("Open at Login", isOn: Binding(get: { item.isEnabled },
                                               set: { isOn in Task { await vm.setLoginItem(item, enabled: isOn) } }))
@@ -278,6 +367,8 @@ struct PortsJobsView: View {
                 if let job = vm.selectedJob { jobDetail(job) } else { hint("Select a job to see its command, schedule and log. Right-click a row for actions.") }
             case .loginItems:
                 if let item = vm.selectedLoginItem { loginItemDetail(item) } else { hint("These apps open automatically when you log in. Turn one off and it stays in this list so you can turn it back on later. Background helpers live under Scheduled Jobs; MacKit itself is in Settings › General.") }
+            case .security:
+                if let finding = vm.selectedFinding { findingDetail(finding) } else { protectionsDetail }
             }
         }
         .padding(14)
