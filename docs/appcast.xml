@@ -8,6 +8,19 @@
 
     <!-- Paste new <item> blocks here when releasing (newest first) -->
     <item>
+      <title>Version 1.0.56</title>
+      <pubDate>Wed, 11 Nov 2026 10:29:41 +0700</pubDate>
+      <sparkle:version>57</sparkle:version>
+      <sparkle:shortVersionString>1.0.56</sparkle:shortVersionString>
+      <description><![CDATA[
+        <ul><li>MacKit's main window no longer carries two conflicting full-screen behaviors, which could stop it from being dragged in Stage Manager</li></ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/Truong62/clean-macos/releases/download/v1.0.56/MacKit-1.0.56.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="j0cAZ3SSE46HrWGvdreL+jX0aDd82f3gevxptWg0yLWOjM3/6+xmYw+qYn3fJW5Voxm1OF74EIsWDaD/eExpDg==" length="11325624" />
+    </item>
+    <item>
       <title>Version 1.0.55</title>
       <pubDate>Wed, 11 Nov 2026 09:36:42 +0700</pubDate>
       <sparkle:version>56</sparkle:version>
