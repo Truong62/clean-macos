@@ -8,6 +8,19 @@
 
     <!-- Paste new <item> blocks here when releasing (newest first) -->
     <item>
+      <title>Version 1.0.55</title>
+      <pubDate>Wed, 11 Nov 2026 09:36:42 +0700</pubDate>
+      <sparkle:version>56</sparkle:version>
+      <sparkle:shortVersionString>1.0.55</sparkle:shortVersionString>
+      <description><![CDATA[
+        <ul><li>When a feature needs Accessibility, MacKit now asks for it right away, also after an update, and every permission notice has an Allow button</li><li>Turning on Vietnamese typing without access shows the macOS permission prompt instead of doing nothing</li><li>MacKit is now signed with a fixed certificate, so after you grant access once more, updates keep your permissions</li></ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/Truong62/clean-macos/releases/download/v1.0.55/MacKit-1.0.55.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="i34p+wvopcMiV8x7pac4iDSlaosrDTE69shC8L1t1DjAgywmfF5qD7Rc8oiI2aOXaZJ9X3CFm14MiLLUFjUGBQ==" length="11326054" />
+    </item>
+    <item>
       <title>Version 1.0.54</title>
       <pubDate>Wed, 11 Nov 2026 09:09:37 +0700</pubDate>
       <sparkle:version>55</sparkle:version>
