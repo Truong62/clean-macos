@@ -31,8 +31,8 @@ struct ScreenshotView: View {
                     Toggle("Automatically scroll", isOn: $capture.settings.automaticScroll)
                         .onChange(of: capture.settings.automaticScroll) { _, enabled in
                             if enabled && !AXIsProcessTrusted() {
-                                let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
-                                if !AXIsProcessTrustedWithOptions(options) { capture.settings.automaticScroll = false }
+                                PasteService.requestAccessibility()
+                                if !AXIsProcessTrusted() { capture.settings.automaticScroll = false }
                             }
                         }
                 }

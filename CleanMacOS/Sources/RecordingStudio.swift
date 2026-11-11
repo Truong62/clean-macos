@@ -100,8 +100,7 @@ final class RecordingStudio: ObservableObject {
                     notify("Microphone access denied. Recording continues without it.")
                 }
                 if settings.typing, !AXIsProcessTrusted() {
-                    let key = kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String
-                    _ = AXIsProcessTrustedWithOptions([key: true] as CFDictionary)
+                    PasteService.requestAccessibility()
                     notify("Allow Accessibility to capture typing times. No keys are stored.")
                 }
                 try Task.checkCancellation()

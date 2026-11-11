@@ -16,11 +16,7 @@ struct WindowsView: View {
                 PageHeader(icon: "macwindow.on.rectangle", title: "Windows", subtitle: "Snap, move and tidy windows with the keyboard or the mouse.",
                            colors: [.indigo, .blue])
                 if !AXIsProcessTrusted() {
-                    Label("Window tools need Accessibility access for \(AppIdentity.installedName).", systemImage: "lock.shield")
-                        .foregroundStyle(.orange)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(14)
-                        .glassCard(cornerRadius: 18)
+                    AccessibilityNotice(text: "Window tools need Accessibility access for \(AppIdentity.installedName).")
                 }
                 CardSection(title: "Keyboard", icon: "keyboard") {
                     Toggle("Use keyboard shortcuts to place windows", isOn: $windows.settings.shortcutsEnabled)

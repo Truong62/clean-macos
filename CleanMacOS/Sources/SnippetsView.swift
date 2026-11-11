@@ -23,11 +23,7 @@ struct SnippetsView: View {
                 PageHeader(icon: "text.badge.plus", title: "Snippets", subtitle: "Type a short trigger and it turns into longer text.",
                            colors: [.orange, .pink])
                 if !AXIsProcessTrusted() {
-                    Label("Snippets need Accessibility access for \(AppIdentity.installedName).", systemImage: "lock.shield")
-                        .foregroundStyle(.orange)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(14)
-                        .glassCard(cornerRadius: 18)
+                    AccessibilityNotice(text: "Snippets need Accessibility access for \(AppIdentity.installedName).")
                 }
                 SecureInputStatusCard()
                 CardSection(title: "Expansion", icon: "keyboard") {

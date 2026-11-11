@@ -188,7 +188,7 @@ final class TrackpadMiddleController: ObservableObject {
     }
 
     func requestPermission() {
-        _ = AXIsProcessTrustedWithOptions([kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary)
+        PasteService.requestAccessibility()
         apply()
     }
 

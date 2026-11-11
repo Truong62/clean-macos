@@ -9,11 +9,17 @@ enum PasteService {
         AXIsProcessTrusted()
     }
 
-    /// Show the system prompt that lets the user add this app to Accessibility.
     static func requestAccessibility() {
+        guard !AXIsProcessTrusted() else { return }
+        _ = clearedStaleGrant
         let key = kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String
         _ = AXIsProcessTrustedWithOptions([key: true] as CFDictionary)
     }
+
+    private static let clearedStaleGrant: Bool = {
+        guard let id = Bundle.main.bundleIdentifier else { return false }
+        return CommandRunner.run("/usr/bin/tccutil", ["reset", "Accessibility", id]).status == 0
+    }()
 
     static func openAccessibilitySettings() {
         let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!

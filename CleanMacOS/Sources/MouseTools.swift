@@ -183,7 +183,7 @@ final class MouseToolsController: ObservableObject {
     }
 
     func enablePermission() {
-        _ = AXIsProcessTrustedWithOptions([kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary)
+        PasteService.requestAccessibility()
         allSpacesHotkeysOff = SpacesAction.allCases.allSatisfy { SymbolicMouseKeys.stroke($0) == nil }
         apply()
     }

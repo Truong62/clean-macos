@@ -45,3 +45,19 @@ private struct PointerCursor: ViewModifier {
             .onDisappear { if hovering { NSCursor.pop() } }
     }
 }
+
+struct AccessibilityNotice: View {
+    let text: String
+
+    var body: some View {
+        HStack {
+            Label(text, systemImage: "lock.shield").foregroundStyle(.orange)
+            Spacer()
+            Button("Allow Accessibility…") { PasteService.requestAccessibility() }
+            Button("Open Settings") { PasteService.openAccessibilitySettings() }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(14)
+        .glassCard(cornerRadius: 18)
+    }
+}

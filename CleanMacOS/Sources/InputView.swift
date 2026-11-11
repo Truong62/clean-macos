@@ -14,11 +14,7 @@ struct InputView: View {
                 PageHeader(icon: "computermouse.fill", title: "Mouse & Keyboard", subtitle: "Fix scrolling, map mouse buttons and guard against slips.",
                            colors: [.mint, .blue])
                 if !AXIsProcessTrusted() {
-                    Label("These tools need Accessibility access for \(AppIdentity.installedName).", systemImage: "lock.shield")
-                        .foregroundStyle(.orange)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(14)
-                        .glassCard(cornerRadius: 18)
+                    AccessibilityNotice(text: "These tools need Accessibility access for \(AppIdentity.installedName).")
                 }
                 CardSection(title: "Scrolling with a mouse wheel", icon: "scroll") {
                     Text("These change mouse wheels only. Trackpads are left alone.").font(.caption).foregroundStyle(.secondary)
@@ -39,7 +35,7 @@ struct InputView: View {
                     }
                     Toggle("Pinch zoom with the wheel", isOn: $input.settings.wheelPinch)
                         .onChange(of: input.settings.wheelPinch) { _, enabled in
-                            if enabled { _ = AXIsProcessTrustedWithOptions([kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary) }
+                            if enabled { PasteService.requestAccessibility() }
                         }
                     Picker("Pinch modifier", selection: $input.settings.pinchModifier) {
                         Text("None (inactive)").tag(ModifierChoice.none)

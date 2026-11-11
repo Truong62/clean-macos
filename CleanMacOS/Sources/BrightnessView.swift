@@ -28,7 +28,10 @@ struct BrightnessSection: View {
                     ShortcutPair(down: .displayBrightnessDown, up: .displayBrightnessUp)
                 }
                 if !AXIsProcessTrusted() {
-                    Text("Brightness keys need Accessibility access for \(AppIdentity.installedName).").font(.caption).foregroundStyle(.orange)
+                    HStack {
+                        Text("Brightness keys need Accessibility access for \(AppIdentity.installedName).").font(.caption).foregroundStyle(.orange)
+                        Button("Allow…") { PasteService.requestAccessibility() }.controlSize(.small)
+                    }
                 }
                 if XDRBooster.isSupported {
                     Toggle("Extra brightness on the XDR display", isOn: $brightness.settings.xdrEnabled)

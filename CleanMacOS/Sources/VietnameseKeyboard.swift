@@ -270,11 +270,13 @@ final class VietnameseKeyboard: ObservableObject {
     var isVietnamese: Bool { preferences.mode(for: frontmostApp?.bundleIdentifier) }
 
     func update(_ change: (inout TypingPreferences) -> Void) {
+        let wasEnabled = preferences.isEnabled
         change(&preferences)
         store.save(preferences)
         applyShortcut()
         configureEngine()
         if preferences.isEnabled { start() } else { stop() }
+        if preferences.isEnabled && !wasEnabled && !hasPermission { requestPermission() }
     }
 
     private func applyShortcut() {
@@ -295,8 +297,7 @@ final class VietnameseKeyboard: ObservableObject {
     }
 
     func requestPermission() {
-        let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
-        AXIsProcessTrustedWithOptions(options)
+        PasteService.requestAccessibility()
     }
 
     func start() {

@@ -13,11 +13,7 @@ struct FilesView: View {
                            subtitle: "Cut and paste files, rename with one key, keep things on a Shelf and install apps from disk images.",
                            colors: [.cyan, .blue])
                 if !AXIsProcessTrusted() {
-                    Label("These tools need Accessibility access for \(AppIdentity.installedName).", systemImage: "lock.shield")
-                        .foregroundStyle(.orange)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(14)
-                        .glassCard(cornerRadius: 18)
+                    AccessibilityNotice(text: "These tools need Accessibility access for \(AppIdentity.installedName).")
                 }
                 CardSection(title: "Cut and paste", icon: "scissors") {
                     Toggle("⌘X then ⌘V moves files in Finder", isOn: $finder.settings.cutsAndPastes)

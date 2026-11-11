@@ -222,7 +222,8 @@ final class RadialMenuController: NSObject, ObservableObject, NSWindowDelegate {
 
     private static func requestAccessibility() -> Bool {
         if AXIsProcessTrusted() { return true }
-        return AXIsProcessTrustedWithOptions([kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary)
+        PasteService.requestAccessibility()
+        return AXIsProcessTrusted()
     }
 
     private func resetTracking() {

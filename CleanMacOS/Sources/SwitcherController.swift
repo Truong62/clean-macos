@@ -156,8 +156,7 @@ final class SwitcherController: ObservableObject {
     }
 
     func requestAccessibility() {
-        let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
-        _ = AXIsProcessTrustedWithOptions(options)
+        PasteService.requestAccessibility()
         applySettings()
     }
 
