@@ -56,6 +56,18 @@ struct TypingEngineTests {
 }
 
 struct TypingPreferencesTests {
+    @Test func modeShortcutFollowsEngineEnablement() {
+        var preferences = TypingPreferences()
+        #expect(!preferences.holdsModeShortcut)
+        for vietnamese in [false, true] {
+            preferences.isVietnamese = vietnamese
+            preferences.isEnabled = true
+            #expect(preferences.holdsModeShortcut)
+            preferences.isEnabled = false
+            #expect(!preferences.holdsModeShortcut)
+        }
+    }
+
     @Test func remembersTheModePerAppAndSkipsExcludedApps() {
         var preferences = TypingPreferences()
         preferences.appModes = ["com.apple.Terminal": false]

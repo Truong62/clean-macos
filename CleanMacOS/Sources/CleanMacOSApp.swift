@@ -168,9 +168,6 @@ struct CleanMacOSApp: App {
         KeyboardShortcuts.onKeyUp(for: .toggleKeepAwake) {
             MainActor.assumeIsolated { keepAwake.toggle() }
         }
-        KeyboardShortcuts.onKeyUp(for: .toggleVietnamese) {
-            MainActor.assumeIsolated { keyboard.toggleMode() }
-        }
     }
 
     var body: some Scene {

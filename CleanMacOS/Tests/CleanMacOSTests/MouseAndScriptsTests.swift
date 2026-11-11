@@ -4,6 +4,32 @@ import Testing
 @testable import CleanMacOS
 
 struct SavedScriptTests {
+    @Test func scriptShortcutRequiresEveryFeatureGate() {
+        var settings = CommandBarSettings()
+        var script = CommandScript(name: "Run", path: "/tmp/tool")
+        #expect(!settings.holdsShortcut(for: script))
+        for enabled in [false, true] {
+            for searches in [false, true] {
+                for shortcut in [false, true] {
+                    for hidden in [false, true] {
+                        settings.isEnabled = enabled
+                        settings.searchesScripts = searches
+                        script.shortcutEnabled = shortcut
+                        script.hidden = hidden
+                        #expect(settings.holdsShortcut(for: script) == (enabled && searches && shortcut && !hidden))
+                    }
+                }
+            }
+        }
+        script.hidden = false
+        #expect(settings.holdsShortcut(for: script))
+        settings.isEnabled = false
+        #expect(!settings.holdsShortcut(for: script))
+        settings.isEnabled = true
+        script.path = " "
+        #expect(!settings.holdsShortcut(for: script))
+    }
+
     @Test func matchesWholeFoldedNamesAndPreservesArgumentCase() {
         let script = CommandScript(name: "Café Full", path: "/tmp/tool")
         #expect(script.argument(in: "ＣＡＦＥ full  Hello\n WOrld ") == "Hello WOrld")

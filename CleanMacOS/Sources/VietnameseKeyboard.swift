@@ -2,6 +2,7 @@ import AppKit
 import ApplicationServices
 import Carbon.HIToolbox
 import Combine
+import KeyboardShortcuts
 
 struct TypingMacro: Codable, Equatable, Identifiable {
     var id = UUID()
@@ -42,6 +43,8 @@ struct TypingPreferences: Codable, Equatable {
     var remembersAppMode = true
     var escRestores = false
     var playsSound = false
+
+    var holdsModeShortcut: Bool { isEnabled }
 
     var activeMacros: [String: String] {
         Dictionary(macros.filter(\.isEnabled).map { ($0.trigger, $0.expansion) }, uniquingKeysWith: { first, _ in first })
@@ -245,6 +248,10 @@ final class VietnameseKeyboard: ObservableObject {
     init(store: TypingPreferencesStore = TypingPreferencesStore(defaults: .standard)) {
         self.store = store
         preferences = store.load()
+        KeyboardShortcuts.onKeyUp(for: .toggleVietnamese) { [weak self] in
+            MainActor.assumeIsolated { self?.toggleMode() }
+        }
+        applyShortcut()
         frontmostApp = NSWorkspace.shared.frontmostApplication
         configureEngine()
         watchers = [
@@ -265,8 +272,14 @@ final class VietnameseKeyboard: ObservableObject {
     func update(_ change: (inout TypingPreferences) -> Void) {
         change(&preferences)
         store.save(preferences)
+        applyShortcut()
         configureEngine()
         if preferences.isEnabled { start() } else { stop() }
+    }
+
+    private func applyShortcut() {
+        if preferences.holdsModeShortcut { KeyboardShortcuts.enable([.toggleVietnamese]) }
+        else { KeyboardShortcuts.disable([.toggleVietnamese]) }
     }
 
     func toggleMode() {

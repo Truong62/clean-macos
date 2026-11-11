@@ -12,6 +12,10 @@ struct CommandBarSettings: Codable, Equatable {
     var fileFolders: [String] = []
     var scripts: [CommandScript] = []
     var searchesScripts = false
+
+    func holdsShortcut(for script: CommandScript) -> Bool {
+        isEnabled && searchesScripts && script.shortcutEnabled && !script.hidden && script.normalized != nil
+    }
 }
 
 extension CommandBarSettings {
@@ -540,7 +544,7 @@ final class CommandBarController: NSObject, ObservableObject, NSWindowDelegate {
             let name = KeyboardShortcuts.Name.commandScript(script.id)
             KeyboardShortcuts.onKeyUp(for: name) { [weak self] in
                 MainActor.assumeIsolated {
-                    guard let self, self.settings.searchesScripts, script.shortcutEnabled, !script.hidden else { return }
+                    guard let self, self.settings.holdsShortcut(for: script) else { return }
                     if script.directShortcut {
                         let key = ScriptRunKey(id: script.id, path: script.path, argument: "")
                         guard self.scriptRuns.begin(key, direct: true) else { return }
@@ -557,7 +561,7 @@ final class CommandBarController: NSObject, ObservableObject, NSWindowDelegate {
                     }
                 }
             }
-            if settings.searchesScripts && script.shortcutEnabled && !script.hidden { KeyboardShortcuts.enable([name]) }
+            if settings.holdsShortcut(for: script) { KeyboardShortcuts.enable([name]) }
             else { KeyboardShortcuts.disable([name]) }
         }
     }

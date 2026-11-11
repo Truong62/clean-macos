@@ -169,14 +169,6 @@ struct ControlsStrip: View {
                 let controls = controls
                 Task.detached { controls.setDarkMode(!controls.isDarkMode) }
             }
-            MenuIconButton(systemImage: "eye", help: "Show or hide hidden files") {
-                let controls = controls
-                Task.detached { controls.set(.hiddenFiles, !controls.isOn(.hiddenFiles)) }
-            }
-            MenuIconButton(systemImage: "menubar.dock.rectangle", help: "Show or hide desktop icons") {
-                let controls = controls
-                Task.detached { controls.set(.desktopIcons, !controls.isOn(.desktopIcons)) }
-            }
             MenuIconButton(systemImage: "lock.fill", help: "Lock Screen") { controls.lockScreen() }
             MenuIconButton(systemImage: "display", help: "Sleep Display") { controls.sleepDisplay() }
             MenuIconButton(systemImage: "sparkles.tv", help: "Screen Saver") { controls.startScreenSaver() }
