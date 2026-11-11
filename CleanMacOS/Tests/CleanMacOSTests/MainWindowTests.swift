@@ -8,9 +8,11 @@ import Testing
                               styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: true)
         window.isReleasedWhenClosed = false
         defer { window.close() }
+        window.collectionBehavior = [.fullScreenPrimary]
         MainWindowController.bringToActiveSpace(window)
         #expect(!window.collectionBehavior.contains(.canJoinAllSpaces))
         #expect(window.collectionBehavior.contains(.moveToActiveSpace))
-        #expect(window.collectionBehavior.contains(.fullScreenAuxiliary))
+        #expect(window.collectionBehavior.contains(.fullScreenPrimary))
+        #expect(!window.collectionBehavior.contains(.fullScreenAuxiliary))
     }
 }

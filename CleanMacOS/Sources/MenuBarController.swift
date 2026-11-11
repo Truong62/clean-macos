@@ -17,7 +17,7 @@ enum MainWindowController {
     }
 
     static func bringToActiveSpace(_ window: NSWindow) {
-        window.collectionBehavior.formUnion([.moveToActiveSpace, .fullScreenAuxiliary])
+        window.collectionBehavior.insert(.moveToActiveSpace)
     }
 
     private static func mainWindow(in application: NSApplication) -> NSWindow? {
