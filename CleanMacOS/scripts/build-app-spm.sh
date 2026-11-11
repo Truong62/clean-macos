@@ -51,7 +51,9 @@ sed -e 's/$(DEVELOPMENT_LANGUAGE)/en/' \
 plutil -insert CFBundleIconFile -string AppIcon "$APP/Contents/Info.plist"
 printf "APPL????" > "$APP/Contents/PkgInfo"
 
-codesign --force --deep --sign - "$APP"
+SIGN_ID="${MACKIT_SIGN_IDENTITY:-MacKit Self Signed}"
+security find-certificate -c "$SIGN_ID" >/dev/null 2>&1 || SIGN_ID=-
+codesign --force --deep --sign "$SIGN_ID" "$APP"
 ./scripts/inject-auth.sh "$APP" >&2
 codesign --verify --deep --strict "$APP"
 echo "$APP"
