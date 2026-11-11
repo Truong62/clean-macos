@@ -8,6 +8,19 @@
 
     <!-- Paste new <item> blocks here when releasing (newest first) -->
     <item>
+      <title>Version 1.0.54</title>
+      <pubDate>Wed, 11 Nov 2026 09:09:37 +0700</pubDate>
+      <sparkle:version>55</sparkle:version>
+      <sparkle:shortVersionString>1.0.54</sparkle:shortVersionString>
+      <description><![CDATA[
+        <ul><li>Removes the Island, which kept MacKit busy and redrew the menu bar several times a second</li><li>Control-Space is no longer taken while MacKit's typing is off, so it switches input sources and works in other apps again</li><li>The menu bar panel no longer has the small hidden files and desktop icons buttons that restarted Finder; use Quick Controls instead</li><li>Command Bar script shortcuts are only active while the Command Bar is on</li></ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/Truong62/clean-macos/releases/download/v1.0.54/MacKit-1.0.54.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="vS6qIVHSlbqBVoMamnBLlcnj0Js0bRZunV/f1wlEQVnyHgYQehO8BuBQ/tfIxudh3V0PD0kNLaIX389S6QAPDw==" length="11313652" />
+    </item>
+    <item>
       <title>Version 1.0.53</title>
       <pubDate>Tue, 10 Nov 2026 17:48:35 +0700</pubDate>
       <sparkle:version>54</sparkle:version>
