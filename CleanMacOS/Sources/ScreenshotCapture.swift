@@ -233,7 +233,6 @@ final class ScreenshotController: ObservableObject {
     private var lifecycleTimer: Timer?
     private var wakeObserver: NSObjectProtocol?
     private var latest: URL?
-    var onIslandCapture: ((CGImage) -> Void)?
     private var regionSelection: ((CGRect, CaptureDisplay, CaptureWindow?) -> Void)?
     private var regions = CaptureRegions()
     private var scrollDone = false
@@ -453,7 +452,6 @@ final class ScreenshotController: ObservableObject {
     }
 
     private func complete(_ image: CGImage, scale: CGFloat) {
-        onIslandCapture?(image)
         closePreview()
         do {
             try FileManager.default.createDirectory(at: cache, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])

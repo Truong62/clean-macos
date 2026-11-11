@@ -43,7 +43,6 @@ final class CameraPreviewController: NSObject, ObservableObject, NSWindowDelegat
     private var panel: NSPanel?
     private var keyMonitor: Any?
     private var deviceObservers: [NSObjectProtocol] = []
-    private var embedded = false
     private var ignoresResignUntil = Date.distantPast
 
     override init() {
@@ -55,30 +54,13 @@ final class CameraPreviewController: NSObject, ObservableObject, NSWindowDelegat
         if !settings.isEnabled { KeyboardShortcuts.disable([.cameraPreview]) }
     }
 
-    var openInIsland: (() -> Bool)?
-
-    var isRequestingAccess: Bool { Date() < ignoresResignUntil }
-
     var isOpen: Bool { panel?.isVisible == true }
 
     func toggle() {
-        if openInIsland?() == true { return }
         if isOpen { hide() } else { show() }
     }
 
-    func startEmbedded() {
-        hide()
-        embedded = true
-        start()
-    }
-
-    func stopEmbedded() {
-        embedded = false
-        stopSession()
-    }
-
     func show() {
-        embedded = false
         let panel = self.panel ?? makePanel()
         self.panel = panel
         let mouse = NSEvent.mouseLocation
@@ -92,7 +74,6 @@ final class CameraPreviewController: NSObject, ObservableObject, NSWindowDelegat
     }
 
     func hide() {
-        embedded = false
         removeMonitors()
         panel?.orderOut(nil)
         stopSession()
@@ -143,8 +124,8 @@ final class CameraPreviewController: NSObject, ObservableObject, NSWindowDelegat
 
     private func finishPermissionPrompt(isGranted: Bool) {
         ignoresResignUntil = Date().addingTimeInterval(Self.promptGrace)
-        guard isOpen || embedded else { return }
-        if !embedded { panel?.makeKeyAndOrderFront(nil) }
+        guard isOpen else { return }
+        panel?.makeKeyAndOrderFront(nil)
         if isGranted { startSession() } else { status = .denied }
     }
 
@@ -198,7 +179,7 @@ final class CameraPreviewController: NSObject, ObservableObject, NSWindowDelegat
     }
 
     private func devicesChanged() {
-        guard isOpen || embedded, AVCaptureDevice.authorizationStatus(for: .video) == .authorized else { return }
+        guard isOpen, AVCaptureDevice.authorizationStatus(for: .video) == .authorized else { return }
         cameras = Self.discover()
         if current == nil || !cameras.contains(where: { $0.id == current }) {
             current = nil

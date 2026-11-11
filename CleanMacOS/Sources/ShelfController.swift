@@ -30,10 +30,6 @@ final class ShelfController: NSObject, ObservableObject, NSWindowDelegate {
     @Published var expanded: Set<UUID> = []
     @Published private(set) var lastAdded: UUID?
     var internalDragIDs: Set<UUID> = []
-    var openInIsland: (() -> Void)?
-    var isHostedInIsland = false {
-        didSet { if isHostedInIsland { close(); hideDropZone() } }
-    }
     private var peekEdge: ShelfEdge?
     private var dwell = ShelfEdgeDwell()
     private var dragTimer: Timer?
@@ -107,7 +103,6 @@ final class ShelfController: NSObject, ObservableObject, NSWindowDelegate {
     }
 
     func open() {
-        if isHostedInIsland, let openInIsland { openInIsland(); return }
         if let panel {
             promotePeek()
             panel.orderFrontRegardless()
@@ -470,7 +465,7 @@ final class ShelfController: NSObject, ObservableObject, NSWindowDelegate {
         case .leftMouseDragged:
             if !isContentDrag {
                 guard dragPasteboard.changeCount != dragChangeCount,
-                      !Self.accepted.isDisjoint(with: dragPasteboard.types ?? []), !isExcludedAppActive, internalDragIDs.isEmpty, !isHostedInIsland else { return }
+                      !Self.accepted.isDisjoint(with: dragPasteboard.types ?? []), !isExcludedAppActive, internalDragIDs.isEmpty else { return }
                 isContentDrag = true
                 dragTimer = Timer.scheduledTimer(withTimeInterval: 0.15, repeats: true) { [weak self] _ in
                     MainActor.assumeIsolated { self?.pollDrag() }
@@ -489,7 +484,7 @@ final class ShelfController: NSObject, ObservableObject, NSWindowDelegate {
 
     private func pollDrag() {
         guard NSEvent.pressedMouseButtons & 1 != 0 else { finishDrag(); return }
-        guard settings.isEnabled, settings.peeksAtEdges, isContentDrag, !isHostedInIsland else { return }
+        guard settings.isEnabled, settings.peeksAtEdges, isContentDrag else { return }
         let point = NSEvent.mouseLocation
         if let edge = peekEdge {
             if edge.isTooFar(point) { close() }
@@ -555,7 +550,7 @@ final class ShelfController: NSObject, ObservableObject, NSWindowDelegate {
     }
 
     func settleDropZone() {
-        guard settings.isEnabled, settings.showsDropZone, !isHostedInIsland, !isOpen, !shelf.items.isEmpty else { return hideDropZone() }
+        guard settings.isEnabled, settings.showsDropZone, !isOpen, !shelf.items.isEmpty else { return hideDropZone() }
         showDropZone(.holding(shelf.items.count))
     }
 

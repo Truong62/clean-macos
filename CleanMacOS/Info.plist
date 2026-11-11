@@ -25,13 +25,9 @@
 	<key>LSMinimumSystemVersion</key>
 	<string>14.0</string>
 	<key>NSAppleEventsUsageDescription</key>
-	<string>MacKit reads and controls Music and Spotify when Island Now Playing is enabled, asks Finder for selected files, and changes system settings you turn on.</string>
+	<string>MacKit asks Finder for selected files, empties the Trash, and changes system settings you turn on.</string>
 	<key>NSAudioCaptureUsageDescription</key>
 	<string>MacKit changes the volume of the apps you adjust in the volume mixer. Their sound is never recorded or saved.</string>
-	<key>NSBluetoothAlwaysUsageDescription</key>
-	<string>MacKit shows Bluetooth connection alerts only when you enable them in Island.</string>
-	<key>NSCalendarsFullAccessUsageDescription</key>
-	<string>MacKit shows your upcoming events in Island only when you enable Calendar and allow access.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>MacKit shows your camera in a small mirror window when you open Camera Preview. Nothing is recorded or saved.</string>
 	<key>NSHighResolutionCapable</key>

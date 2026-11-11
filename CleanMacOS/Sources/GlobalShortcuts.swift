@@ -3,7 +3,6 @@ import KeyboardShortcuts
 
 extension KeyboardShortcuts.Name {
     static func commandScript(_ id: UUID) -> Self { Self("command.script.\(id.uuidString)") }
-    static let islandWatch = Self("islandWatch")
     static let recordScreen = Self("recordScreen", default: .init(.five, modifiers: [.control, .option, .command]))
     static let editImageFile = Self("editImageFile")
     static let editClipboardImage = Self("editClipboardImage")
@@ -38,7 +37,6 @@ extension KeyboardShortcuts.Name {
     static let captureHistory = Self("captureHistory", default: .init(.h, modifiers: [.control, .option, .command]))
     static let pickColor = Self("pickColor", default: .init(.c, modifiers: [.control, .option, .command]))
     static let grabText = Self("grabText", default: .init(.t, modifiers: [.control, .option, .command]))
-    static let island = Self("island", default: .init(.i, modifiers: [.control, .option, .command]))
     static let quickPanel = Self("quickPanel", default: .init(.v, modifiers: [.control, .command]))
     static let cycleOutput = Self("cycleOutput", default: .init(.s, modifiers: [.control, .option, .command]))
     static let toggleMicMute = Self("toggleMicMute", default: .init(.m, modifiers: [.control, .option, .command]))

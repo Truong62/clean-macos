@@ -88,7 +88,6 @@ struct CleanMacOSApp: App {
     @StateObject private var appUpdates: AppUpdatesController
     @StateObject private var mediaTools = MediaToolsController()
     @StateObject private var aiUsage: AIUsageMonitor
-    @StateObject private var island: IslandController
     @AppStorage("showMenuBar") private var showMenuBar = true
     @State private var panelController: ClipboardPanelController?
 
@@ -163,7 +162,6 @@ struct CleanMacOSApp: App {
             MainWindowController.show()
             NotificationCenter.default.post(name: .openSidebarPage, object: page)
         }
-        _island = StateObject(wrappedValue: IslandController(context: context, music: music, agents: aiUsage, mixer: mixer, monitor: monitor))
         _commandBar = StateObject(wrappedValue: CommandBarController(context: context))
         _radial = StateObject(wrappedValue: RadialMenuController(context: context, windows: windows))
         _quickPanel = StateObject(wrappedValue: QuickPanelController(context: context))
@@ -218,7 +216,6 @@ struct CleanMacOSApp: App {
                 .environmentObject(homebrew)
                 .environmentObject(appUpdates)
                 .environmentObject(mediaTools)
-                .environmentObject(island)
                 .frame(minWidth: 900, minHeight: 600)
                 .onAppear {
                     Task { await account.refreshSession() }
@@ -259,7 +256,6 @@ struct CleanMacOSApp: App {
 
         MenuBarExtra(isInserted: .changing(get: { showMenuBar }, set: { showMenuBar = $0 })) {
             MenuBarView(studio: recordingStudio, monitor: monitor, recorder: recorder, agentRecording: agentRecording, music: music, keepAwake: keepAwake, clipboard: clipboard, shelf: shelf, screenshot: screenshot, brightness: brightness)
-                .environmentObject(island)
                 .environmentObject(sound)
                 .environmentObject(mixer)
         } label: {

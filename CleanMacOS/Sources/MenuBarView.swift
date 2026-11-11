@@ -13,7 +13,6 @@ struct MenuBarView: View {
     @ObservedObject var brightness: BrightnessController
     @EnvironmentObject private var mixer: MixerController
     @EnvironmentObject private var sound: SoundController
-    @EnvironmentObject private var island: IslandController
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
@@ -98,15 +97,11 @@ struct MenuBarView: View {
                 ClipboardMenuCard(clipboard: clipboard)
                 Divider()
             }
-            Toggle("Island", isOn: $island.settings.isEnabled).padding(.horizontal, 14).padding(.vertical, 8)
             systemStats
         }
         .frame(width: 300)
-        .onAppear { monitor.popoverDidOpen(); island.close() }
+        .onAppear { monitor.popoverDidOpen() }
         .onDisappear { monitor.popoverDidClose() }
-        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("MacKit.Island.Opened"))) { _ in
-            if let window = NSApp.keyWindow, window is NSPanel, !(window is IslandPanel) { window.orderOut(nil) }
-        }
     }
 
     private func openMain() {
