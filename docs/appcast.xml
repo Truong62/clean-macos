@@ -8,6 +8,19 @@
 
     <!-- Paste new <item> blocks here when releasing (newest first) -->
     <item>
+      <title>Version 1.0.57</title>
+      <pubDate>Thu, 12 Nov 2026 08:37:11 +0700</pubDate>
+      <sparkle:version>58</sparkle:version>
+      <sparkle:shortVersionString>1.0.57</sparkle:shortVersionString>
+      <description><![CDATA[
+        <ul><li>Ports &amp; Jobs has a new Security tab. It shows whether System Integrity Protection, Gatekeeper, FileVault, the firewall and automatic security updates are on, and where to turn them on</li><li>It also lists background jobs, login items and apps open to the network whose code signature is missing, broken or not from an identified developer, or whose program no longer exists</li></ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/Truong62/clean-macos/releases/download/v1.0.57/MacKit-1.0.57.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="nJ21IKjKWntMXOLw8Dxecaqw6UGl+RS4jHzjx1NRoRE2zA2dsHipqepYU4JXTSRD/1dRCCRwMupLoyhrvYqCAw==" length="11377094" />
+    </item>
+    <item>
       <title>Version 1.0.56</title>
       <pubDate>Wed, 11 Nov 2026 10:29:41 +0700</pubDate>
       <sparkle:version>57</sparkle:version>
