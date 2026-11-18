@@ -8,6 +8,19 @@
 
     <!-- Paste new <item> blocks here when releasing (newest first) -->
     <item>
+      <title>Version 1.0.58</title>
+      <pubDate>Wed, 18 Nov 2026 16:09:04 +0700</pubDate>
+      <sparkle:version>59</sparkle:version>
+      <sparkle:shortVersionString>1.0.58</sparkle:shortVersionString>
+      <description><![CDATA[
+        <ul><li>Opening MacKit from Finder, the Dock or Spotlight works again while an AI agent is using MacKit's screen recording tool. Before, macOS could send the open to that background tool and no window appeared</li></ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/Truong62/clean-macos/releases/download/v1.0.58/MacKit-1.0.58.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="lMvC28HEoDPaEu+1lbn/tdxSa4IqgYby54I2qsT0rBsj9F/nqNo6l2n7sYMBus6eoYlyUMqwocEqK/LBfieQAg==" length="11382249" />
+    </item>
+    <item>
       <title>Version 1.0.57</title>
       <pubDate>Thu, 12 Nov 2026 08:37:11 +0700</pubDate>
       <sparkle:version>58</sparkle:version>
