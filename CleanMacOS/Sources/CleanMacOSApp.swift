@@ -10,7 +10,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func showMainWindow(_ notification: Notification) {
-        _ = applicationShouldHandleReopen(NSApp, hasVisibleWindows: false)
+        let event = NSAppleEventDescriptor(eventClass: AEEventClass(kCoreEventClass), eventID: AEEventID(kAEReopenApplication),
+                                           targetDescriptor: .currentProcess(), returnID: AEReturnID(kAutoGenerateReturnID),
+                                           transactionID: AETransactionID(kAnyTransactionID))
+        _ = try? event.sendEvent(options: .noReply, timeout: TimeInterval(kAEDefaultTimeout))
+        DispatchQueue.main.async { MainWindowController.show() }
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
