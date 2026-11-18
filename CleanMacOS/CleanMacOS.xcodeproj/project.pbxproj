@@ -18,6 +18,7 @@
 		0AAD63D0A686B77FA4CEC7B8 /* LauncherSettingsCards.swift in Sources */ = {isa = PBXBuildFile; fileRef = 317CDDEC44E0133E80435AB4 /* LauncherSettingsCards.swift */; };
 		0ADB22DC7BC9773ED2486D30 /* ScreenshotKeyRecorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B5BC4FF9ADBB97C94831C1E /* ScreenshotKeyRecorder.swift */; };
 		0CCF383FB4D817BE97B5E184 /* Shelf.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9369B89FD38E6521F9B366AA /* Shelf.swift */; };
+		0FA9F7B3AFC42549C69E4D9A /* MCPApplicationDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB36CC87F84A389B7C964CF7 /* MCPApplicationDelegate.swift */; };
 		10BB5BA2697E75F5C92A0868 /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A1479088579DC6E2A293A68 /* SidebarView.swift */; };
 		130C564B933EFF04813CAAD3 /* PortsJobsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9ECF14E8605AC58E4B9C07A2 /* PortsJobsViewModel.swift */; };
 		15251D9BC4DF543DCD8A403E /* PermissionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC661B5A58FE8B57EF1C939C /* PermissionView.swift */; };
@@ -455,6 +456,7 @@
 		FAAA08ABC4C4FD3834BA928F /* MenuBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarView.swift; sourceTree = "<group>"; };
 		FACD43C271B2FC1F2DAB2E4D /* ProcessService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProcessService.swift; sourceTree = "<group>"; };
 		FB05C0D7D13AC0BE49A2C584 /* CleanResultsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CleanResultsView.swift; sourceTree = "<group>"; };
+		FB36CC87F84A389B7C964CF7 /* MCPApplicationDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MCPApplicationDelegate.swift; sourceTree = "<group>"; };
 		FCCB2C047BA64A77789E6656 /* BackgroundRecording.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundRecording.swift; sourceTree = "<group>"; };
 		FECF4839A71B43575E966ED9 /* ScheduledJobsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduledJobsService.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -581,6 +583,7 @@
 				C7BB01766B10D3D2EBD0F908 /* LegacyDataCleanup.swift */,
 				ECCB83BBD398F1435903FE3A /* LevelHUD.swift */,
 				8EB2810848FCC205C4339083 /* LoginItemsService.swift */,
+				FB36CC87F84A389B7C964CF7 /* MCPApplicationDelegate.swift */,
 				C377A978DFFEB50614A813A8 /* MediaJobs.swift */,
 				006A92E486548FACD0D8FDD7 /* MediaTools.swift */,
 				895B109380FCD6BEEB3119DF /* MediaToolsView.swift */,
@@ -932,6 +935,7 @@
 				1DDF4FC60A98F74AB5220D88 /* LegacyDataCleanup.swift in Sources */,
 				5B6C62D95B0CE6EBEFE09C33 /* LevelHUD.swift in Sources */,
 				412F63C52B2EDDC8940FEEC1 /* LoginItemsService.swift in Sources */,
+				0FA9F7B3AFC42549C69E4D9A /* MCPApplicationDelegate.swift in Sources */,
 				991920712D58B4BFB20B15F8 /* MediaJobs.swift in Sources */,
 				7ABB51027556B4B364C4083D /* MediaTools.swift in Sources */,
 				8AD49438347A9AF5459163A0 /* MediaToolsView.swift in Sources */,
@@ -1070,14 +1074,14 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 58;
+				CURRENT_PROJECT_VERSION = 59;
 				INFOPLIST_FILE = Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
 				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/Rust/target/release";
-				MARKETING_VERSION = 1.0.57;
+				MARKETING_VERSION = 1.0.58;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
@@ -1150,14 +1154,14 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 58;
+				CURRENT_PROJECT_VERSION = 59;
 				INFOPLIST_FILE = Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
 				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/Rust/target/release";
-				MARKETING_VERSION = 1.0.57;
+				MARKETING_VERSION = 1.0.58;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
