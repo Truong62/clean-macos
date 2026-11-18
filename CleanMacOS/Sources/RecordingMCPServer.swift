@@ -492,9 +492,11 @@ final class RecordingMCPServer {
 
     static let stopSignals = [SIGTERM, SIGINT, SIGHUP]
     private static var signalSources: [DispatchSourceSignal] = []
+    private static let applicationDelegate = MCPApplicationDelegate()
 
     static func run() -> Never {
         NSApplication.shared.setActivationPolicy(.accessory)
+        NSApp.delegate = applicationDelegate
         let session = AgentRecordingSession()
         signalSources = stopSignals.map { number in
             signal(number, SIG_IGN)

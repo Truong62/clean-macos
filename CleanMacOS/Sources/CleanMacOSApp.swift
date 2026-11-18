@@ -2,10 +2,17 @@ import SwiftUI
 import AppKit
 import KeyboardShortcuts
 
-/// Keeps the app alive after the main window is closed (like Safari/Mail), so the
-/// clipboard monitor and the ⌘⇧V hotkey keep working in the background.
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        DistributedNotificationCenter.default().addObserver(self, selector: #selector(showMainWindow),
+                                                            name: MCPApplicationDelegate.reopenNotification, object: nil)
+    }
+
+    @objc private func showMainWindow(_ notification: Notification) {
+        _ = applicationShouldHandleReopen(NSApp, hasVisibleWindows: false)
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         LegacyDataCleanup.removeJiraData()
         StartupRoutine.start()
@@ -21,7 +28,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         false
     }
 
-    // Re-open the main window when the user clicks the Dock icon with no windows open.
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         if !flag {
             MainWindowController.show(sender)
