@@ -57,6 +57,13 @@ pub extern "C" fn mk_dir_size(path: *const c_char, timeout_ms: u64, max_depth: u
 }
 
 #[no_mangle]
+pub extern "C" fn mk_sized_tree_json(path: *const c_char, timeout_ms: u64, max_depth: u32, child_depth: u32) -> *mut c_char {
+    let Some(path) = path_from(path) else { return std::ptr::null_mut() };
+    let tree = fswalk::sized_tree(&path, deadline(timeout_ms), max_depth as usize, child_depth as usize);
+    into_c_string(serde_json::to_string(&tree).unwrap_or_default())
+}
+
+#[no_mangle]
 pub extern "C" fn mk_large_files_json(
     root: *const c_char,
     min_bytes: u64,

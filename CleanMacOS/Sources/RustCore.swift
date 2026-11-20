@@ -8,6 +8,19 @@ enum RustCore {
         let modified: Int64
     }
 
+    struct SizedTree: Decodable {
+        let name: String
+        let bytes: Int64
+        let timed_out: Bool
+        let children: [SizedTree]?
+    }
+
+    static func sizedTree(path: String, timeout: TimeInterval, childDepth: Int) -> SizedTree? {
+        guard let raw = mk_sized_tree_json(path, milliseconds(timeout), 50, UInt32(clamping: childDepth)) else { return nil }
+        defer { mk_string_free(raw) }
+        return try? JSONDecoder().decode(SizedTree.self, from: Data(bytes: raw, count: strlen(raw)))
+    }
+
     static func dirSize(path: String, timeout: TimeInterval, maxDepth: Int) -> (size: Int64, didTimeout: Bool) {
         var bytes: UInt64 = 0
         let didTimeout = mk_dir_size(path, milliseconds(timeout), UInt32(clamping: maxDepth), &bytes)

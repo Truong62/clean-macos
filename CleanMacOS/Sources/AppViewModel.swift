@@ -27,6 +27,7 @@ final class AppViewModel: ObservableObject {
     @Published var skipPermissionCheck = false { didSet { resumeScanIfAllowed() } }
     @Published var isAskingPermission = false { didSet { if !isAskingPermission { pendingWork = nil } } }
 
+    private var scanID = UUID()
     private let scanner = ScannerService()
     private let cleaner = CleanerService()
     private let probeAccess: () -> Bool
@@ -160,23 +161,40 @@ final class AppViewModel: ObservableObject {
     }
 
     private func scanNow() async {
+        let id = UUID()
+        scanID = id
         isScanning = true
         scanStartedAt = .now
         statusMessage = "Scanning..."
         selectedArtifacts.removeAll()
 
         do {
-            let (found, info, snaps) = try await scanner.scan(rootPath: scanPath, skipHidden: skipHidden)
+            let (found, _, _) = try await scanner.scan(rootPath: scanPath, skipHidden: skipHidden) { [weak self] found, info, snaps in
+                await self?.showInitialScan(found, info: info, snapshots: snaps, id: id)
+            }
+            guard scanID == id else { return }
             let minBytes = Int64(minFileSizeMB) * 1_048_576
-            artifacts = found.filter { $0.size >= minBytes }
-            diskInfo = info
-            snapshots = snaps
-            statusMessage = "Found \(artifacts.count) items (\(formatBytes(totalCleanableSize)) cleanable)"
+            artifacts += found.filter { $0.path == "brew cleanup" && $0.size >= minBytes }
+            artifacts.sort { $0.size > $1.size }
+            if !isCleaning {
+                statusMessage = "Found \(artifacts.count) items (\(formatBytes(totalCleanableSize)) cleanable)"
+            }
         } catch {
+            guard scanID == id else { return }
             statusMessage = "Scan failed: \(error.localizedDescription)"
         }
 
         isScanning = false
+    }
+
+    private func showInitialScan(_ found: [Artifact], info: DiskInfo?, snapshots: [Snapshot], id: UUID) {
+        guard scanID == id else { return }
+        let minBytes = Int64(minFileSizeMB) * 1_048_576
+        artifacts = found.filter { $0.size >= minBytes }
+        diskInfo = info
+        self.snapshots = snapshots
+        isScanning = false
+        statusMessage = "Found \(artifacts.count) items — checking Homebrew…"
     }
 
     func requestClean() {

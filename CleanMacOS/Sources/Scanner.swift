@@ -30,9 +30,9 @@ final class ScannerService: Sendable {
         )
     }
 
-    // MARK: - Full Scan
 
-    func scan(rootPath: String, maxDepth: Int = 10, skipHidden: Bool = true) async throws -> ([Artifact], DiskInfo?, [Snapshot]) {
+    func scan(rootPath: String, maxDepth: Int = 10, skipHidden: Bool = true,
+              onInitialResults: (@Sendable ([Artifact], DiskInfo?, [Snapshot]) async -> Void)? = nil) async throws -> ([Artifact], DiskInfo?, [Snapshot]) {
         let absRoot = (rootPath as NSString).standardizingPath
 
         var isDir: ObjCBool = false
@@ -46,17 +46,18 @@ final class ScannerService: Sendable {
         async let brewArtifacts = scanHomebrew()
         async let snapshotList = detectSnapshots()
 
-        let deduplicated = await deduplicateArtifacts(devArtifacts + fixedArtifacts + dockerArtifacts + brewArtifacts)
+        let deduplicated = await deduplicateArtifacts(devArtifacts + fixedArtifacts + dockerArtifacts)
             .sorted { $0.size > $1.size }
-        let allArtifacts = await populateChildren(deduplicated)
+        let allArtifacts = deduplicated
 
         let diskInfo = getDiskInfo()
         let snapshots = await snapshotList
 
-        return (allArtifacts, diskInfo, snapshots)
+        await onInitialResults?(allArtifacts, diskInfo, snapshots)
+        let complete = deduplicateArtifacts(allArtifacts + (await brewArtifacts)).sorted { $0.size > $1.size }
+        return (complete, diskInfo, snapshots)
     }
 
-    // MARK: - Dev Artifacts
 
     private func scanDevArtifacts(root: String, maxDepth: Int, skipHidden: Bool = true) async -> [Artifact] {
         let patterns = Self.patternMap()
@@ -111,13 +112,12 @@ final class ScannerService: Sendable {
                     group.enter()
                     queue.async {
                         semaphore.wait()
-                        let measurement = Self.measureDirSize(path: path)
-                        lock.lock()
-                        artifacts.append(Artifact(
-                            path: path, name: name, size: measurement.size,
-                            category: p.category, description: p.description, needsSudo: false,
-                            sizeIsLowerBound: measurement.didTimeout
+                        let artifact = Self.measureArtifact(Artifact(
+                            path: path, name: name, size: 0,
+                            category: p.category, description: p.description, needsSudo: false
                         ))
+                        lock.lock()
+                        artifacts.append(artifact)
                         lock.unlock()
                         semaphore.signal()
                         group.leave()
@@ -136,7 +136,6 @@ final class ScannerService: Sendable {
         }
     }
 
-    // MARK: - Fixed Paths
 
     private func scanFixedPaths() async -> [Artifact] {
         let fixedPaths = Self.macOSFixedPaths() + discoveredFixedPaths()
@@ -158,27 +157,15 @@ final class ScannerService: Sendable {
                     var isDir: ObjCBool = false
                     guard fm.fileExists(atPath: fp.path, isDirectory: &isDir) else { return }
 
-                    let size: Int64
-                    let sizeIsLowerBound: Bool
-                    if isDir.boolValue {
-                        let measurement = Self.measureDirSize(path: fp.path, timeout: 120)
-                        size = measurement.size
-                        sizeIsLowerBound = measurement.didTimeout
-                    } else {
-                        size = Self.physicalSize(path: fp.path)
-                        sizeIsLowerBound = false
-                    }
-
-                    guard size >= 1_048_576 else { return } // 1MB minimum
-
-                    let artifact = Artifact(
-                        path: fp.path, name: fp.name, size: size,
+                    let artifact = Self.measureArtifact(Artifact(
+                        path: fp.path, name: fp.name, size: 0,
                         category: fp.category, description: fp.description,
                         needsSudo: fp.needsSudo,
                         warning: fp.warning,
-                        isPersonalData: fp.isPersonalData,
-                        sizeIsLowerBound: sizeIsLowerBound
-                    )
+                        isPersonalData: fp.isPersonalData
+                    ), isDirectory: isDir.boolValue, timeout: 120)
+                    guard artifact.size >= 1_048_576 else { return }
+
                     lock.lock()
                     results.append(artifact)
                     lock.unlock()
@@ -240,56 +227,38 @@ final class ScannerService: Sendable {
         return paths
     }
 
-    private func populateChildren(_ artifacts: [Artifact]) async -> [Artifact] {
-        await withCheckedContinuation { continuation in
-            let queue = DispatchQueue(label: "scan.children", attributes: .concurrent)
-            let group = DispatchGroup()
-            let semaphore = DispatchSemaphore(value: 8)
-            let lock = NSLock()
-            var expanded = artifacts
-
-            for index in artifacts.indices where Self.shouldDrillDown(artifacts[index], depth: 0) {
-                group.enter()
-                queue.async {
-                    semaphore.wait()
-                    defer { semaphore.signal(); group.leave() }
-                    let artifact = Self.addChildren(to: artifacts[index])
-                    lock.lock()
-                    expanded[index] = artifact
-                    lock.unlock()
-                }
-            }
-
-            group.wait()
-            continuation.resume(returning: expanded)
-        }
-    }
-
     func remeasure(_ artifact: Artifact) -> Artifact? {
         var isDirectory: ObjCBool = false
         guard FileManager.default.fileExists(atPath: artifact.path, isDirectory: &isDirectory) else { return nil }
+        return Self.measureArtifact(artifact, isDirectory: isDirectory.boolValue, timeout: 120)
+    }
 
-        let measurement: (size: Int64, didTimeout: Bool)
-        if isDirectory.boolValue {
-            measurement = Self.measureDirSize(path: artifact.path, timeout: 120)
-        } else {
-            measurement = (Self.physicalSize(path: artifact.path), false)
-        }
+    private static func measureArtifact(_ artifact: Artifact, isDirectory: Bool = true, timeout: TimeInterval = 10) -> Artifact {
+        let tree = isDirectory ? RustCore.sizedTree(
+            path: artifact.path, timeout: timeout,
+            childDepth: artifact.category == .caches ? cacheDrillDownMaxDepth : 1
+        ) : nil
+        return applyingSize(tree, to: artifact, fallbackSize: isDirectory ? 0 : physicalSize(path: artifact.path))
+    }
 
-        let measured = Artifact(
-            path: artifact.path,
-            name: artifact.name,
-            size: measurement.size,
-            category: artifact.category,
-            description: artifact.description,
-            needsSudo: artifact.needsSudo,
-            reclaim: artifact.reclaim,
-            warning: artifact.warning,
-            isPersonalData: artifact.isPersonalData,
-            sizeIsLowerBound: measurement.didTimeout
+    static func applyingSize(_ tree: RustCore.SizedTree?, to artifact: Artifact, fallbackSize: Int64 = 0, depth: Int = 0) -> Artifact {
+        var result = Artifact(
+            path: artifact.path, name: artifact.name, size: tree?.bytes ?? fallbackSize,
+            category: artifact.category, description: artifact.description, needsSudo: artifact.needsSudo,
+            reclaim: artifact.reclaim, warning: artifact.warning, isPersonalData: artifact.isPersonalData,
+            sizeIsLowerBound: tree?.timed_out ?? false
         )
-        guard isDirectory.boolValue, Self.shouldDrillDown(measured, depth: 0) else { return measured }
-        return Self.addChildren(to: measured)
+        if result.reclaim == .deletePath, shouldDrillDown(result, depth: depth), let children = tree?.children {
+            result.children = children.map { child in
+                applyingSize(child, to: Artifact(
+                    path: (artifact.path as NSString).appendingPathComponent(child.name),
+                    name: child.name, size: 0, category: artifact.category,
+                    description: "Inside \(artifact.name)", needsSudo: artifact.needsSudo,
+                    isPersonalData: artifact.isPersonalData
+                ), depth: depth + 1)
+            }.sorted { $0.size > $1.size }
+        }
+        return result
     }
 
     static let drillDownMinBytes: Int64 = 104_857_600
@@ -303,62 +272,7 @@ final class ScannerService: Sendable {
         return artifact.size >= (depth == 0 ? cacheDrillDownMinBytes : cacheNestedDrillDownMinBytes)
     }
 
-    private static func addChildren(to artifact: Artifact, depth: Int = 0) -> Artifact {
-        var isDirectory: ObjCBool = false
-        guard artifact.reclaim == .deletePath,
-              FileManager.default.fileExists(atPath: artifact.path, isDirectory: &isDirectory),
-              isDirectory.boolValue,
-              let urls = try? FileManager.default.contentsOfDirectory(
-                at: URL(fileURLWithPath: artifact.path),
-                includingPropertiesForKeys: [.isDirectoryKey],
-                options: []
-              ) else { return artifact }
 
-        let queue = DispatchQueue(label: "scan.child.items", attributes: .concurrent)
-        let group = DispatchGroup()
-        let semaphore = DispatchSemaphore(value: 10)
-        let lock = NSLock()
-        var children: [Artifact] = []
-
-        for url in urls {
-            group.enter()
-            queue.async {
-                semaphore.wait()
-                defer { semaphore.signal(); group.leave() }
-                let isDirectory = (try? url.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory == true
-                let measurement = isDirectory
-                    ? measureDirSize(path: url.path, timeout: 60)
-                    : (physicalSize(path: url.path), false)
-                let child = Artifact(
-                    path: url.path,
-                    name: url.lastPathComponent,
-                    size: measurement.0,
-                    category: artifact.category,
-                    description: "Inside \(artifact.name)",
-                    needsSudo: artifact.needsSudo,
-                    isPersonalData: artifact.isPersonalData,
-                    sizeIsLowerBound: measurement.1
-                )
-                lock.lock()
-                children.append(child)
-                lock.unlock()
-            }
-        }
-
-        group.wait()
-        var result = artifact
-        result.children = children
-            .map { shouldDrillDown($0, depth: depth + 1) ? addChildren(to: $0, depth: depth + 1) : $0 }
-            .sorted { $0.size > $1.size }
-        return result
-    }
-
-    // MARK: - Docker
-
-    /// Docker on macOS stores everything in a single sparse VM disk image. Deleting that whole
-    /// folder nukes all images/containers/volumes. When the daemon is up we instead surface a
-    /// `docker system prune` action sized from `docker system df`. Otherwise we fall back to the
-    /// (now accurately measured) folder, clearly marked as destructive.
     private func scanDocker() async -> [Artifact] {
         let docker = DockerService()
 
@@ -379,8 +293,6 @@ final class ScannerService: Sendable {
         return dockerFolderFallback()
     }
 
-    /// Daemon unreachable (or nothing to prune): show the Docker data folder at its real on-disk
-    /// size, flagged as a destructive full delete.
     private func dockerFolderFallback() -> [Artifact] {
         let home = FileManager.default.homeDirectoryForCurrentUser.path
         let dataDir = (home as NSString).appendingPathComponent("Library/Containers/com.docker.docker/Data")
@@ -390,28 +302,21 @@ final class ScannerService: Sendable {
             return []
         }
 
-        let measurement = Self.measureDirSize(path: dataDir, timeout: 120)
-        guard measurement.size >= 1_048_576 else { return [] }
-
-        return [Artifact(
+        let artifact = Self.measureArtifact(Artifact(
             path: dataDir,
             name: "Docker Data (entire VM)",
-            size: measurement.size,
+            size: 0,
             category: .developer,
             description: "All Docker data. Start Docker Desktop to reclaim space safely via prune.",
             needsSudo: false,
             reclaim: .deletePath,
             warning: "Deletes ALL Docker images, containers and volumes — cannot be undone.",
-            isPersonalData: true,
-            sizeIsLowerBound: measurement.didTimeout
-        )]
+            isPersonalData: true
+        ), timeout: 120)
+        return artifact.size >= 1_048_576 ? [artifact] : []
     }
 
-    // MARK: - Homebrew
 
-    /// Deleting Homebrew's Cellar/Caskroom outright breaks every installed formula. The correct
-    /// reclaim is `brew cleanup`, which removes only outdated versions and stale downloads.
-    /// Size is taken from `brew cleanup --dry-run`.
     private func scanHomebrew() async -> [Artifact] {
         let fm = FileManager.default
         let candidates = ["/opt/homebrew/bin/brew", "/usr/local/bin/brew"]

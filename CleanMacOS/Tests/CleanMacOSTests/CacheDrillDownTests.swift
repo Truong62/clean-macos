@@ -34,4 +34,28 @@ struct CacheDrillDownTests {
         defer { try? FileManager.default.removeItem(at: root) }
         #expect(ScannerService().remeasure(artifact(.developer))?.children == nil)
     }
+    @Test func retainedSizesPreserveTotalsAndLowerBounds() {
+        let leaf = RustCore.SizedTree(name: "leaf", bytes: 60_000_000, timed_out: true, children: nil)
+        let branch = RustCore.SizedTree(name: "branch", bytes: leaf.bytes, timed_out: true, children: [leaf])
+        let tree = RustCore.SizedTree(name: "Caches", bytes: branch.bytes, timed_out: true, children: [branch])
+        let measured = ScannerService.applyingSize(tree, to: artifact(.caches))
+        #expect(measured.size == 60_000_000)
+        #expect(measured.sizeIsLowerBound)
+        #expect(measured.children?.reduce(0) { $0 + $1.size } == measured.size)
+        #expect(measured.children?.first?.children?.first?.size == leaf.bytes)
+        #expect(measured.children?.first?.children?.first?.sizeIsLowerBound == true)
+    }
+
+    @Test func measuredParentMatchesOriginalWalkerAndChildSum() throws {
+        try write("large/data", megabytes: 12)
+        try write("small/data", megabytes: 1)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let measured = try #require(ScannerService().remeasure(artifact(.caches)))
+        #expect(measured.size == ScannerService.calculateDirSize(path: root.path))
+        #expect(measured.children?.reduce(0) { $0 + $1.size } == measured.size)
+        for child in try #require(measured.children) {
+            #expect(child.size == ScannerService.calculateDirSize(path: child.path))
+        }
+    }
+
 }

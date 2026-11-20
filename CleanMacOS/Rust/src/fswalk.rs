@@ -73,6 +73,48 @@ fn size_of_children(dir: &Path, depth: usize, max_depth: usize, deadline: Instan
     files + folders.par_iter().map(|folder| size_of_children(folder, depth + 1, max_depth, deadline, timed_out)).sum::<u64>()
 }
 
+#[derive(serde::Serialize)]
+pub struct SizedTree {
+    pub name: String,
+    pub bytes: u64,
+    pub timed_out: bool,
+    pub children: Option<Vec<SizedTree>>,
+}
+
+pub fn sized_tree(root: &Path, deadline: Instant, max_depth: usize, child_depth: usize) -> SizedTree {
+    let mut tree = SizedTree {
+        name: root.file_name().unwrap_or_default().to_string_lossy().into_owned(),
+        bytes: 0,
+        timed_out: false,
+        children: None,
+    };
+    let Ok(meta) = fs::symlink_metadata(root) else { return tree };
+    if meta.is_file() {
+        tree.bytes = allocated_bytes(&meta);
+    } else if meta.is_dir() {
+        if child_depth == 0 {
+            let size = dir_size(root, deadline, max_depth);
+            tree.bytes = size.bytes;
+            tree.timed_out = size.timed_out;
+        } else if max_depth > 0 {
+            if Instant::now() >= deadline {
+                tree.timed_out = true;
+                return tree;
+            }
+            if let Ok(entries) = fs::read_dir(root) {
+                let paths: Vec<_> = entries.flatten().map(|entry| entry.path()).collect();
+                let children: Vec<_> = paths.par_iter()
+                    .map(|path| sized_tree(path, deadline, max_depth - 1, child_depth - 1))
+                    .collect();
+                tree.bytes = children.iter().map(|child| child.bytes).sum();
+                tree.timed_out = children.iter().any(|child| child.timed_out);
+                tree.children = Some(children);
+            }
+        }
+    }
+    tree
+}
+
 pub fn large_files(root: &Path, query: &LargeFileQuery) -> Vec<LargeFile> {
     let found = Mutex::new(Vec::new());
     collect_large(root, query, &found);
@@ -166,6 +208,32 @@ mod tests {
         let top = allocated_bytes(&fs::metadata(root.join("top.bin")).unwrap());
         assert_eq!(dir_size(&root, later(), 1).bytes, top);
         assert!(dir_size(&root, Instant::now(), 50).timed_out);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn retained_children_sum_to_the_original_size_at_every_depth() {
+        let root = scratch("tree");
+        fs::create_dir_all(root.join("a/b/c/d")).unwrap();
+        fs::write(root.join("top"), vec![1u8; 8192]).unwrap();
+        fs::write(root.join("a/b/nested"), vec![2u8; 16384]).unwrap();
+        fs::write(root.join("a/b/c/d/deep"), vec![3u8; 32768]).unwrap();
+        fs::File::create(root.join("sparse")).unwrap().set_len(1_000_000_000).unwrap();
+        std::os::unix::fs::symlink(root.join("a"), root.join("link")).unwrap();
+        fs::create_dir(root.join("empty")).unwrap();
+        for max_depth in [1, 2, 3, 50] {
+            let tree = sized_tree(&root, later(), max_depth, 3);
+            assert_eq!(tree.bytes, dir_size(&root, later(), max_depth).bytes);
+            assert!(!tree.timed_out);
+            assert_eq!(tree.bytes, tree.children.as_ref().unwrap().iter().map(|child| child.bytes).sum::<u64>());
+        }
+        let tree = sized_tree(&root, later(), 50, 3);
+        let children = tree.children.unwrap();
+        assert_eq!(children.iter().find(|child| child.name == "link").unwrap().bytes, 0);
+        assert!(children.iter().find(|child| child.name == "empty").unwrap().children.as_ref().unwrap().is_empty());
+        let expired = sized_tree(&root, Instant::now(), 50, 3);
+        assert!(expired.timed_out);
+        assert_eq!(expired.bytes, 0);
         fs::remove_dir_all(root).unwrap();
     }
 
