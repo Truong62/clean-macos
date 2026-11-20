@@ -16,9 +16,6 @@ struct MCPApplicationDelegateTests {
         #expect(!MCPReopenDecision.shouldLaunchMain(processArguments: [main, mcp]))
         #expect(!MCPReopenDecision.shouldLaunchMain(processArguments: [mcp, main]))
         #expect(!MCPReopenDecision.shouldLaunchMain(processArguments: [["CleanMacOS"]]))
-        let launchedMain = ["CleanMacOS", MCPApplicationDelegate.showMainWindowArgument]
-        #expect(!MCPReopenDecision.shouldLaunchMain(processArguments: [launchedMain, mcp]))
-        #expect(!MCPReopenDecision.shouldLaunchMain(processArguments: [mcp, launchedMain]))
     }
 
     @Test func unreadableArgumentsNeverRiskLaunchingADuplicate() {

@@ -10,7 +10,6 @@ enum MCPReopenDecision {
 @MainActor
 final class MCPApplicationDelegate: NSObject, NSApplicationDelegate {
     static let reopenNotification = Notification.Name("click.ngoctruong.CleanMacOS.reopenMainWindow")
-    static let showMainWindowArgument = "--show-main-window"
     private var launchPending = false
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
@@ -44,7 +43,6 @@ final class MCPApplicationDelegate: NSObject, NSApplicationDelegate {
         launchPending = true
         let configuration = NSWorkspace.OpenConfiguration()
         configuration.createsNewApplicationInstance = true
-        configuration.arguments = [Self.showMainWindowArgument]
         NSWorkspace.shared.openApplication(at: Bundle.main.bundleURL, configuration: configuration) { [weak self] _, _ in
             close(descriptor)
             Task { @MainActor in

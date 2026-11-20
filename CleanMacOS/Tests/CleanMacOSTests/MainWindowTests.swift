@@ -3,6 +3,14 @@ import Testing
 @testable import CleanMacOS
 
 @MainActor struct MainWindowTests {
+    @Test func onlyLoginOpenEventsSuppressShowingAtLaunch() {
+        #expect(AppLaunchDecision.isLoginLaunch(eventID: kAEOpenApplication, propertyData: keyAELaunchedAsLogInItem))
+        #expect(!AppLaunchDecision.isLoginLaunch(eventID: nil, propertyData: nil))
+        #expect(!AppLaunchDecision.isLoginLaunch(eventID: kAEOpenApplication, propertyData: nil))
+        #expect(!AppLaunchDecision.isLoginLaunch(eventID: kAEOpenApplication, propertyData: keyAELaunchedAsServiceItem))
+        #expect(!AppLaunchDecision.isLoginLaunch(eventID: kAEReopenApplication, propertyData: keyAELaunchedAsLogInItem))
+    }
+
     @Test func showingFromOutsideMovesWindowHereInsteadOfPinningItToEverySpace() {
         let window = NSWindow(contentRect: CGRect(x: 0, y: 0, width: 200, height: 100),
                               styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: true)

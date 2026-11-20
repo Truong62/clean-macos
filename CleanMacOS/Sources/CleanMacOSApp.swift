@@ -2,6 +2,12 @@ import SwiftUI
 import AppKit
 import KeyboardShortcuts
 
+enum AppLaunchDecision {
+    static func isLoginLaunch(eventID: AEEventID?, propertyData: OSType?) -> Bool {
+        eventID == kAEOpenApplication && propertyData == keyAELaunchedAsLogInItem
+    }
+}
+
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillFinishLaunching(_ notification: Notification) {
@@ -20,7 +26,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         LegacyDataCleanup.removeJiraData()
         StartupRoutine.start()
-        if CommandLine.arguments.contains(MCPApplicationDelegate.showMainWindowArgument) {
+        let event = NSAppleEventManager.shared().currentAppleEvent
+        if !AppLaunchDecision.isLoginLaunch(eventID: event?.eventID,
+                                            propertyData: event?.paramDescriptor(forKeyword: keyAEPropData)?.enumCodeValue) {
             DispatchQueue.main.async { MainWindowController.show() }
         }
     }
