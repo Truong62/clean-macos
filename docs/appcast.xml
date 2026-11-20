@@ -8,6 +8,19 @@
 
     <!-- Paste new <item> blocks here when releasing (newest first) -->
     <item>
+      <title>Version 1.0.59</title>
+      <pubDate>Fri, 20 Nov 2026 10:02:17 +0700</pubDate>
+      <sparkle:version>60</sparkle:version>
+      <sparkle:shortVersionString>1.0.59</sparkle:shortVersionString>
+      <description><![CDATA[
+        <ul><li>When MacKit is opened while an AI agent is using its screen recording tool, the MacKit window now comes to the front instead of staying behind other windows</li></ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/Truong62/clean-macos/releases/download/v1.0.59/MacKit-1.0.59.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="cXezUkMQh1BbAe28mlGP9Y20k3vr1h+OKZcKL8TRwkuOUwknuBPF+07Ot+bUf5Us8l2kTAd/SO93vA8IwEAMDw==" length="11933206" />
+    </item>
+    <item>
       <title>Version 1.0.58</title>
       <pubDate>Wed, 18 Nov 2026 16:09:04 +0700</pubDate>
       <sparkle:version>59</sparkle:version>
