@@ -8,6 +8,19 @@
 
     <!-- Paste new <item> blocks here when releasing (newest first) -->
     <item>
+      <title>Version 1.0.60</title>
+      <pubDate>Fri, 20 Nov 2026 12:18:52 +0700</pubDate>
+      <sparkle:version>61</sparkle:version>
+      <sparkle:shortVersionString>1.0.60</sparkle:shortVersionString>
+      <description><![CDATA[
+        <ul><li>Clean Disk scans about twice as fast: each folder is measured once instead of twice, and the results show up without waiting for Homebrew, whose row is added when it is ready</li></ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/Truong62/clean-macos/releases/download/v1.0.60/MacKit-1.0.60.dmg"
+        type="application/octet-stream"
+        sparkle:edSignature="SbLyBu8N3bNPBvgJ0OsxCYF745Yovzyw53gj6hTBxv8+rDGlGXpX9dudRFxNpQjDwONle39PivG5EKWMVWNLAQ==" length="11393140" />
+    </item>
+    <item>
       <title>Version 1.0.59</title>
       <pubDate>Fri, 20 Nov 2026 10:02:17 +0700</pubDate>
       <sparkle:version>60</sparkle:version>
