@@ -10,12 +10,15 @@ struct MCPApplicationDelegateTests {
         #expect(MCPReopenDecision.shouldLaunchMain(processArguments: []))
     }
 
-    @Test func reopensExistingMainRegardlessOfProcessOrder() {
+    @Test @MainActor func reopensExistingMainRegardlessOfProcessOrder() {
         let main = ["CleanMacOS", "-psn_0_1234"]
         let mcp = ["CleanMacOS", "--mcp"]
         #expect(!MCPReopenDecision.shouldLaunchMain(processArguments: [main, mcp]))
         #expect(!MCPReopenDecision.shouldLaunchMain(processArguments: [mcp, main]))
         #expect(!MCPReopenDecision.shouldLaunchMain(processArguments: [["CleanMacOS"]]))
+        let launchedMain = ["CleanMacOS", MCPApplicationDelegate.showMainWindowArgument]
+        #expect(!MCPReopenDecision.shouldLaunchMain(processArguments: [launchedMain, mcp]))
+        #expect(!MCPReopenDecision.shouldLaunchMain(processArguments: [mcp, launchedMain]))
     }
 
     @Test func unreadableArgumentsNeverRiskLaunchingADuplicate() {

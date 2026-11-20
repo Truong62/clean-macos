@@ -20,6 +20,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         LegacyDataCleanup.removeJiraData()
         StartupRoutine.start()
+        if CommandLine.arguments.contains(MCPApplicationDelegate.showMainWindowArgument) {
+            DispatchQueue.main.async { MainWindowController.show() }
+        }
     }
 
     func applicationWillTerminate(_ notification: Notification) {
